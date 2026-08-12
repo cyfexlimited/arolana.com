@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
 from django.utils import timezone
 
-from .models import ProductVideo
+from .models import ProductVideo, VideoCommerceComment, VideoCommerceRating
 
 
 def _file_url(field):
@@ -158,6 +158,37 @@ def _product_card(request, video, context_product_id=None, context_category_id=N
     }
 
 
+
+def _video_engagement_stats(content_type, source_id):
+    """
+    Return authoritative engagement stats for normalized non-product
+    video-commerce cards.
+
+    Product videos keep using ProductVideo.rating_sum/rating_count and
+    ProductVideoComment. Service and sponsored cards use the shared
+    VideoCommerceRating / VideoCommerceComment tables.
+    """
+    rating_stats = VideoCommerceRating.objects.filter(
+        content_type=content_type,
+        source_id=source_id,
+    ).aggregate(
+        average=Avg("rating"),
+        count=Count("id"),
+    )
+
+    return {
+        "video_rating": float(rating_stats["average"] or 0),
+        "video_rating_count": int(rating_stats["count"] or 0),
+        "comment_count": int(
+            VideoCommerceComment.objects.filter(
+                content_type=content_type,
+                source_id=source_id,
+                is_visible=True,
+            ).count()
+        ),
+    }
+
+
 def _provider_type_label(value):
     labels = {
         "installer": "Installer",
@@ -220,6 +251,8 @@ def _service_media_cards(request, context_category_id=None):
         price = project.project_value_min if project.show_project_value else None
         category_id = project.service_category_id
         relevance = 30 if context_category_id and category_id == context_category_id else 0
+        engagement = _video_engagement_stats("service", media_item.pk)
+
         cards.append({
             "id": f"service:{media_item.pk}",
             "source_id": media_item.pk,
@@ -235,9 +268,9 @@ def _service_media_cards(request, context_category_id=None):
             "owner": owner,
             "rating": float(provider.average_rating or 0),
             "rating_count": int(getattr(provider, "total_reviews", 0) or 0),
-            "video_rating": 0,
-            "video_rating_count": 0,
-            "comment_count": 0,
+            "video_rating": engagement["video_rating"],
+            "video_rating_count": engagement["video_rating_count"],
+            "comment_count": engagement["comment_count"],
             "sold_count": 0,
             "cta": {
                 "label": "View Service",
@@ -315,6 +348,8 @@ def _sponsored_cards(request):
             creative.video_url,
             _file_url(creative.image) or _file_url(creative.image_mobile),
         )
+        engagement = _video_engagement_stats("sponsored", creative.pk)
+
         cards.append({
             "id": f"sponsored:{creative.pk}",
             "source_id": creative.pk,
@@ -335,9 +370,9 @@ def _sponsored_cards(request):
             },
             "rating": 0,
             "rating_count": 0,
-            "video_rating": 0,
-            "video_rating_count": 0,
-            "comment_count": 0,
+            "video_rating": engagement["video_rating"],
+            "video_rating_count": engagement["video_rating_count"],
+            "comment_count": engagement["comment_count"],
             "sold_count": 0,
             "cta": {
                 "label": creative.cta_text or "Learn More",

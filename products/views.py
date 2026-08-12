@@ -49,7 +49,7 @@ from .models import (
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig, ManufacturerWarranty,
     VendorProductOffer, ReviewVideo, ProductVideoRating, ProductVideoComment,
-    VideoCommerceEvent,
+    VideoCommerceRating, VideoCommerceComment, VideoCommerceEvent,
 )
 from .video_commerce import build_video_commerce_feed
 from accounts.models import User
@@ -11360,6 +11360,556 @@ def video_commerce_event_api(request):
                 provider_click_count=F("provider_click_count") + 1
             )
     return JsonResponse({"success": True, "created": created, "event_id": event.pk})
+
+
+# ============================================================
+# AROLANA NORMALIZED VIDEO-COMMERCE ENGAGEMENT
+#
+# Public engagement API for normalized non-product video cards:
+# - service/provider videos
+# - sponsored videos
+#
+# Product videos intentionally keep using the established
+# ProductVideoRating / ProductVideoComment endpoints.
+#
+# The same normalized endpoints are suitable for web,
+# mobile web and the customer app.
+# ============================================================
+
+def _video_commerce_validate_public_source(content_type, source_id):
+    """
+    Resolve a normalized public video-commerce source.
+
+    Supported non-product content types:
+    - service
+    - sponsored
+
+    Returns the source model instance when the video is currently public,
+    otherwise returns None.
+    """
+    content_type = str(content_type or "").strip().lower()
+
+    if content_type == "service":
+        from installers.models import ServiceProjectMedia
+
+        return (
+            ServiceProjectMedia.objects.filter(
+                pk=source_id,
+                media_type=ServiceProjectMedia.TYPE_VIDEO,
+                approval_status=ServiceProjectMedia.STATUS_APPROVED,
+                is_active=True,
+                project__approval_status="approved",
+                project__is_active=True,
+                project__provider__verification_status__in=[
+                    "verified",
+                    "approved",
+                ],
+            )
+            .select_related(
+                "project",
+                "project__provider",
+            )
+            .first()
+        )
+
+    if content_type == "sponsored":
+        from ads.models import AdCreative
+
+        now = timezone.now()
+
+        source = (
+            AdCreative.objects.filter(
+                pk=source_id,
+                is_active=True,
+                creative_type="video",
+                campaign__is_active=True,
+                campaign__approved=True,
+                campaign__status="active",
+                campaign__start_date__lte=now,
+            )
+            .filter(
+                Q(campaign__end_date__isnull=True)
+                | Q(campaign__end_date__gte=now)
+            )
+            .select_related("campaign")
+            .first()
+        )
+
+        if source is None:
+            return None
+
+        campaign = source.campaign
+
+        try:
+            if campaign.spent >= campaign.total_budget:
+                return None
+        except (TypeError, AttributeError):
+            pass
+
+        return source
+
+    return None
+
+
+def _video_commerce_engagement_stats(content_type, source_id):
+    """Return authoritative normalized video rating/comment statistics."""
+    rating_stats = (
+        VideoCommerceRating.objects.filter(
+            content_type=content_type,
+            source_id=source_id,
+        )
+        .aggregate(
+            average=Avg("rating"),
+            count=Count("id"),
+        )
+    )
+
+    return {
+        "video_rating": float(rating_stats["average"] or 0),
+        "video_rating_count": int(rating_stats["count"] or 0),
+        "comment_count": int(
+            VideoCommerceComment.objects.filter(
+                content_type=content_type,
+                source_id=source_id,
+                is_visible=True,
+            ).count()
+        ),
+    }
+
+
+def _video_commerce_comment_payload(comment, request_user=None):
+    """Serialize one normalized service/sponsored video comment."""
+    user = comment.user
+
+    try:
+        full_name = (user.get_full_name() or "").strip()
+    except Exception:
+        full_name = ""
+
+    display_name = (
+        full_name
+        or getattr(user, "username", "")
+        or "Arolana Customer"
+    )
+
+    avatar = ""
+    try:
+        profile = (
+            getattr(user, "profile", None)
+            or getattr(user, "userprofile", None)
+        )
+        image = (
+            getattr(profile, "profile_picture", None)
+            or getattr(profile, "avatar", None)
+        )
+        avatar = image.url if image else ""
+    except Exception:
+        avatar = ""
+
+    return {
+        "id": comment.pk,
+        "content_type": comment.content_type,
+        "source_id": comment.source_id,
+        "body": comment.body,
+        "is_edited": bool(comment.is_edited),
+        "is_visible": bool(comment.is_visible),
+        "created_at": (
+            comment.created_at.isoformat()
+            if getattr(comment, "created_at", None)
+            else ""
+        ),
+        "updated_at": (
+            comment.updated_at.isoformat()
+            if getattr(comment, "updated_at", None)
+            else ""
+        ),
+        "user": {
+            "id": user.pk,
+            "name": display_name,
+            "avatar": avatar,
+        },
+        "is_mine": bool(
+            request_user is not None
+            and getattr(request_user, "is_authenticated", False)
+            and request_user.pk == user.pk
+        ),
+    }
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def video_commerce_rate_api(request, content_type, source_id):
+    """
+    Save/update one customer's rating for a service/provider or sponsored video.
+
+    Examples:
+        POST /products/video-commerce/service/12/rate/
+        POST /products/video-commerce/sponsored/42/rate/
+
+    JSON:
+        {"rating": 5}
+    """
+    content_type = str(content_type or "").strip().lower()
+
+    allowed_types = {
+        value
+        for value, _label in VideoCommerceRating.CONTENT_TYPE_CHOICES
+    }
+
+    if content_type not in allowed_types:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Unsupported video type.",
+            },
+            status=400,
+        )
+
+    try:
+        source_id = int(source_id)
+    except (TypeError, ValueError):
+        source_id = 0
+
+    if source_id < 1:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Invalid video source.",
+            },
+            status=400,
+        )
+
+    source = _video_commerce_validate_public_source(
+        content_type,
+        source_id,
+    )
+    if source is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Video is not publicly available.",
+            },
+            status=404,
+        )
+
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8") or "{}"
+        )
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Invalid JSON payload.",
+            },
+            status=400,
+        )
+
+    try:
+        rating = int(payload.get("rating", 0))
+    except (TypeError, ValueError):
+        rating = 0
+
+    if rating not in range(1, 6):
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Rating must be from 1 to 5 stars.",
+            },
+            status=400,
+        )
+
+    rating_user = _product_video_rating_user(
+        request,
+        payload,
+    )
+    if rating_user is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Sign in to rate this video.",
+                "requires_login": True,
+            },
+            status=401,
+        )
+
+    user_rating, created = (
+        VideoCommerceRating.objects.update_or_create(
+            content_type=content_type,
+            source_id=source_id,
+            user=rating_user,
+            defaults={
+                "rating": rating,
+            },
+        )
+    )
+
+    stats = _video_commerce_engagement_stats(
+        content_type,
+        source_id,
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Video rating saved.",
+            "content_type": content_type,
+            "source_id": source_id,
+            "video_rating": stats["video_rating"],
+            "video_rating_count": stats["video_rating_count"],
+            "comment_count": stats["comment_count"],
+            "my_rating": int(user_rating.rating),
+            "created": bool(created),
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def video_commerce_comments_api(request, content_type, source_id):
+    """
+    Read or create/update a comment for a normalized service/sponsored video.
+
+    GET:
+        /products/video-commerce/service/12/comments/
+
+    POST:
+        /products/video-commerce/service/12/comments/
+
+        {"body": "Excellent installation."}
+
+    Each customer has one editable comment per normalized video.
+    """
+    content_type = str(content_type or "").strip().lower()
+
+    allowed_types = {
+        value
+        for value, _label in VideoCommerceComment.CONTENT_TYPE_CHOICES
+    }
+
+    if content_type not in allowed_types:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Unsupported video type.",
+            },
+            status=400,
+        )
+
+    try:
+        source_id = int(source_id)
+    except (TypeError, ValueError):
+        source_id = 0
+
+    if source_id < 1:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Invalid video source.",
+            },
+            status=400,
+        )
+
+    source = _video_commerce_validate_public_source(
+        content_type,
+        source_id,
+    )
+    if source is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Video is not publicly available.",
+            },
+            status=404,
+        )
+
+    payload = {}
+    if request.method == "POST":
+        try:
+            payload = json.loads(
+                request.body.decode("utf-8") or "{}"
+            )
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Invalid JSON payload.",
+                },
+                status=400,
+            )
+
+    request_user = _product_video_rating_user(
+        request,
+        payload if request.method == "POST" else request.GET,
+    )
+
+    if request.method == "GET":
+        comments = list(
+            VideoCommerceComment.objects.filter(
+                content_type=content_type,
+                source_id=source_id,
+                is_visible=True,
+            )
+            .select_related("user")
+            .order_by("-created_at")[:50]
+        )
+
+        my_rating = 0
+        my_comment = None
+
+        if request_user is not None:
+            my_rating = (
+                VideoCommerceRating.objects.filter(
+                    content_type=content_type,
+                    source_id=source_id,
+                    user=request_user,
+                )
+                .values_list("rating", flat=True)
+                .first()
+                or 0
+            )
+
+            mine = (
+                VideoCommerceComment.objects.filter(
+                    content_type=content_type,
+                    source_id=source_id,
+                    user=request_user,
+                )
+                .select_related("user")
+                .first()
+            )
+
+            if mine is not None:
+                my_comment = _video_commerce_comment_payload(
+                    mine,
+                    request_user,
+                )
+
+        stats = _video_commerce_engagement_stats(
+            content_type,
+            source_id,
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "content_type": content_type,
+                "source_id": source_id,
+                "video_rating": stats["video_rating"],
+                "video_rating_count": stats["video_rating_count"],
+                "comment_count": stats["comment_count"],
+                "my_rating": int(my_rating or 0),
+                "my_comment": my_comment,
+                "comments": [
+                    _video_commerce_comment_payload(
+                        comment,
+                        request_user,
+                    )
+                    for comment in comments
+                ],
+            }
+        )
+
+    if request_user is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Sign in to comment on this video.",
+                "requires_login": True,
+            },
+            status=401,
+        )
+
+    body = str(
+        payload.get("body")
+        or payload.get("comment")
+        or ""
+    ).replace("\x00", "").strip()
+
+    if len(body) < 2:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Write a comment before posting.",
+            },
+            status=400,
+        )
+
+    if len(body) > 1500:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Comments can be up to 1,500 characters.",
+            },
+            status=400,
+        )
+
+    existing_comment = (
+        VideoCommerceComment.objects.filter(
+            content_type=content_type,
+            source_id=source_id,
+            user=request_user,
+        )
+        .first()
+    )
+
+    if existing_comment is not None:
+        existing_comment.body = body
+        existing_comment.is_visible = True
+        existing_comment.is_edited = True
+        existing_comment.moderated_by = None
+        existing_comment.moderated_at = None
+        existing_comment.save(
+            update_fields=[
+                "body",
+                "is_visible",
+                "is_edited",
+                "moderated_by",
+                "moderated_at",
+                "updated_at",
+            ]
+        )
+
+        comment = existing_comment
+        created = False
+
+    else:
+        comment = VideoCommerceComment.objects.create(
+            content_type=content_type,
+            source_id=source_id,
+            user=request_user,
+            body=body,
+            is_visible=True,
+            is_edited=False,
+        )
+        created = True
+
+    stats = _video_commerce_engagement_stats(
+        content_type,
+        source_id,
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": (
+                "Comment posted."
+                if created
+                else "Comment updated."
+            ),
+            "created": bool(created),
+            "content_type": content_type,
+            "source_id": source_id,
+            "video_rating": stats["video_rating"],
+            "video_rating_count": stats["video_rating_count"],
+            "comment_count": stats["comment_count"],
+            "comment": _video_commerce_comment_payload(
+                comment,
+                request_user,
+            ),
+        },
+        status=201 if created else 200,
+    )
 
 def _product_video_rating_user(request, payload=None):
     """

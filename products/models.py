@@ -5394,6 +5394,88 @@ class ProductVideoComment(BaseModel):
         return f"Video {self.video_id} comment by {self.user_id}"
 
 
+class VideoCommerceRating(BaseModel):
+    """A customer's rating for non-product normalized video-commerce cards."""
+
+    CONTENT_TYPE_CHOICES = [
+        ("service", "Service"),
+        ("sponsored", "Sponsored"),
+    ]
+
+    content_type = models.CharField(
+        max_length=20,
+        choices=CONTENT_TYPE_CHOICES,
+        db_index=True,
+    )
+    source_id = models.PositiveBigIntegerField(db_index=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="video_commerce_ratings",
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["content_type", "source_id", "user"],
+                name="unique_video_commerce_rating_user",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["content_type", "source_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.content_type}:{self.source_id} - {self.user_id} - {self.rating}★"
+
+
+class VideoCommerceComment(BaseModel):
+    """One editable customer comment per non-product video-commerce card."""
+
+    CONTENT_TYPE_CHOICES = VideoCommerceRating.CONTENT_TYPE_CHOICES
+
+    content_type = models.CharField(
+        max_length=20,
+        choices=CONTENT_TYPE_CHOICES,
+        db_index=True,
+    )
+    source_id = models.PositiveBigIntegerField(db_index=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="video_commerce_comments",
+    )
+    body = models.TextField(max_length=1500)
+    is_visible = models.BooleanField(default=True, db_index=True)
+    is_edited = models.BooleanField(default=False)
+    moderated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="moderated_video_commerce_comments",
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["content_type", "source_id", "user"],
+                name="unique_video_commerce_comment_user",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["content_type", "source_id", "is_visible", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.content_type}:{self.source_id} comment by {self.user_id}"
+
+
 class VideoCommerceEvent(BaseModel):
     """Deduplicated analytics for normalized marketplace video cards."""
 
