@@ -7228,7 +7228,7 @@
             <button @click="tab='accessories'" :class="{'modern-tab active': tab=='accessories'}" class="px-6 py-3 font-semibold transition-all">Accessories</button>
         </div>
 
-        <div class="py-6 px-0">
+        <div class="py-6 px-0 apd-product-tab-panels">
             <!-- Overview Tab — Premium Product Story -->
             <div x-show="tab=='overview'" x-transition.duration.300ms>
 
@@ -12590,7 +12590,7 @@
         if (track.matches(
             '.apd-page, .apd-hero-commerce-grid, .apd-detail-lower-layout, ' +
             '.apd-overview-layout, .apd-commerce-sidebar, .apd-key-features-list, ' +
-            '.apd-detail-persistent-sidebar, .apd-tabs-clean'
+            '.apd-detail-persistent-sidebar, .apd-tabs-clean, .apd-product-tab-panels'
         )) {
             return false;
         }
