@@ -192,6 +192,46 @@
             if (nextBtn) nextBtn.hidden = slides.length < 2;
         }
 
+        function stabilizeTrackHeight() {
+            const savedStates = slides.map(function (slide) {
+                return {
+                    hidden: slide.hidden,
+                    active: slide.classList.contains('is-active'),
+                    ariaHidden: slide.getAttribute('aria-hidden'),
+                    style: slide.getAttribute('style')
+                };
+            });
+            let tallestSlide = 0;
+
+            slides.forEach(function (slide) {
+                slide.hidden = false;
+                slide.classList.add('is-active');
+                slide.setAttribute('aria-hidden', 'true');
+                slide.style.position = 'absolute';
+                slide.style.inset = '0 auto auto 0';
+                slide.style.width = '100%';
+                slide.style.visibility = 'hidden';
+                slide.style.pointerEvents = 'none';
+                tallestSlide = Math.max(tallestSlide, slide.getBoundingClientRect().height);
+            });
+
+            slides.forEach(function (slide, slideIndex) {
+                const state = savedStates[slideIndex];
+                if (state.style === null) {
+                    slide.removeAttribute('style');
+                } else {
+                    slide.setAttribute('style', state.style);
+                }
+                slide.hidden = state.hidden;
+                slide.classList.toggle('is-active', state.active);
+                slide.setAttribute('aria-hidden', state.ariaHidden || 'true');
+            });
+
+            if (tallestSlide > 0) {
+                track.style.minHeight = Math.ceil(tallestSlide) + 'px';
+            }
+        }
+
         function stopAutoplay() {
             if (autoplayTimer !== null) {
                 window.clearInterval(autoplayTimer);
@@ -248,6 +288,7 @@
            collapse into a one-slide carousel. */
         container.dataset.orientationReady = 'true';
         render(0);
+        stabilizeTrackHeight();
         startAutoplay();
     }
 
