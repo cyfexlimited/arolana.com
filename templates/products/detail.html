@@ -12750,6 +12750,15 @@
 
             var stickyTop = parseFloat(window.getComputedStyle(bar).top);
             stickyTop = Number.isFinite(stickyTop) ? Math.max(0, stickyTop) : 0;
+            /* Extend the observer root through the rest of the document.
+               The sentinel is therefore intersecting while it is anywhere
+               below the sticky threshold, even if history restoration or a
+               tab click jumps past it in a single frame. */
+            var documentReach = Math.ceil(Math.max(
+                document.documentElement.scrollHeight || 0,
+                document.body ? document.body.scrollHeight : 0,
+                window.innerHeight || 0
+            ));
 
             observer = new IntersectionObserver(function (entries) {
                 var entry = entries[0];
@@ -12759,7 +12768,7 @@
             }, {
                 root: null,
                 threshold: [0, 1],
-                rootMargin: (-stickyTop) + 'px 0px 0px 0px'
+                rootMargin: (-stickyTop) + 'px 0px ' + documentReach + 'px 0px'
             });
 
             observer.observe(sentinel);
