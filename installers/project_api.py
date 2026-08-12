@@ -867,7 +867,23 @@ class StaffProjectMediaModerationAPIView(APIView):
             )
         media.approval_status = approval_status
         media.moderation_note = str(request.data.get("note", "") or "").strip()
-        media.save(update_fields=["approval_status", "moderation_note", "updated_at"])
+        if approval_status == ServiceProjectMedia.STATUS_APPROVED:
+            media.approved_by = user
+            media.approved_at = timezone.now()
+            media.is_active = True
+        else:
+            media.approved_by = None
+            media.approved_at = None
+            if approval_status == ServiceProjectMedia.STATUS_REJECTED:
+                media.is_active = False
+        media.save(update_fields=[
+            "approval_status",
+            "moderation_note",
+            "approved_by",
+            "approved_at",
+            "is_active",
+            "updated_at",
+        ])
         return Response({
             "message": f"Project media marked {media.get_approval_status_display().lower()}.",
             "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,

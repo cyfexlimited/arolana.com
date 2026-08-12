@@ -49,7 +49,9 @@ from .models import (
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig, ManufacturerWarranty,
     VendorProductOffer, ReviewVideo, ProductVideoRating, ProductVideoComment,
+    VideoCommerceEvent,
 )
+from .video_commerce import build_video_commerce_feed
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
 from arolana_payments.services import get_gateway_options
@@ -2750,36 +2752,13 @@ def product_detail(request, slug):
         suggested_service_providers = []
         real_projects_using_product = []
 
-    commerce_videos = list(
-        ProductVideo.objects.filter(
-            is_active=True,
-            moderation_status="approved",
-            product__is_active=True,
-            product__approval_status="approved",
-        )
-        .select_related(
-            "product",
-            "vendor",
-        )
-        .annotate(
-            comment_count=Count(
-                "comments",
-                filter=Q(
-                    comments__is_visible=True,
-                ),
-                distinct=True,
-            )
-        )
-        .exclude(
-            pk__in=[
-                v.pk
-                for v in videos
-            ]
-        )
-        .order_by(
-            "-created_at"
-        )[:12]
+    video_commerce_feed = build_video_commerce_feed(
+        request,
+        product=product,
+        category=getattr(product, "category", None),
+        limit=12,
     )
+    commerce_videos = video_commerce_feed["results"]
 
     context = {
         "product": product,
@@ -9306,52 +9285,53 @@ def mobile_product_detail_api(request, slug):
             "thumbnail": safe_url(getattr(video, "thumbnail", None)),
         })
 
-    seller_video_queryset = list(
-        ProductVideo.objects.filter(
-            is_active=True,
-            moderation_status="approved",
-            product__is_active=True,
-            product__approval_status="approved",
-        )
-        .select_related("product", "vendor")
-        .exclude(product=product)
-        .order_by("-created_at")[:12]
+    seller_video_feed = build_video_commerce_feed(
+        request,
+        product=product,
+        category=getattr(product, "category", None),
+        limit=12,
     )
-
+    seller_videos = seller_video_feed["results"]
     seller_video_my_ratings = {}
     seller_video_user = getattr(mobile_customer, "user", None) if mobile_customer else None
-    if seller_video_user and seller_video_queryset:
+    product_video_ids = [
+        item["product_video_id"]
+        for item in seller_videos
+        if item.get("product_video_id")
+    ]
+    if seller_video_user and product_video_ids:
         seller_video_my_ratings = {
             row["video_id"]: row["rating"]
             for row in ProductVideoRating.objects.filter(
                 user=seller_video_user,
-                video_id__in=[video.id for video in seller_video_queryset],
+                video_id__in=product_video_ids,
             ).values("video_id", "rating")
         }
-
-    seller_videos = []
-    for seller_video in seller_video_queryset:
-        seller_videos.append({
-            "id": seller_video.id,
-            "title": seller_video.title or seller_video.product.name,
-            "description": seller_video.description,
-            "source": seller_video.source,
-            "url": seller_video.youtube_url or seller_video.vimeo_url or safe_url(seller_video.local_video),
-            "thumbnail": safe_url(seller_video.thumbnail) or safe_url(seller_video.product.main_image),
-            "rating": seller_video.average_rating,
-            "rating_count": seller_video.rating_count,
-            "my_rating": int(seller_video_my_ratings.get(seller_video.id, 0) or 0),
-            "views_count": seller_video.views_count,
-            "helpful_count": seller_video.helpful_count,
-            "vendor_name": getattr(seller_video.vendor, "store_name", "") or getattr(seller_video.product.vendor, "username", "Seller"),
+    for seller_video in seller_videos:
+        product_video_id = seller_video.get("product_video_id")
+        seller_video["my_rating"] = int(
+            seller_video_my_ratings.get(product_video_id, 0) or 0
+        )
+    legacy_seller_videos = [
+        {
+            **seller_video,
+            "commerce_id": seller_video["id"],
+            "id": seller_video["product_video_id"],
+            "source": seller_video["video_type"],
+            "url": seller_video["video_url"],
+            "thumbnail": seller_video["poster_url"],
+            "rating": seller_video["video_rating"],
+            "rating_count": seller_video["video_rating_count"],
+            "vendor_name": seller_video["owner"]["name"],
             "product": {
-                "id": seller_video.product_id,
-                "name": seller_video.product.name,
-                "slug": seller_video.product.slug,
-                "price": str(seller_video.product.price),
-                "main_image": safe_url(seller_video.product.main_image),
+                **seller_video["product"],
+                "price": seller_video["price"],
+                "main_image": seller_video["poster_url"],
             },
-        })
+        }
+        for seller_video in seller_videos
+        if seller_video.get("product_video_id") and seller_video.get("product")
+    ]
 
     shipping_info = getattr(product, "shipping_info", None)
     delivery_info = {
@@ -9825,7 +9805,8 @@ def mobile_product_detail_api(request, slug):
         "gallery": gallery,
         "variants": variants,
         "videos": videos,
-        "seller_videos": seller_videos,
+        "seller_videos": legacy_seller_videos,
+        "commerce_videos": seller_videos,
         "reviews": reviews,
         "questions": questions,
         "recommended_products": [
@@ -11212,6 +11193,173 @@ def mobile_product_video_feed_api(request):
         payload.append(item)
 
     return JsonResponse({"success": True, "videos": payload})
+
+
+@require_GET
+def video_commerce_feed_api(request):
+    """Public normalized feed shared by web and customer mobile clients."""
+    product = None
+    category = None
+    product_value = str(request.GET.get("product", "") or "").strip()
+    category_value = str(request.GET.get("category", "") or "").strip()
+    if product_value:
+        product_query = Q(pk=int(product_value)) if product_value.isdigit() else Q(slug=product_value)
+        product = Product.objects.filter(product_query, is_active=True, approval_status="approved").first()
+    if category_value:
+        category_query = Q(pk=int(category_value)) if category_value.isdigit() else Q(slug=category_value)
+        category = Category.objects.filter(category_query).first()
+    try:
+        limit = max(1, min(int(request.GET.get("limit", 12)), 24))
+        offset = max(0, int(request.GET.get("cursor", 0) or 0))
+    except (TypeError, ValueError):
+        return JsonResponse({"success": False, "message": "Invalid pagination parameters."}, status=400)
+    include_services = str(request.GET.get("include_services", "true")).lower() not in {"0", "false", "no"}
+    include_sponsored = str(request.GET.get("include_sponsored", "true")).lower() not in {"0", "false", "no"}
+    feed = build_video_commerce_feed(
+        request,
+        product=product,
+        category=category,
+        include_services=include_services,
+        include_sponsored=include_sponsored,
+        limit=limit,
+        offset=offset,
+    )
+    return JsonResponse({"success": True, **feed})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def video_commerce_event_api(request):
+    """Record one meaningful event per card/event/session without fake repeats."""
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonResponse({"success": False, "message": "Invalid JSON."}, status=400)
+
+    content_type = str(payload.get("content_type", "")).lower()
+    event_type = str(payload.get("event_type", "")).lower()
+    try:
+        source_id = int(payload.get("source_id", 0))
+    except (TypeError, ValueError):
+        source_id = 0
+    allowed_types = {choice[0] for choice in VideoCommerceEvent._meta.get_field("content_type").choices}
+    allowed_events = {choice[0] for choice in VideoCommerceEvent.EVENT_CHOICES}
+    if content_type not in allowed_types or event_type not in allowed_events or source_id < 1:
+        return JsonResponse({"success": False, "message": "Unknown video-commerce event."}, status=400)
+
+    source_product_id = None
+    owner_type = ""
+    owner_id = None
+    campaign_id = None
+    if content_type == "product":
+        source = (
+            ProductVideo.objects.filter(
+                pk=source_id,
+                is_active=True,
+                moderation_status="approved",
+                product__is_active=True,
+                product__approval_status="approved",
+            )
+            .select_related("product__vendor", "vendor")
+            .first()
+        )
+        if source is None:
+            return JsonResponse({"success": False, "message": "Video is not publicly available."}, status=404)
+        source_product_id = source.product_id
+        profile = source.vendor or getattr(source.product.vendor, "vendor_profile", None)
+        owner_type = "vendor"
+        owner_id = getattr(profile, "pk", None)
+    elif content_type == "service":
+        from installers.models import ServiceProjectMedia
+        source = (
+            ServiceProjectMedia.objects.filter(
+                pk=source_id,
+                media_type=ServiceProjectMedia.TYPE_VIDEO,
+                approval_status=ServiceProjectMedia.STATUS_APPROVED,
+                is_active=True,
+                project__approval_status="approved",
+                project__is_active=True,
+            )
+            .select_related("project__provider")
+            .first()
+        )
+        if source is None:
+            return JsonResponse({"success": False, "message": "Video is not publicly available."}, status=404)
+        owner_type = "provider"
+        owner_id = source.project.provider_id
+    else:
+        from ads.models import AdCreative
+        source = (
+            AdCreative.objects.filter(
+                pk=source_id,
+                is_active=True,
+                creative_type="video",
+                campaign__is_active=True,
+                campaign__approved=True,
+                campaign__status="active",
+            )
+            .select_related("campaign")
+            .first()
+        )
+        if source is None:
+            return JsonResponse({"success": False, "message": "Video is not publicly available."}, status=404)
+        owner_type = "sponsor"
+        owner_id = source.campaign_id
+        campaign_id = source.campaign_id
+
+    supplied_session = str(payload.get("session_id", "") or "").strip()[:64]
+    if supplied_session and not all(character.isalnum() or character in "-_" for character in supplied_session):
+        supplied_session = ""
+    if not supplied_session and not request.session.session_key:
+        request.session.create()
+    session_key = supplied_session or request.session.session_key or "anonymous"
+    user = _product_video_rating_user(request, payload)
+    dedupe_key = f"{session_key}:{content_type}:{source_id}:{event_type}"
+    event, created = VideoCommerceEvent.objects.get_or_create(
+        dedupe_key=dedupe_key,
+        defaults={
+            "content_type": content_type,
+            "source_id": source_id,
+            "event_type": event_type,
+            "owner_type": owner_type,
+            "owner_id": owner_id,
+            "campaign_id": campaign_id,
+            "session_key": session_key,
+            "user": user,
+            "product_id": source_product_id,
+            "metadata": {
+                "position": payload.get("position"),
+                "context": str(payload.get("context", ""))[:80],
+            },
+        },
+    )
+    if created and content_type == "product":
+        if event_type == "video_impression":
+            ProductVideo.objects.filter(pk=source_id).update(views_count=F("views_count") + 1)
+        elif event_type == "video_cta_click":
+            ProductVideo.objects.filter(pk=source_id).update(product_clicks=F("product_clicks") + 1)
+    if created and content_type == "sponsored":
+        from ads.models import AdCampaign, AdCreative
+        if event_type == "video_impression":
+            AdCreative.objects.filter(pk=source_id).update(impressions=F("impressions") + 1)
+            AdCampaign.objects.filter(pk=campaign_id).update(impressions=F("impressions") + 1)
+        elif event_type == "video_cta_click":
+            AdCreative.objects.filter(pk=source_id).update(clicks=F("clicks") + 1)
+            AdCampaign.objects.filter(pk=campaign_id).update(clicks=F("clicks") + 1)
+    if created and content_type == "service":
+        from installers.models import ServiceProjectMedia
+        service_projects = ServiceProjectMedia.objects.filter(pk=source_id).values_list("project_id", flat=True)
+        if event_type == "video_impression":
+            from installers.models import ServicePortfolio
+            ServicePortfolio.objects.filter(pk__in=service_projects).update(
+                video_views_count=F("video_views_count") + 1
+            )
+        elif event_type == "video_cta_click":
+            from installers.models import ServicePortfolio
+            ServicePortfolio.objects.filter(pk__in=service_projects).update(
+                provider_click_count=F("provider_click_count") + 1
+            )
+    return JsonResponse({"success": True, "created": created, "event_id": event.pk})
 
 def _product_video_rating_user(request, payload=None):
     """

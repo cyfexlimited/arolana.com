@@ -9,7 +9,7 @@ from .models import (
     Category, Brand, Product, ProductImage, ProductVariant,
     ProductVariantImage, ProductVariantSpecification, VendorProductOffer, ProductCatalogRequest,
     ProductReview, RecentlyViewed,
-    Wishlist, ProductVideo, ProductVideoRating, ProductVideoComment, ReviewVideo, ProductQnA,
+    Wishlist, ProductVideo, ProductVideoRating, ProductVideoComment, VideoCommerceEvent, ReviewVideo, ProductQnA,
     Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig, ProductListLowerSection, ProductListTrustBenefit
@@ -2032,3 +2032,35 @@ class ProductVideoCommentAdmin(admin.ModelAdmin):
     @admin.action(description="Hide selected comments")
     def hide_comments(self, request, queryset):
         queryset.update(is_visible=False, moderated_by=request.user, moderated_at=timezone.now())
+
+
+@admin.register(VideoCommerceEvent)
+class VideoCommerceEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "content_type",
+        "source_id",
+        "event_type",
+        "owner_type",
+        "owner_id",
+        "campaign_id",
+        "user",
+        "product",
+        "created_at",
+    )
+    list_filter = ("content_type", "event_type", "owner_type", "created_at")
+    search_fields = ("source_id", "session_key", "user__email", "product__name")
+    readonly_fields = (
+        "content_type",
+        "source_id",
+        "event_type",
+        "owner_type",
+        "owner_id",
+        "campaign_id",
+        "session_key",
+        "user",
+        "product",
+        "metadata",
+        "dedupe_key",
+        "created_at",
+        "updated_at",
+    )

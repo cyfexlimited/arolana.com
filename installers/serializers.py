@@ -343,7 +343,7 @@ class ServiceProjectMediaSerializer(serializers.ModelSerializer):
             "image_url", "thumbnail_url", "video_url", "document_url",
             "external_video_url", "embed_url", "caption", "alt_text", "display_order",
             "is_featured", "is_cover", "approval_status", "approval_status_label",
-            "moderation_note", "processing_status", "processing_status_label",
+            "moderation_note", "approved_at", "processing_status", "processing_status_label",
             "processing_error", "video_duration", "file_size", "mime_type", "is_playable",
             "original_filename", "created_at", "updated_at",
         ]

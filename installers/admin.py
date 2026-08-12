@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils import timezone
 from django.utils.html import format_html
 
 from core.media_optimization import get_optimized_image_url
@@ -621,7 +622,7 @@ class ServiceProjectMediaAdmin(admin.ModelAdmin):
         ("Preview", {"fields": ("media_preview",)}),
         ("Media Sources", {"fields": ("image", "video", "processed_video", "external_video_url", "document", "thumbnail")}),
         ("Presentation", {"fields": ("caption", "alt_text", "display_order", "is_cover", "is_featured")}),
-        ("Moderation", {"fields": ("approval_status", "moderation_note", "is_active")}),
+        ("Moderation", {"fields": ("approval_status", "moderation_note", "approved_by", "approved_at", "is_active")}),
         ("Processing", {"fields": ("processing_status", "processing_error", "file_size", "mime_type", "original_filename")}),
         ("Audit", {"fields": ("uploaded_by", "created_at", "updated_at")}),
     )
@@ -639,6 +640,8 @@ class ServiceProjectMediaAdmin(admin.ModelAdmin):
         queryset.update(
             approval_status=ServiceProjectMedia.STATUS_APPROVED,
             moderation_note="",
+            approved_by=request.user,
+            approved_at=timezone.now(),
             is_active=True,
         )
 
@@ -646,6 +649,8 @@ class ServiceProjectMediaAdmin(admin.ModelAdmin):
     def request_media_changes(self, request, queryset):
         queryset.update(
             approval_status=ServiceProjectMedia.STATUS_REQUIRES_CHANGES,
+            approved_by=None,
+            approved_at=None,
             is_active=True,
         )
 
@@ -653,6 +658,8 @@ class ServiceProjectMediaAdmin(admin.ModelAdmin):
     def reject_media(self, request, queryset):
         queryset.update(
             approval_status=ServiceProjectMedia.STATUS_REJECTED,
+            approved_by=None,
+            approved_at=None,
             is_active=False,
         )
 

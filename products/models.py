@@ -5394,6 +5394,65 @@ class ProductVideoComment(BaseModel):
         return f"Video {self.video_id} comment by {self.user_id}"
 
 
+class VideoCommerceEvent(BaseModel):
+    """Deduplicated analytics for normalized marketplace video cards."""
+
+    EVENT_CHOICES = [
+        ("video_impression", "Video impression"),
+        ("video_play", "Video play"),
+        ("video_pause", "Video pause"),
+        ("video_25", "Video 25%"),
+        ("video_50", "Video 50%"),
+        ("video_75", "Video 75%"),
+        ("video_complete", "Video complete"),
+        ("video_unmute", "Video unmute"),
+        ("video_mute", "Video mute"),
+        ("video_cta_click", "Video CTA click"),
+    ]
+
+    content_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("product", "Product"),
+            ("service", "Service"),
+            ("sponsored", "Sponsored"),
+        ],
+        db_index=True,
+    )
+    source_id = models.PositiveBigIntegerField(db_index=True)
+    event_type = models.CharField(max_length=30, choices=EVENT_CHOICES, db_index=True)
+    owner_type = models.CharField(max_length=20, blank=True, db_index=True)
+    owner_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    campaign_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    session_key = models.CharField(max_length=64, blank=True, db_index=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="video_commerce_events",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    dedupe_key = models.CharField(max_length=160, unique=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["content_type", "source_id", "event_type"]),
+            models.Index(fields=["event_type", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.content_type}:{self.source_id} {self.event_type}"
+
+
 # =============================================================================
 # PRODUCT Q&A MODEL
 # =============================================================================
