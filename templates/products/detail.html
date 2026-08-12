@@ -6325,6 +6325,141 @@
         display: none !important;
     }
 
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — NATIVE STICKY TAB/ACTION BAR
+       The global header and mega-category navigation stay in normal
+       document flow. This product-only bar becomes sticky only after
+       its natural position reaches the viewport top.
+       ============================================================ */
+    :root {
+        --apd-product-tabs-sticky-top: 0px;
+    }
+
+    .apd-tabs-clean,
+    .apd-detail-lower-layout {
+        overflow: visible !important;
+        transform: none !important;
+        contain: none !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    .apd-product-tab-nav {
+        position: sticky !important;
+        top: var(--apd-product-tabs-sticky-top) !important;
+        z-index: 80 !important;
+        grid-column: 1 / -1 !important;
+        align-self: start !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background: rgba(255, 255, 255, 0.99) !important;
+        border-top: 1px solid rgba(7, 26, 68, 0.06) !important;
+        border-bottom: 1px solid rgba(7, 26, 68, 0.13) !important;
+        box-shadow: 0 9px 24px rgba(7, 26, 68, 0.10) !important;
+        isolation: isolate;
+    }
+
+    .apd-product-tab-list {
+        display: flex;
+        flex: 1 1 auto;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .apd-product-tab-list::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+
+    .apd-product-tab-list > .modern-tab {
+        flex: 0 0 auto !important;
+        min-height: 4.15rem;
+        padding: 1rem clamp(.72rem, 1.25vw, 1.5rem) !important;
+        white-space: nowrap !important;
+        cursor: pointer;
+    }
+
+    .apd-product-tab-nav .apd-follow-tabs-actions {
+        display: flex !important;
+        flex: 0 0 auto !important;
+        align-items: center !important;
+        width: auto !important;
+        margin: 0 0 0 auto !important;
+        padding: .45rem .55rem !important;
+        gap: .55rem !important;
+        border-top: 0 !important;
+        border-left: 1px solid rgba(7, 26, 68, 0.08) !important;
+        background: #fff;
+    }
+
+    .apd-product-tab-nav .apd-follow-contact-btn {
+        min-height: 3.15rem !important;
+        padding: .72rem 1rem !important;
+        border-radius: .8rem !important;
+        font-size: .86rem !important;
+    }
+
+    .apd-product-tab-panels {
+        scroll-margin-top: calc(var(--apd-product-tabs-sticky-top) + 4.75rem);
+    }
+
+    /* A narrow viewport keeps the established safe, non-sticky behavior.
+       Tabs remain horizontally scrollable and actions never create page overflow. */
+    @media (max-width: 768px) {
+        .apd-product-tab-nav {
+            position: relative !important;
+            top: auto !important;
+            flex-wrap: wrap !important;
+        }
+
+        .apd-product-tab-list {
+            width: 100%;
+            flex-basis: 100%;
+        }
+
+        .apd-product-tab-list > .modern-tab {
+            width: auto !important;
+            max-width: none !important;
+            min-height: 3.25rem;
+            padding: .72rem .8rem !important;
+            font-size: .76rem !important;
+        }
+
+        .apd-product-tab-nav .apd-follow-tabs-actions {
+            width: 100% !important;
+            margin-left: 0 !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            padding: .4rem !important;
+            border-top: 1px solid rgba(7, 26, 68, 0.08) !important;
+            border-left: 0 !important;
+        }
+
+        .apd-product-tab-nav .apd-follow-tabs-actions.is-single-action {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .apd-product-tab-nav .apd-follow-contact-btn {
+            width: 100%;
+            min-height: 2.75rem !important;
+            padding: .62rem .7rem !important;
+            font-size: .78rem !important;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -7215,18 +7350,46 @@
     <!-- Modern Tabs with Smooth Animations -->
     <div class="mt-12 overflow-visible apd-tabs-clean" x-data="{ tab: ['#reviews', '#review-form'].includes(window.location.hash) ? 'reviews' : 'overview' }">
         <div class="apd-detail-lower-layout">
+            <nav class="apd-product-tab-nav"
+                 aria-label="Product sections and supplier actions">
+                <div class="apd-product-tab-list" role="tablist" aria-label="Product sections">
+                    <button type="button" id="product-overview-tab-button" @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all" role="tab" :aria-selected="tab=='overview'">Overview</button>
+                    <button type="button" @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all" role="tab" :aria-selected="tab=='specs'">Specifications</button>
+                    <button type="button" @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all" role="tab" :aria-selected="tab=='reviews'">Reviews ({{ review_count }})</button>
+	                <button type="button" @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all" role="tab" :aria-selected="tab=='qa'">Q&A ({{ question_count }})</button>
+                    <button type="button" data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all" role="tab" :aria-selected="tab=='videos'">Videos</button>
+                    {% if product_article_links_tab %}
+                    <button type="button" @click="tab='articles'" :class="{'modern-tab active': tab=='articles'}" class="px-6 py-3 font-semibold transition-all" role="tab" :aria-selected="tab=='articles'">Articles</button>
+                    {% endif %}
+                    <button type="button" @click="tab='accessories'" :class="{'modern-tab active': tab=='accessories'}" class="px-6 py-3 font-semibold transition-all" role="tab" :aria-selected="tab=='accessories'">Accessories</button>
+                </div>
+
+                {% if vendor_contact_options.phone or vendor_chat_available %}
+                <div class="apd-follow-tabs-actions{% if not vendor_contact_options.phone or not vendor_chat_available %} is-single-action{% endif %}"
+                     aria-label="Supplier actions">
+                    {% if vendor_contact_options.phone %}
+                    <a href="tel:{{ vendor_contact_options.phone }}"
+                       class="apd-follow-contact-btn apd-follow-contact-call"
+                       aria-label="Call Supplier">
+                        <i class="fas fa-phone" aria-hidden="true"></i>
+                        <span>Call Supplier</span>
+                    </a>
+                    {% endif %}
+
+                    {% if vendor_chat_available %}
+                    <button type="button"
+                            class="apd-follow-contact-btn apd-follow-contact-chat"
+                            aria-label="Chat Vendor"
+                            onclick="document.getElementById('vendor-chat-open-btn').click()">
+                        <i class="fas fa-comments" aria-hidden="true"></i>
+                        <span>Chat Vendor</span>
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </nav>
+
             <main class="apd-detail-tab-column">
-        <div class="border-b flex flex-nowrap gap-2 overflow-x-auto px-0 pt-4 bg-transparent apd-product-tab-nav">
-            <button id="product-overview-tab-button" @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
-            <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
-            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ review_count }})</button>
-	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ question_count }})</button>
-            <button data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all">Videos</button>
-            {% if product_article_links_tab %}
-            <button @click="tab='articles'" :class="{'modern-tab active': tab=='articles'}" class="px-6 py-3 font-semibold transition-all">Articles</button>
-            {% endif %}
-            <button @click="tab='accessories'" :class="{'modern-tab active': tab=='accessories'}" class="px-6 py-3 font-semibold transition-all">Accessories</button>
-        </div>
 
         <div class="py-6 px-0 apd-product-tab-panels">
             <!-- Overview Tab — Premium Product Story -->
