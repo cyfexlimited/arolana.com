@@ -9813,7 +9813,7 @@
           {% if video.poster_url %}poster="{{ video.poster_url }}"{% endif %}
           data-video-commerce-local
         >
-          <source src="{{ video.video_url }}" type="video/mp4">
+          <source src="{{ video.video_url }}">
         </video>
         {% elif video.embed_url %}
         <iframe
@@ -15040,25 +15040,11 @@
                 card,
                 local,
                 userInitiated
-            ).catch(function (error) {
+            ).catch(function () {
                 /*
-                 * Keep the poster and play button visible if playback fails,
-                 * and expose the actual WebKit/media failure in remote console.
+                 * Keep the poster and play button visible. The customer
+                 * can tap again instead of seeing a blank media panel.
                  */
-                console.error('AROLANA MOBILE VIDEO PLAY FAILED', {
-                    error: error,
-                    name: error && error.name,
-                    message: error && error.message,
-                    src: local.currentSrc || local.src,
-                    networkState: local.networkState,
-                    readyState: local.readyState,
-                    paused: local.paused,
-                    muted: local.muted,
-                    playsInline: local.playsInline,
-                    userInitiated: userInitiated
-                });
-
-                card.classList.remove('is-play-requested');
                 card.classList.remove('is-playing');
                 card.classList.remove('has-started');
                 setPlayUi(card, false);
@@ -15243,34 +15229,9 @@
         });
 
         var next = candidates[0] || null;
-        var mobilePlayback = (
-            window.matchMedia('(max-width: 768px)').matches ||
-            navigator.maxTouchPoints > 0 ||
-            'ontouchstart' in window
-        );
-
-        /*
-         * Mobile Safari/WebKit should only start local video from a real
-         * customer tap. Automatic play attempts can consume/change media
-         * state before the user gesture and make the visible Play button
-         * appear unresponsive.
-         */
-        if (mobilePlayback) {
-            if (
-                activeCard &&
-                activeCard !== next &&
-                activeCard.classList.contains('is-playing')
-            ) {
-                pauseCard(activeCard, true);
-                activeCard = null;
-            }
-            return;
-        }
 
         if (next) {
-            playCard(next, {
-                userInitiated: false
-            });
+            playCard(next);
         } else if (activeCard) {
             pauseCard(activeCard, true);
             activeCard = null;
@@ -15405,6 +15366,51 @@
        CLICK HANDLERS
        ============================================================ */
 
+    /*
+     * iOS/WebKit reliability:
+     * bind the play control directly as well as keeping the delegated
+     * handler below. Direct listeners preserve the strongest possible
+     * user-activation chain for HTMLMediaElement.play().
+     */
+    cards.forEach(function (card) {
+        var playControl = card.querySelector(
+            '[data-video-commerce-play]'
+        );
+
+        if (!playControl) return;
+
+        playControl.addEventListener(
+            'pointerup',
+            function (event) {
+                if (
+                    event.pointerType &&
+                    event.pointerType !== 'touch' &&
+                    event.pointerType !== 'pen'
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (card.classList.contains('is-playing')) {
+                    pauseCard(card, true);
+
+                    if (activeCard === card) {
+                        activeCard = null;
+                    }
+
+                    return;
+                }
+
+                playCard(card, {
+                    userInitiated: true
+                });
+            },
+            { passive: false }
+        );
+    });
+
     feed.addEventListener('click', function (event) {
         var ratingButton = event.target.closest(
             '[data-video-rating]'
@@ -15447,23 +15453,37 @@
             event.preventDefault();
             event.stopPropagation();
 
+            /*
+             * Touch/pen is handled by the direct pointerup listener above.
+             * Ignore the synthetic click that follows it, otherwise the
+             * video would play and then immediately pause.
+             */
+            if (
+                window.PointerEvent &&
+                (
+                    navigator.maxTouchPoints > 0 ||
+                    'ontouchstart' in window
+                )
+            ) {
+                return;
+            }
+
             var playCardNode = playButton.closest(
                 '[data-video-commerce-card]'
             );
 
             if (!playCardNode) return;
 
+            var localPlayer = playCardNode.querySelector(
+                '[data-video-commerce-local]'
+            );
+
             if (playCardNode.classList.contains('is-playing')) {
                 pauseCard(playCardNode, true);
-
                 if (activeCard === playCardNode) {
                     activeCard = null;
                 }
             } else {
-                /*
-                 * One authoritative user-gesture path for desktop + mobile.
-                 * Do not split touch into pointerup + synthetic click paths.
-                 */
                 playCard(playCardNode, {
                     userInitiated: true
                 });
