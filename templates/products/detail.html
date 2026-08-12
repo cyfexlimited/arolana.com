@@ -8801,7 +8801,7 @@
     <article class="min-w-[82vw] sm:min-w-[46%] lg:min-w-[31%] snap-start overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <div class="aspect-video bg-black">
         {% if video.is_local_video %}<video controls preload="metadata" class="h-full w-full object-cover" {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}><source src="{{ video.local_video.url }}"></video>
-        {% elif video.get_embed_url %}<iframe src="{{ video.get_embed_url }}" class="h-full w-full" title="{{ video.title|default:video.product.name }}" allowfullscreen loading="lazy"></iframe>{% endif %}
+        {% elif video.get_embed_url %}<iframe src="{{ video.get_embed_url }}" class="h-full w-full" title="{{ video.title|default:video.product.name }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"></iframe>{% endif %}
       </div>
       <a href="{% url 'products:detail' video.product.slug %}"
         class="block p-4 hover:bg-slate-50">
