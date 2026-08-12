@@ -13,6 +13,7 @@ from django.db.models import Avg, Count, Q
 from django.utils import timezone
 
 from .models import ProductVideo, VideoCommerceComment, VideoCommerceRating
+from installers.project_services import streaming_project_video_url
 
 
 def _file_url(field):
@@ -225,13 +226,33 @@ def _service_media_cards(request, context_category_id=None):
         project = media_item.project
         provider = project.provider
         playable = media_item.playable_video
-        source_url = _file_url(playable) or media_item.external_video_url
-        source = "local" if playable else ("youtube" if "youtu" in source_url.lower() else "vimeo" if "vimeo" in source_url.lower() else "external")
+
+        source_url = (
+            streaming_project_video_url(playable)
+            if playable
+            else media_item.external_video_url
+        )
+
+        thumbnail_url = (
+            _file_url(media_item.thumbnail)
+            or _file_url(project.video_thumbnail)
+            or _file_url(project.image)
+        )
+
+        if playable:
+            source = "local"
+        elif "youtu" in source_url.lower():
+            source = "youtube"
+        elif "vimeo" in source_url.lower():
+            source = "vimeo"
+        else:
+            source = "external"
+
         media = _video_source_payload(
             request,
             source,
             source_url,
-            _file_url(media_item.thumbnail) or _file_url(project.video_thumbnail) or _file_url(project.image),
+            thumbnail_url,
         )
         if not media["video_url"] and not media["embed_url"]:
             continue

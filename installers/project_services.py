@@ -92,7 +92,7 @@ def _file_url(file_field):
         return ""
 
 
-def _streaming_file_url(file_field):
+def streaming_project_video_url(file_field):
     if not file_field:
         return ""
     name = str(getattr(file_field, "name", "") or "").lstrip("/")
@@ -241,7 +241,7 @@ def validate_external_project_video_url(value):
 def _media_video_url(media):
     if not media:
         return ""
-    processed = _streaming_file_url(getattr(media, "processed_video", None))
+    processed = streaming_project_video_url(getattr(media, "processed_video", None))
     if processed:
         return processed
     external = str(getattr(media, "external_video_url", "") or "").strip()
@@ -250,7 +250,7 @@ def _media_video_url(media):
     source = getattr(media, "video", None)
     suffix = Path(str(getattr(source, "name", "") or "")).suffix.lower()
     if suffix in {".mp4", ".webm"}:
-        return _streaming_file_url(source)
+        return streaming_project_video_url(source)
     return ""
 
 
@@ -285,7 +285,7 @@ def _legacy_project_video(project):
             caption=getattr(project, "title", ""),
             media_type=ServiceProjectMedia.TYPE_VIDEO,
             label="Project video",
-            video_url=_streaming_file_url(local_video) if playable else "",
+            video_url=streaming_project_video_url(local_video) if playable else "",
             stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
             stage_label=dict(ServiceProjectMedia.STAGE_CHOICES)[
                 ServiceProjectMedia.STAGE_WALKTHROUGH
