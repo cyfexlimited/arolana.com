@@ -6867,6 +6867,17 @@
     padding: 0;
 }
 
+.apd-video-commerce-play {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+}
+
+.apd-video-commerce-player {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
 .apd-video-commerce-sound:hover,
 .apd-video-commerce-fullscreen:hover {
     background: rgba(0,102,204,.94);
@@ -14866,8 +14877,141 @@
         }
     }
 
-    function playCard(card) {
-        if (!card) return;
+    function ensureLocalVideoReady(local) {
+        if (!local) return;
+
+        /*
+         * iOS/WebKit can leave a <video><source></video> element at
+         * HAVE_NOTHING after an autoplay attempt was blocked.
+         *
+         * A real user tap must force the media element to resolve its
+         * source before calling play().
+         */
+        try {
+            local.muted = true;
+            local.defaultMuted = true;
+            local.playsInline = true;
+            local.setAttribute('muted', '');
+            local.setAttribute('playsinline', '');
+            local.setAttribute('webkit-playsinline', '');
+
+            if (
+                local.readyState === 0 ||
+                local.networkState === HTMLMediaElement.NETWORK_EMPTY
+            ) {
+                local.load();
+            }
+        } catch (error) {}
+    }
+
+    function playLocalVideo(card, local, userInitiated) {
+        if (!card || !local) {
+            return Promise.reject(
+                new Error('Video player is unavailable.')
+            );
+        }
+
+        ensureLocalVideoReady(local);
+
+        /*
+         * Keep the poster until the browser fires "playing".
+         * Do not mark the card started just because play() was requested.
+         */
+        card.classList.add('is-play-requested');
+        setPlayUi(card, false);
+
+        var playPromise;
+
+        try {
+            playPromise = local.play();
+        } catch (error) {
+            card.classList.remove('is-play-requested');
+            card.classList.remove('is-playing');
+            setPlayUi(card, false);
+            return Promise.reject(error);
+        }
+
+        if (
+            playPromise &&
+            typeof playPromise.then === 'function'
+        ) {
+            return playPromise
+                .then(function () {
+                    /*
+                     * "playing" normally handles this first. Calling
+                     * markStarted again is harmless and covers WebKit
+                     * versions that resolve play() before dispatching it.
+                     */
+                    markStarted(card);
+                    card.classList.remove('is-play-requested');
+
+                    if (userInitiated) {
+                        postEvent(card, 'video_play');
+                    }
+
+                    return true;
+                })
+                .catch(function (error) {
+                    card.classList.remove('is-play-requested');
+                    card.classList.remove('is-playing');
+                    setPlayUi(card, false);
+
+                    /*
+                     * First user tap fallback for iOS:
+                     * re-load once and immediately retry inside the same
+                     * interaction path.
+                     */
+                    if (
+                        userInitiated &&
+                        !local.dataset.mobilePlayRetried
+                    ) {
+                        local.dataset.mobilePlayRetried = '1';
+
+                        try {
+                            local.load();
+                            local.muted = true;
+                            local.defaultMuted = true;
+
+                            var retry = local.play();
+
+                            if (
+                                retry &&
+                                typeof retry.then === 'function'
+                            ) {
+                                return retry.then(function () {
+                                    markStarted(card);
+                                    postEvent(card, 'video_play');
+                                    return true;
+                                });
+                            }
+
+                            markStarted(card);
+                            postEvent(card, 'video_play');
+                            return true;
+                        } catch (retryError) {
+                            throw retryError;
+                        }
+                    }
+
+                    throw error;
+                });
+        }
+
+        markStarted(card);
+        card.classList.remove('is-play-requested');
+
+        if (userInitiated) {
+            postEvent(card, 'video_play');
+        }
+
+        return Promise.resolve(true);
+    }
+
+    function playCard(card, options) {
+        if (!card) return Promise.resolve(false);
+
+        options = options || {};
+        var userInitiated = Boolean(options.userInitiated);
 
         var changedCard = activeCard !== card;
 
@@ -14892,36 +15036,20 @@
         }
 
         if (local) {
-            local.muted = true;
-            local.playsInline = true;
-
-            var result = local.play();
-
-            if (
-                result &&
-                typeof result.then === 'function'
-            ) {
-                result
-                    .then(function () {
-                        markStarted(card);
-                        postEvent(card, 'video_play');
-                    })
-                    .catch(function () {
-                        card.classList.remove('is-playing');
-                        setPlayUi(card, false);
-
-                        /*
-                         * IMPORTANT:
-                         * do NOT add has-started on failure.
-                         * The poster therefore stays visible.
-                         */
-                    });
-            } else {
-                markStarted(card);
-                postEvent(card, 'video_play');
-            }
-
-            return;
+            return playLocalVideo(
+                card,
+                local,
+                userInitiated
+            ).catch(function () {
+                /*
+                 * Keep the poster and play button visible. The customer
+                 * can tap again instead of seeing a blank media panel.
+                 */
+                card.classList.remove('is-playing');
+                card.classList.remove('has-started');
+                setPlayUi(card, false);
+                return false;
+            });
         }
 
         if (frame) {
@@ -14935,7 +15063,15 @@
             } else {
                 commandEmbed(frame, 'playVideo');
             }
+
+            /*
+             * For iframe players, loading/playing is asynchronous.
+             * The existing iframe load listener calls markStarted().
+             */
+            return Promise.resolve(true);
         }
+
+        return Promise.resolve(false);
     }
 
     /* ============================================================
@@ -15230,6 +15366,51 @@
        CLICK HANDLERS
        ============================================================ */
 
+    /*
+     * iOS/WebKit reliability:
+     * bind the play control directly as well as keeping the delegated
+     * handler below. Direct listeners preserve the strongest possible
+     * user-activation chain for HTMLMediaElement.play().
+     */
+    cards.forEach(function (card) {
+        var playControl = card.querySelector(
+            '[data-video-commerce-play]'
+        );
+
+        if (!playControl) return;
+
+        playControl.addEventListener(
+            'pointerup',
+            function (event) {
+                if (
+                    event.pointerType &&
+                    event.pointerType !== 'touch' &&
+                    event.pointerType !== 'pen'
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (card.classList.contains('is-playing')) {
+                    pauseCard(card, true);
+
+                    if (activeCard === card) {
+                        activeCard = null;
+                    }
+
+                    return;
+                }
+
+                playCard(card, {
+                    userInitiated: true
+                });
+            },
+            { passive: false }
+        );
+    });
+
     feed.addEventListener('click', function (event) {
         var ratingButton = event.target.closest(
             '[data-video-rating]'
@@ -15272,6 +15453,21 @@
             event.preventDefault();
             event.stopPropagation();
 
+            /*
+             * Touch/pen is handled by the direct pointerup listener above.
+             * Ignore the synthetic click that follows it, otherwise the
+             * video would play and then immediately pause.
+             */
+            if (
+                window.PointerEvent &&
+                (
+                    navigator.maxTouchPoints > 0 ||
+                    'ontouchstart' in window
+                )
+            ) {
+                return;
+            }
+
             var playCardNode = playButton.closest(
                 '[data-video-commerce-card]'
             );
@@ -15288,7 +15484,9 @@
                     activeCard = null;
                 }
             } else {
-                playCard(playCardNode);
+                playCard(playCardNode, {
+                    userInitiated: true
+                });
             }
 
             return;
@@ -15317,7 +15515,9 @@
                 muteCard(unmutedCard, true);
             }
 
-            playCard(soundCard);
+            playCard(soundCard, {
+                userInitiated: true
+            });
 
             var local = soundCard.querySelector(
                 '[data-video-commerce-local]'
