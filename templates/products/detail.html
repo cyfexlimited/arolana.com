@@ -7102,6 +7102,151 @@
         min-width: 5rem;
     }
 }
+
+/* ============================================================
+   AROLANA VIDEO COMMERCE — FINAL CARD ALIGNMENT + PLAY CONTROL
+   ============================================================ */
+.apd-video-commerce-grid {
+    align-items: stretch;
+}
+
+.apd-video-commerce-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.apd-video-commerce-media {
+    flex: 0 0 auto;
+}
+
+.apd-video-commerce-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.apd-video-commerce-body h3 {
+    min-height: 2.56em;
+}
+
+.apd-video-commerce-meta {
+    margin-top: auto;
+    padding-top: .55rem;
+}
+
+.apd-video-commerce-cta {
+    margin-top: .8rem;
+}
+
+.apd-video-commerce-engagement {
+    margin-top: auto;
+    background: #fff;
+}
+
+.apd-video-commerce-rating-row {
+    min-height: 3.45rem;
+}
+
+.apd-video-commerce-comments {
+    min-height: 3.15rem;
+}
+
+.apd-video-commerce-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 9;
+    display: inline-flex;
+    width: 4.2rem;
+    height: 4.2rem;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
+    border: 2px solid rgba(255,255,255,.92);
+    border-radius: 999px;
+    background: rgba(7,26,68,.72);
+    color: #fff;
+    box-shadow: 0 18px 42px rgba(0,0,0,.28);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    cursor: pointer;
+    transition: transform .16s ease, background .16s ease, opacity .16s ease;
+}
+
+.apd-video-commerce-play i {
+    margin-left: .18rem;
+    font-size: 1.35rem;
+}
+
+.apd-video-commerce-play:hover {
+    transform: translate(-50%, -50%) scale(1.07);
+    background: rgba(245,130,32,.96);
+}
+
+.apd-video-commerce-card.is-playing .apd-video-commerce-play {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.apd-video-commerce-card:not(.is-playing) .apd-video-commerce-play {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.apd-video-commerce-controls {
+    z-index: 10;
+}
+
+.apd-video-commerce-sound,
+.apd-video-commerce-fullscreen {
+    position: static !important;
+    flex: 0 0 auto;
+}
+
+.apd-video-commerce-fullscreen {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 2.55rem;
+    min-width: 2.55rem;
+    height: 2.55rem;
+}
+
+.apd-video-commerce-controls-left,
+.apd-video-commerce-controls-right {
+    position: relative;
+    z-index: 11;
+}
+
+@media (max-width: 1024px) {
+    .apd-video-commerce-card {
+        height: auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .apd-video-commerce-grid {
+        align-items: stretch;
+    }
+
+    .apd-video-commerce-card {
+        flex: 0 0 min(88vw, 330px);
+        height: auto;
+        min-height: 0;
+    }
+
+    .apd-video-commerce-play {
+        width: 3.75rem;
+        height: 3.75rem;
+    }
+
+    .apd-video-commerce-fullscreen {
+        width: 2.6rem;
+        min-width: 2.6rem;
+        height: 2.6rem;
+    }
+}
 </style>
 
 
@@ -9671,6 +9816,17 @@
         ></iframe>
         {% endif %}
 
+        <button
+          type="button"
+          class="apd-video-commerce-play"
+          data-video-commerce-play
+          aria-label="Play video"
+          aria-pressed="false"
+          title="Play video"
+        >
+          <i class="fas fa-play" aria-hidden="true"></i>
+        </button>
+
         <div class="apd-video-commerce-controls" aria-label="Video controls">
           <div class="apd-video-commerce-controls-left">
             <button
@@ -9770,7 +9926,7 @@
           <i class="fas fa-arrow-right" aria-hidden="true"></i>
         </a>
       </div>
-      
+
       <div class="apd-video-commerce-engagement" data-video-engagement>
         <div class="apd-video-commerce-rating-row">
           <span class="text-xs font-bold text-slate-500">
@@ -14595,10 +14751,27 @@
        PLAYBACK / POSTER / SOUND
        ============================================================ */
 
+    function setPlayUi(card, playing) {
+        if (!card) return;
+
+        var button = card.querySelector('[data-video-commerce-play]');
+        if (!button) return;
+
+        button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+        button.setAttribute('aria-label', playing ? 'Pause video' : 'Play video');
+        button.title = playing ? 'Pause video' : 'Play video';
+
+        var icon = button.querySelector('i');
+        if (icon) {
+            icon.className = playing ? 'fas fa-pause' : 'fas fa-play';
+        }
+    }
+
     function markStarted(card) {
         if (!card) return;
         card.classList.add('has-started');
         card.classList.add('is-playing');
+        setPlayUi(card, true);
     }
 
     function setSoundUi(card, muted) {
@@ -14685,6 +14858,7 @@
         }
 
         card.classList.remove('is-playing');
+        setPlayUi(card, false);
         muteCard(card, false);
 
         if (trackEvent) {
@@ -14734,6 +14908,7 @@
                     })
                     .catch(function () {
                         card.classList.remove('is-playing');
+                        setPlayUi(card, false);
 
                         /*
                          * IMPORTANT:
@@ -14943,6 +15118,7 @@
 
     cards.forEach(function (card) {
         preloadEngagement(card);
+        setPlayUi(card, false);
 
         var local = card.querySelector(
             '[data-video-commerce-local]'
@@ -15003,6 +15179,7 @@
             local.addEventListener('ended', function () {
                 postEvent(card, 'video_complete');
                 card.classList.remove('is-playing');
+                setPlayUi(card, false);
 
                 if (activeCard === card) {
                     activeCard = null;
@@ -15084,6 +15261,36 @@
             event.preventDefault();
             event.stopPropagation();
             submitComment(commentSubmit);
+            return;
+        }
+
+        var playButton = event.target.closest(
+            '[data-video-commerce-play]'
+        );
+
+        if (playButton) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            var playCardNode = playButton.closest(
+                '[data-video-commerce-card]'
+            );
+
+            if (!playCardNode) return;
+
+            var localPlayer = playCardNode.querySelector(
+                '[data-video-commerce-local]'
+            );
+
+            if (playCardNode.classList.contains('is-playing')) {
+                pauseCard(playCardNode, true);
+                if (activeCard === playCardNode) {
+                    activeCard = null;
+                }
+            } else {
+                playCard(playCardNode);
+            }
+
             return;
         }
 
