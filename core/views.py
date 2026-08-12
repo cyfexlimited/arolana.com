@@ -1,7 +1,6 @@
 import logging
 import mimetypes
 import posixpath
-import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -11,13 +10,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMultiAlternatives, mail_admins, send_mail
 from django.db.models import F, Q, Sum
-from django.http import (
-    FileResponse,
-    Http404,
-    HttpResponse,
-    JsonResponse,
-    StreamingHttpResponse,
-)
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_safe
@@ -34,12 +27,7 @@ logger = logging.getLogger(__name__)
 
 @require_safe
 def proxy_media(request, path):
-    """
-    Serve public media from private storage without exposing the bucket.
-
-    Supports HTTP byte-range requests so browsers, especially Safari/iOS,
-    can progressively load, seek, and play MP4/video media correctly.
-    """
+    """Serve public media from private storage without exposing the bucket."""
     normalized_path = posixpath.normpath(path).lstrip("/")
 
     if (
@@ -50,16 +38,12 @@ def proxy_media(request, path):
     ):
         raise Http404("Media not found")
 
-    allowed_prefixes = tuple(
-        getattr(settings, "MEDIA_PROXY_PUBLIC_PREFIXES", ())
-    )
+    allowed_prefixes = tuple(getattr(settings, "MEDIA_PROXY_PUBLIC_PREFIXES", ()))
 
     if allowed_prefixes:
         allowed = any(
             normalized_path == prefix.strip("/").strip()
-            or normalized_path.startswith(
-                f"{prefix.strip('/').strip()}/"
-            )
+            or normalized_path.startswith(f"{prefix.strip('/').strip()}/")
             for prefix in allowed_prefixes
             if prefix.strip("/").strip()
         )
@@ -72,155 +56,9 @@ def proxy_media(request, path):
     except Exception as exc:
         raise Http404("Media not found") from exc
 
-    content_type = (
-        mimetypes.guess_type(normalized_path)[0]
-        or "application/octet-stream"
-    )
-
-    # ---------------------------------------------------------
-    # Determine object size
-    # ---------------------------------------------------------
-
-    try:
-        file_size = default_storage.size(normalized_path)
-    except Exception:
-        try:
-            media_file.seek(0, 2)
-            file_size = media_file.tell()
-            media_file.seek(0)
-        except Exception:
-            media_file.close()
-            raise Http404("Media not found")
-
-    range_header = request.META.get("HTTP_RANGE", "").strip()
-
-    # ---------------------------------------------------------
-    # Normal full-file response
-    # ---------------------------------------------------------
-
-    if not range_header:
-        response = FileResponse(
-            media_file,
-            content_type=content_type,
-        )
-
-        response["Content-Length"] = str(file_size)
-        response["Accept-Ranges"] = "bytes"
-        response["Cache-Control"] = (
-            "public, max-age=31536000, immutable"
-        )
-
-        return response
-
-    # ---------------------------------------------------------
-    # HTTP Range request
-    #
-    # Supported:
-    #   bytes=0-1023
-    #   bytes=100000-
-    #   bytes=-1024
-    #
-    # Multiple ranges are intentionally not supported.
-    # ---------------------------------------------------------
-
-    match = re.fullmatch(
-        r"bytes=(\d*)-(\d*)",
-        range_header,
-        re.IGNORECASE,
-    )
-
-    if not match:
-        media_file.close()
-
-        response = HttpResponse(status=416)
-        response["Content-Range"] = f"bytes */{file_size}"
-        response["Accept-Ranges"] = "bytes"
-
-        return response
-
-    start_text, end_text = match.groups()
-
-    try:
-        if start_text:
-            start = int(start_text)
-
-            if start >= file_size:
-                raise ValueError
-
-            if end_text:
-                end = min(int(end_text), file_size - 1)
-
-                if end < start:
-                    raise ValueError
-            else:
-                end = file_size - 1
-
-        else:
-            # Suffix range: bytes=-N
-            if not end_text:
-                raise ValueError
-
-            suffix_length = int(end_text)
-
-            if suffix_length <= 0:
-                raise ValueError
-
-            suffix_length = min(suffix_length, file_size)
-
-            start = file_size - suffix_length
-            end = file_size - 1
-
-    except (TypeError, ValueError):
-        media_file.close()
-
-        response = HttpResponse(status=416)
-        response["Content-Range"] = f"bytes */{file_size}"
-        response["Accept-Ranges"] = "bytes"
-
-        return response
-
-    content_length = end - start + 1
-
-    try:
-        media_file.seek(start)
-    except Exception:
-        media_file.close()
-        raise Http404("Media not found")
-
-    # ---------------------------------------------------------
-    # Stream exactly the requested byte range
-    # ---------------------------------------------------------
-
-    def ranged_stream(file_obj, remaining, chunk_size=64 * 1024):
-        try:
-            while remaining > 0:
-                chunk = file_obj.read(
-                    min(chunk_size, remaining)
-                )
-
-                if not chunk:
-                    break
-
-                remaining -= len(chunk)
-                yield chunk
-
-        finally:
-            file_obj.close()
-
-    response = StreamingHttpResponse(
-        ranged_stream(media_file, content_length),
-        status=206,
-        content_type=content_type,
-    )
-
-    response["Content-Length"] = str(content_length)
-    response["Content-Range"] = (
-        f"bytes {start}-{end}/{file_size}"
-    )
-    response["Accept-Ranges"] = "bytes"
-    response["Cache-Control"] = (
-        "public, max-age=31536000, immutable"
-    )
+    content_type = mimetypes.guess_type(normalized_path)[0] or "application/octet-stream"
+    response = FileResponse(media_file, content_type=content_type)
+    response["Cache-Control"] = "public, max-age=31536000, immutable"
 
     return response
 
