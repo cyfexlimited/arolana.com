@@ -6783,7 +6783,328 @@
         }
     }
 
+
 </style>
+
+
+<style>
+/* ============================================================
+   AROLANA VIDEO COMMERCE — ENGAGEMENT + FULLSCREEN + FALLBACK
+   ============================================================ */
+
+.apd-video-commerce-media {
+    position: relative;
+    overflow: hidden;
+    background: #071a44;
+}
+
+.apd-video-commerce-poster {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .18s ease, visibility .18s ease;
+    pointer-events: none;
+}
+
+/*
+ * Keep the poster visible until the player has ACTUALLY started.
+ * This prevents the mobile blank/blue frame.
+ */
+.apd-video-commerce-card.has-started .apd-video-commerce-poster {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.apd-video-commerce-controls {
+    position: absolute;
+    left: .65rem;
+    right: .65rem;
+    bottom: .65rem;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .55rem;
+    pointer-events: none;
+}
+
+.apd-video-commerce-controls-left,
+.apd-video-commerce-controls-right {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    pointer-events: auto;
+}
+
+.apd-video-commerce-sound,
+.apd-video-commerce-fullscreen {
+    display: inline-flex;
+    min-height: 2.35rem;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 999px;
+    background: rgba(7,26,68,.82);
+    color: #fff;
+    padding: .52rem .72rem;
+    box-shadow: 0 7px 22px rgba(7,26,68,.24);
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+    cursor: pointer;
+    font-size: .72rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.apd-video-commerce-fullscreen {
+    width: 2.35rem;
+    padding: 0;
+}
+
+.apd-video-commerce-sound:hover,
+.apd-video-commerce-fullscreen:hover {
+    background: rgba(0,102,204,.94);
+}
+
+.apd-video-commerce-sound:focus-visible,
+.apd-video-commerce-fullscreen:focus-visible,
+.video-commerce-rating-star:focus-visible,
+[data-video-comments-toggle]:focus-visible,
+[data-video-comment-submit]:focus-visible {
+    outline: 3px solid rgba(0,184,255,.34);
+    outline-offset: 2px;
+}
+
+.apd-video-commerce-engagement {
+    border-top: 1px solid #f1f5f9;
+}
+
+.apd-video-commerce-rating-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .75rem 1rem;
+}
+
+.apd-video-commerce-rating-stars {
+    display: flex;
+    align-items: center;
+    gap: .18rem;
+}
+
+.video-commerce-rating-star {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: .08rem;
+    color: #cbd5e1;
+    cursor: pointer;
+    font-size: 1.28rem;
+    line-height: 1;
+    transition: color .14s ease, transform .14s ease;
+}
+
+.video-commerce-rating-star:hover {
+    color: #f59e0b;
+    transform: scale(1.08);
+}
+
+.video-commerce-rating-star.is-active {
+    color: #f59e0b;
+}
+
+.apd-video-commerce-rating-message,
+.apd-video-commerce-comment-message {
+    margin: 0 .95rem .7rem;
+    font-size: .72rem;
+    font-weight: 800;
+}
+
+.apd-video-commerce-comments {
+    border-top: 1px solid #f1f5f9;
+    padding: .75rem 1rem .85rem;
+}
+
+.apd-video-commerce-comments-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    border: 0;
+    background: transparent;
+    color: #071a44;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    font-size: .76rem;
+    font-weight: 950;
+}
+
+.apd-video-commerce-comment-count {
+    min-width: 1.7rem;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #0066cc;
+    padding: .28rem .48rem;
+    text-align: center;
+    font-size: .7rem;
+    font-weight: 950;
+}
+
+.apd-video-commerce-comments-panel {
+    margin-top: .75rem;
+}
+
+.apd-video-commerce-comments-panel[hidden] {
+    display: none !important;
+}
+
+.apd-video-commerce-comments-list {
+    display: grid;
+    gap: .5rem;
+}
+
+.apd-video-commerce-comment-item {
+    border-radius: .75rem;
+    background: #f8fafc;
+    padding: .7rem .78rem;
+}
+
+.apd-video-commerce-comment-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+}
+
+.apd-video-commerce-comment-item strong {
+    color: #071a44;
+    font-size: .72rem;
+}
+
+.apd-video-commerce-comment-item p {
+    margin-top: .3rem;
+    color: #475569;
+    font-size: .75rem;
+    line-height: 1.5;
+}
+
+.apd-video-commerce-comment-item small {
+    display: block;
+    margin-top: .25rem;
+    color: #94a3b8;
+    font-size: .62rem;
+    font-weight: 700;
+}
+
+.apd-video-commerce-comment-compose {
+    display: flex;
+    align-items: flex-end;
+    gap: .5rem;
+    margin-top: .7rem;
+}
+
+.apd-video-commerce-comment-compose textarea {
+    min-width: 0;
+    flex: 1;
+    resize: none;
+    border: 1px solid #e2e8f0;
+    border-radius: .75rem;
+    padding: .62rem .7rem;
+    color: #0f172a;
+    background: #fff;
+    font-size: .76rem;
+    outline: none;
+}
+
+.apd-video-commerce-comment-compose textarea:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96,165,250,.12);
+}
+
+.apd-video-commerce-comment-submit {
+    min-height: 2.35rem;
+    border: 0;
+    border-radius: .7rem;
+    background: #0066cc;
+    color: #fff;
+    padding: .55rem .85rem;
+    cursor: pointer;
+    font-size: .7rem;
+    font-weight: 950;
+}
+
+.apd-video-commerce-comment-submit:disabled,
+.video-commerce-rating-star:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.apd-video-commerce-rating-summary {
+    white-space: nowrap;
+}
+
+/* Keep fullscreen player clean and correctly sized. */
+.apd-video-commerce-media:fullscreen,
+.apd-video-commerce-media:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+}
+
+.apd-video-commerce-media:fullscreen .apd-video-commerce-player,
+.apd-video-commerce-media:-webkit-full-screen .apd-video-commerce-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+@media (max-width: 640px) {
+    .apd-video-commerce-controls {
+        left: .55rem;
+        right: .55rem;
+        bottom: .55rem;
+    }
+
+    .apd-video-commerce-sound {
+        min-height: 2.45rem;
+        padding-inline: .72rem;
+    }
+
+    .apd-video-commerce-fullscreen {
+        width: 2.45rem;
+        min-height: 2.45rem;
+    }
+
+    .apd-video-commerce-rating-row {
+        padding-inline: .85rem;
+    }
+
+    .apd-video-commerce-comments {
+        padding-inline: .85rem;
+    }
+
+    .apd-video-commerce-comment-compose {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .apd-video-commerce-comment-submit {
+        align-self: flex-end;
+        min-width: 5rem;
+    }
+}
+</style>
+
+
 {% endblock %}
 
 {% block content %}
@@ -9282,90 +9603,260 @@
         ============================================================ -->
 
 {% if commerce_videos %}
-<section class="apd-video-commerce arolana-deferred-content" id="seller-product-videos" data-video-commerce-feed>
+<section
+  class="apd-video-commerce arolana-deferred-content"
+  id="seller-product-videos"
+  data-video-commerce-feed
+>
   <div class="apd-video-commerce-heading">
     <div>
       <span class="apd-video-commerce-kicker">Video commerce</span>
-      <h2>Watch Products from Trusted Sellers</h2>
-      <p>Discover products and services through short videos from verified Arolana sellers and professionals.</p>
+      <h2>Watch Products &amp; Services from Trusted Sellers</h2>
+      <p>
+        Discover products and services through short videos from verified
+        Arolana sellers and professionals.
+      </p>
     </div>
   </div>
+
   <div class="apd-video-commerce-grid">
     {% for video in commerce_videos %}
-    <article class="apd-video-commerce-card" data-video-commerce-card data-content-type="{{ video.content_type }}" data-source-id="{{ video.source_id }}" data-product-id="{{ video.product.id|default:'' }}" data-position="{{ forloop.counter }}">
-      <div class="apd-video-commerce-media">
-        {% if video.sponsored %}<span class="apd-video-commerce-sponsored">Sponsored</span>{% endif %}
-        {% if video.video_type == 'local' %}
-          <video class="apd-video-commerce-player" muted playsinline webkit-playsinline preload="metadata" {% if video.poster_url %}poster="{{ video.poster_url }}"{% endif %} data-video-commerce-local>
-            <source src="{{ video.video_url }}">
-          </video>
-        {% elif video.embed_url %}
-          {% if video.poster_url %}<img class="apd-video-commerce-poster" src="{{ video.poster_url }}" alt="{{ video.title }}" loading="lazy" decoding="async">{% endif %}
-          <iframe class="apd-video-commerce-player" title="{{ video.title }}" data-video-commerce-embed="{{ video.embed_url }}" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" loading="lazy"></iframe>
+    <article
+      class="apd-video-commerce-card"
+      data-video-commerce-card
+      data-content-type="{{ video.content_type }}"
+      data-source-id="{{ video.source_id }}"
+      data-product-id="{{ video.product.id|default:'' }}"
+      data-product-video-id="{{ video.product_video_id|default:'' }}"
+      data-position="{{ forloop.counter }}"
+    >
+      <div class="apd-video-commerce-media" data-video-commerce-media>
+        {% if video.sponsored %}
+        <span class="apd-video-commerce-sponsored">Sponsored</span>
         {% endif %}
-        <button type="button" class="apd-video-commerce-sound" data-video-commerce-sound aria-label="Turn sound on" aria-pressed="false">
-          <i class="fas fa-volume-mute" aria-hidden="true"></i><span>Muted</span>
-        </button>
+
+        {# Always keep a real poster layer until playback ACTUALLY starts. #}
+        {% if video.poster_url %}
+        <img
+          class="apd-video-commerce-poster"
+          src="{{ video.poster_url }}"
+          alt="{{ video.title }}"
+          loading="lazy"
+          decoding="async"
+          data-video-commerce-poster
+        >
+        {% endif %}
+
+        {% if video.video_type == 'local' %}
+        <video
+          class="apd-video-commerce-player"
+          muted
+          playsinline
+          webkit-playsinline
+          preload="metadata"
+          {% if video.poster_url %}poster="{{ video.poster_url }}"{% endif %}
+          data-video-commerce-local
+        >
+          <source src="{{ video.video_url }}">
+        </video>
+        {% elif video.embed_url %}
+        <iframe
+          class="apd-video-commerce-player"
+          title="{{ video.title }}"
+          data-video-commerce-embed="{{ video.embed_url }}"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin"
+          loading="lazy"
+        ></iframe>
+        {% endif %}
+
+        <div class="apd-video-commerce-controls" aria-label="Video controls">
+          <div class="apd-video-commerce-controls-left">
+            <button
+              type="button"
+              class="apd-video-commerce-sound"
+              data-video-commerce-sound
+              aria-label="Turn sound on"
+              aria-pressed="false"
+            >
+              <i class="fas fa-volume-mute" aria-hidden="true"></i>
+              <span>Muted</span>
+            </button>
+          </div>
+
+          <div class="apd-video-commerce-controls-right">
+            <button
+              type="button"
+              class="apd-video-commerce-fullscreen"
+              data-video-commerce-fullscreen
+              aria-label="Open video fullscreen"
+              title="Fullscreen"
+            >
+              <i class="fas fa-expand" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
       </div>
+
       <div class="apd-video-commerce-body">
         <div class="apd-video-commerce-owner-row">
           <span>{{ video.owner.name }}</span>
-          {% if video.owner.verified %}<span class="apd-video-commerce-verified"><i class="fas fa-check-circle"></i> Verified</span>{% endif %}
+          {% if video.owner.verified %}
+          <span class="apd-video-commerce-verified">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            Verified
+          </span>
+          {% endif %}
         </div>
+
         <h3>{{ video.title }}</h3>
-        {% if video.content_type == 'service' %}<span class="apd-video-commerce-provider-type">{{ video.owner.provider_type }}</span>{% endif %}
+
+        {% if video.content_type == 'service' and video.owner.provider_type %}
+        <span class="apd-video-commerce-provider-type">
+          {{ video.owner.provider_type }}
+        </span>
+        {% endif %}
+
         {% if video.price %}
-          <div class="apd-video-commerce-price">
-            {% if video.price_label %}<small>{{ video.price_label }}</small>{% endif %}
-            <strong>{{ video.price|currency:request }}</strong>
-            {% if video.compare_price %}<del>{{ video.compare_price|currency:request }}</del>{% endif %}
-          </div>
-        {% elif video.price_label %}<div class="apd-video-commerce-price"><strong>{{ video.price_label }}</strong></div>{% endif %}
-        <div class="apd-video-commerce-meta">
-          {% if video.owner.location %}<span><i class="fas fa-map-marker-alt"></i> {{ video.owner.location }}</span>{% endif %}
-          {% if video.rating %}<span><i class="fas fa-star"></i> {{ video.rating|floatformat:1 }}{% if video.rating_count %} ({{ video.rating_count }}){% endif %}</span>{% endif %}
-          {% if video.video_rating_count %}<span>Video ★ <span data-video-rating-average="{{ video.product_video_id }}">{{ video.video_rating|floatformat:1 }}</span> (<span data-video-rating-count="{{ video.product_video_id }}">{{ video.video_rating_count }}</span>)</span>{% endif %}
+        <div class="apd-video-commerce-price">
+          {% if video.price_label %}
+          <small>{{ video.price_label }}</small>
+          {% endif %}
+
+          <strong>{{ video.price|currency:request }}</strong>
+
+          {% if video.compare_price %}
+          <del>{{ video.compare_price|currency:request }}</del>
+          {% endif %}
         </div>
-        <a href="{{ video.cta.url }}" class="apd-video-commerce-cta" data-video-commerce-cta>
-          {{ video.cta.label }} <i class="fas fa-arrow-right"></i>
+        {% elif video.price_label %}
+        <div class="apd-video-commerce-price">
+          <strong>{{ video.price_label }}</strong>
+        </div>
+        {% endif %}
+
+        <div class="apd-video-commerce-meta">
+          {% if video.owner.location %}
+          <span>
+            <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+            {{ video.owner.location }}
+          </span>
+          {% endif %}
+
+          {% if video.rating %}
+          <span>
+            <i class="fas fa-star" aria-hidden="true"></i>
+            {{ video.rating|floatformat:1 }}
+            {% if video.rating_count %}({{ video.rating_count }}){% endif %}
+          </span>
+          {% endif %}
+
+          <span class="apd-video-commerce-rating-summary">
+            Video ★
+            <span data-video-rating-average>
+              {{ video.video_rating|default:0|floatformat:1 }}
+            </span>
+            (<span data-video-rating-count>{{ video.video_rating_count|default:0 }}</span>)
+          </span>
+        </div>
+
+        <a
+          href="{{ video.cta.url }}"
+          class="apd-video-commerce-cta"
+          data-video-commerce-cta
+        >
+          {{ video.cta.label }}
+          <i class="fas fa-arrow-right" aria-hidden="true"></i>
         </a>
       </div>
 
-      {% if video.product_video_id %}
-      <div class="border-t border-slate-100 px-4 py-3" data-video-rating-widget="{{ video.product_video_id }}">
-        <div class="flex items-center justify-between gap-3">
-          <span class="text-xs font-bold text-slate-500">Rate this video</span>
-          <div class="flex items-center gap-1" role="group" aria-label="Rate this video">
+      {# ========================================================
+         SHARED ENGAGEMENT UI
+         Product -> legacy product-video API
+         Service/Sponsored -> normalized video-commerce API
+         ======================================================== #}
+      <div class="apd-video-commerce-engagement" data-video-engagement>
+        <div class="apd-video-commerce-rating-row">
+          <span class="text-xs font-bold text-slate-500">
+            Rate this video
+          </span>
+
+          <div
+            class="apd-video-commerce-rating-stars"
+            role="group"
+            aria-label="Rate this video"
+          >
             {% for star in "12345" %}
             <button
               type="button"
-              class="video-commerce-rating-star text-xl leading-none text-slate-300 transition hover:scale-110 hover:text-amber-400"
-              data-video-id="{{ video.product_video_id }}"
-              data-rating="{{ star }}"
+              class="video-commerce-rating-star"
+              data-video-rating="{{ star }}"
               aria-label="{{ star }} star rating"
               title="Rate {{ star }} star{{ star|pluralize }}"
             >★</button>
             {% endfor %}
           </div>
         </div>
-        <p class="mt-1 hidden text-xs font-semibold" data-video-rating-message="{{ video.product_video_id }}"></p>
-      </div>
 
-      <div class="border-t border-slate-100 px-4 py-3" data-video-comments-widget="{{ video.product_video_id }}">
-        <button type="button" class="flex w-full items-center justify-between gap-3 text-left" data-video-comments-toggle="{{ video.product_video_id }}">
-          <span class="text-xs font-black text-[#071A44]">Comments</span>
-          <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-black text-blue-700" data-video-comment-count="{{ video.product_video_id }}">{{ video.comment_count|default:0 }}</span>
-        </button>
-        <div class="mt-3 hidden" data-video-comments-panel="{{ video.product_video_id }}">
-          <div class="space-y-2" data-video-comments-list="{{ video.product_video_id }}"></div>
-          <div class="mt-3 flex gap-2">
-            <textarea rows="2" maxlength="1500" class="min-w-0 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="Write a comment about this video..." aria-label="Comment on this product video" data-video-comment-input="{{ video.product_video_id }}"></textarea>
-            <button type="button" class="self-end rounded-xl bg-[#0066CC] px-4 py-2 text-xs font-black text-white" data-video-comment-submit="{{ video.product_video_id }}">Post</button>
+        <p
+          class="apd-video-commerce-rating-message"
+          data-video-rating-message
+          hidden
+        ></p>
+
+        <div class="apd-video-commerce-comments">
+          <button
+            type="button"
+            class="apd-video-commerce-comments-toggle"
+            data-video-comments-toggle
+            aria-expanded="false"
+          >
+            <span>Comments</span>
+            <span
+              class="apd-video-commerce-comment-count"
+              data-video-comment-count
+            >
+              {{ video.comment_count|default:0 }}
+            </span>
+          </button>
+
+          <div
+            class="apd-video-commerce-comments-panel"
+            data-video-comments-panel
+            hidden
+          >
+            <div
+              class="apd-video-commerce-comments-list"
+              data-video-comments-list
+            ></div>
+
+            <div class="apd-video-commerce-comment-compose">
+              <textarea
+                rows="2"
+                maxlength="1500"
+                placeholder="Write a comment about this video..."
+                aria-label="Comment on this video"
+                data-video-comment-input
+              ></textarea>
+
+              <button
+                type="button"
+                class="apd-video-commerce-comment-submit"
+                data-video-comment-submit
+              >
+                Post
+              </button>
+            </div>
+
+            <p
+              class="apd-video-commerce-comment-message"
+              data-video-comment-message
+              hidden
+            ></p>
           </div>
-          <p class="mt-1 hidden text-xs font-semibold" data-video-comment-message="{{ video.product_video_id }}"></p>
         </div>
       </div>
-      {% endif %}
     </article>
     {% endfor %}
   </div>
@@ -13486,86 +13977,27 @@
 
 <script>
 (function () {
-    function setVideoRatingStars(videoId, rating) {
-        document
-            .querySelectorAll('[data-video-id="' + videoId + '"][data-rating]')
-            .forEach(function (button) {
-                var star = Number(button.getAttribute('data-rating') || 0);
-                button.classList.toggle('text-amber-400', star <= rating);
-                button.classList.toggle('text-slate-300', star > rating);
-            });
-    }
-
-    function setVideoRatingMessage(videoId, message, isError) {
-        var node = document.querySelector('[data-video-rating-message="' + videoId + '"]');
-        if (!node) return;
-        node.textContent = message || '';
-        node.classList.toggle('hidden', !message);
-        node.classList.toggle('text-red-600', Boolean(isError));
-        node.classList.toggle('text-emerald-600', !isError);
-    }
-
-    document.addEventListener('click', async function (event) {
-        var button = event.target.closest('.video-commerce-rating-star');
-        if (!button) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        var videoId = button.getAttribute('data-video-id');
-        var rating = Number(button.getAttribute('data-rating') || 0);
-        if (!videoId || rating < 1 || rating > 5) return;
-
-        button.disabled = true;
-        setVideoRatingMessage(videoId, 'Saving…', false);
-
-        try {
-            var response = await fetch(
-                '/products/mobile/product-videos/' + encodeURIComponent(videoId) + '/rate/',
-                {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ rating: rating })
-                }
-            );
-
-            var data = await response.json().catch(function () { return {}; });
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Could not save your video rating.');
-            }
-
-            setVideoRatingStars(videoId, Number(data.my_rating || rating));
-
-            var average = document.querySelector('[data-video-rating-average="' + videoId + '"]');
-            var count = document.querySelector('[data-video-rating-count="' + videoId + '"]');
-            if (average) average.textContent = Number(data.rating || 0).toFixed(1);
-            if (count) count.textContent = String(data.rating_count || 0);
-
-            setVideoRatingMessage(videoId, 'Your rating was saved.', false);
-        } catch (error) {
-            setVideoRatingMessage(
-                videoId,
-                error && error.message ? error.message : 'Sign in to rate this video.',
-                true
-            );
-        } finally {
-            button.disabled = false;
-        }
-    });
-})();
-</script>
-
-
-<script>
-(function () {
     'use strict';
 
-    function esc(value) {
+    var feed = document.querySelector('[data-video-commerce-feed]');
+    if (!feed) return;
+
+    var cards = Array.prototype.slice.call(
+        feed.querySelectorAll('[data-video-commerce-card]')
+    );
+
+    var supportsObserver = 'IntersectionObserver' in window;
+    var visible = new Map();
+    var activeCard = null;
+    var unmutedCard = null;
+    var activationFrame = 0;
+    var eventUrl = '/api/video-commerce/events/';
+
+    /* ============================================================
+       SMALL HELPERS
+       ============================================================ */
+
+    function escapeHtml(value) {
         return String(value || '')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -13574,52 +14006,240 @@
             .replace(/'/g, '&#039;');
     }
 
-    function commentsMessage(videoId, text, isError) {
-        var el = document.querySelector(
-            '[data-video-comment-message="' + videoId + '"]'
-        );
-
-        if (!el) {
-            return;
-        }
-
-        el.textContent = text || '';
-        el.classList.toggle('hidden', !text);
-        el.classList.toggle('text-red-600', Boolean(isError));
-        el.classList.toggle('text-emerald-600', !isError);
+    function cardContentType(card) {
+        return String(card && card.dataset.contentType || '')
+            .trim()
+            .toLowerCase();
     }
 
-    function updateCommentCount(videoId, countValue) {
-        var count = document.querySelector(
-            '[data-video-comment-count="' + videoId + '"]'
-        );
-
-        if (!count) {
-            return;
-        }
-
-        var safeCount = Number(countValue || 0);
-
-        if (!Number.isFinite(safeCount) || safeCount < 0) {
-            safeCount = 0;
-        }
-
-        count.textContent = String(safeCount);
+    function cardSourceId(card) {
+        return Number(card && card.dataset.sourceId || 0);
     }
 
-    function renderComments(videoId, payload) {
-        var list = document.querySelector(
-            '[data-video-comments-list="' + videoId + '"]'
+    function cardProductVideoId(card) {
+        return Number(card && card.dataset.productVideoId || 0);
+    }
+
+    function engagementEndpoint(card, action) {
+        if (!card || !action) return '';
+
+        var type = cardContentType(card);
+        var sourceId = cardSourceId(card);
+
+        /*
+         * Product videos keep the established ProductVideo endpoints.
+         * The normalized source id should normally match ProductVideo.pk,
+         * but use product_video_id when the feed supplied it explicitly.
+         */
+        if (type === 'product') {
+            var productVideoId = cardProductVideoId(card) || sourceId;
+            if (!productVideoId) return '';
+
+            return (
+                '/products/mobile/product-videos/' +
+                encodeURIComponent(productVideoId) +
+                '/' +
+                action +
+                '/'
+            );
+        }
+
+        if (type === 'service' || type === 'sponsored') {
+            if (!sourceId) return '';
+
+            return (
+                '/products/video-commerce/' +
+                encodeURIComponent(type) +
+                '/' +
+                encodeURIComponent(sourceId) +
+                '/' +
+                action +
+                '/'
+            );
+        }
+
+        return '';
+    }
+
+    function normalizedRating(payload) {
+        return Number(
+            payload && (
+                payload.video_rating !== undefined
+                    ? payload.video_rating
+                    : payload.rating
+            ) || 0
         );
+    }
+
+    function normalizedRatingCount(payload) {
+        return Number(
+            payload && (
+                payload.video_rating_count !== undefined
+                    ? payload.video_rating_count
+                    : payload.rating_count
+            ) || 0
+        );
+    }
+
+    function setMessage(node, text, isError) {
+        if (!node) return;
+
+        node.textContent = text || '';
+        node.hidden = !text;
+
+        node.classList.toggle('text-red-600', Boolean(isError));
+        node.classList.toggle('text-emerald-600', !isError);
+    }
+
+    /* ============================================================
+       RATING
+       ============================================================ */
+
+    function setRatingStars(card, rating) {
+        if (!card) return;
+
+        card.querySelectorAll('[data-video-rating]')
+            .forEach(function (button) {
+                var star = Number(
+                    button.getAttribute('data-video-rating') || 0
+                );
+
+                button.classList.toggle(
+                    'is-active',
+                    star <= Number(rating || 0)
+                );
+            });
+    }
+
+    function updateRatingSummary(card, payload) {
+        if (!card) return;
+
+        var average = card.querySelector('[data-video-rating-average]');
+        var count = card.querySelector('[data-video-rating-count]');
+
+        if (average) {
+            average.textContent = normalizedRating(payload).toFixed(1);
+        }
+
+        if (count) {
+            count.textContent = String(normalizedRatingCount(payload));
+        }
+
+        if (payload && payload.my_rating !== undefined) {
+            setRatingStars(
+                card,
+                Number(payload.my_rating || 0)
+            );
+        }
+    }
+
+    async function submitRating(button) {
+        var card = button.closest('[data-video-commerce-card]');
+        if (!card) return;
+
+        var rating = Number(
+            button.getAttribute('data-video-rating') || 0
+        );
+
+        if (rating < 1 || rating > 5) return;
+
+        var url = engagementEndpoint(card, 'rate');
+        if (!url) return;
+
+        var message = card.querySelector('[data-video-rating-message]');
+
+        card.querySelectorAll('[data-video-rating]')
+            .forEach(function (item) {
+                item.disabled = true;
+            });
+
+        setMessage(message, 'Saving…', false);
+
+        try {
+            var response = await fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rating: rating
+                })
+            });
+
+            var data = await response
+                .json()
+                .catch(function () {
+                    return {};
+                });
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.message ||
+                    'Could not save your video rating.'
+                );
+            }
+
+            updateRatingSummary(card, data);
+            setRatingStars(
+                card,
+                Number(data.my_rating || rating)
+            );
+
+            setMessage(
+                message,
+                data.message || 'Your rating was saved.',
+                false
+            );
+        } catch (error) {
+            setMessage(
+                message,
+                error && error.message
+                    ? error.message
+                    : 'Sign in to rate this video.',
+                true
+            );
+        } finally {
+            card.querySelectorAll('[data-video-rating]')
+                .forEach(function (item) {
+                    item.disabled = false;
+                });
+        }
+    }
+
+    /* ============================================================
+       COMMENTS
+       ============================================================ */
+
+    function updateCommentCount(card, value) {
+        if (!card) return;
+
+        var node = card.querySelector('[data-video-comment-count]');
+        if (!node) return;
+
+        var count = Number(value || 0);
+
+        if (!Number.isFinite(count) || count < 0) {
+            count = 0;
+        }
+
+        node.textContent = String(count);
+    }
+
+    function renderComments(card, payload) {
+        if (!card) return;
+
+        var list = card.querySelector('[data-video-comments-list]');
 
         updateCommentCount(
-            videoId,
+            card,
             payload && payload.comment_count
         );
 
-        if (!list) {
-            return;
-        }
+        updateRatingSummary(card, payload || {});
+
+        if (!list) return;
 
         var comments = (
             payload &&
@@ -13631,15 +14251,16 @@
         if (!comments.length) {
             list.innerHTML =
                 '<p class="text-xs font-semibold text-slate-400">' +
-                    'No comments yet. Be the first to comment.' +
+                'No comments yet. Be the first to comment.' +
                 '</p>';
             return;
         }
 
         list.innerHTML = comments
-            .slice(0, 8)
+            .slice(0, 12)
             .map(function (comment) {
                 var rating = Number(comment.rating || 0);
+
                 var customerName = (
                     comment.user &&
                     comment.user.name
@@ -13648,27 +14269,25 @@
                     : 'Arolana Customer';
 
                 return (
-                    '<div class="rounded-xl bg-slate-50 p-3">' +
-                        '<div class="flex items-center justify-between gap-2">' +
-                            '<strong class="text-xs text-[#071A44]">' +
-                                esc(customerName) +
+                    '<div class="apd-video-commerce-comment-item">' +
+                        '<div class="apd-video-commerce-comment-head">' +
+                            '<strong>' +
+                                escapeHtml(customerName) +
                             '</strong>' +
                             (
                                 rating
                                     ? '<span class="text-xs font-bold text-amber-500">' +
-                                        '★ ' + esc(rating) +
+                                        '★ ' + escapeHtml(rating) +
                                       '</span>'
                                     : ''
                             ) +
                         '</div>' +
-                        '<p class="mt-1 text-xs leading-5 text-slate-600">' +
-                            esc(comment.body) +
+                        '<p>' +
+                            escapeHtml(comment.body) +
                         '</p>' +
                         (
                             comment.is_edited
-                                ? '<span class="mt-1 block text-[10px] font-semibold text-slate-400">' +
-                                    'Edited' +
-                                  '</span>'
+                                ? '<small>Edited</small>'
                                 : ''
                         ) +
                     '</div>'
@@ -13677,19 +14296,19 @@
             .join('');
     }
 
-    async function fetchComments(videoId) {
-        var response = await fetch(
-            '/products/mobile/product-videos/' +
-                encodeURIComponent(videoId) +
-                '/comments/',
-            {
-                method: 'GET',
-                credentials: 'same-origin',
-                headers: {
-                    'Accept': 'application/json'
-                }
+    async function fetchComments(card) {
+        var url = engagementEndpoint(card, 'comments');
+        if (!url) {
+            throw new Error('Comments are unavailable for this video.');
+        }
+
+        var response = await fetch(url, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json'
             }
-        );
+        });
 
         var data = await response
             .json()
@@ -13707,89 +14326,50 @@
         return data;
     }
 
-    async function loadComments(videoId) {
-        var data = await fetchComments(videoId);
-
-        renderComments(
-            videoId,
-            data
-        );
-
+    async function loadComments(card) {
+        var data = await fetchComments(card);
+        renderComments(card, data);
         return data;
     }
 
-    async function preloadCommentCount(videoId) {
+    async function preloadEngagement(card) {
         try {
-            var data = await fetchComments(videoId);
-
-            updateCommentCount(
-                videoId,
-                data.comment_count
-            );
+            var data = await fetchComments(card);
+            updateCommentCount(card, data.comment_count);
+            updateRatingSummary(card, data);
         } catch (error) {
             /*
-             * Do not display an error during silent page-load count refresh.
-             * The user can still open Comments and retry normally.
+             * Silent preload only.
+             * The customer can retry by opening Comments.
              */
         }
     }
 
-    function preloadAllCommentCounts() {
-        var toggles = document.querySelectorAll(
-            '[data-video-comments-toggle]'
-        );
-
-        toggles.forEach(function (toggle) {
-            var videoId = toggle.getAttribute(
-                'data-video-comments-toggle'
-            );
-
-            if (!videoId) {
-                return;
-            }
-
-            preloadCommentCount(videoId);
-        });
-    }
-
     async function toggleComments(toggle) {
-        var videoId = toggle.getAttribute(
-            'data-video-comments-toggle'
+        var card = toggle.closest('[data-video-commerce-card]');
+        if (!card) return;
+
+        var panel = card.querySelector('[data-video-comments-panel]');
+        var message = card.querySelector('[data-video-comment-message]');
+
+        if (!panel) return;
+
+        var opening = panel.hidden;
+
+        panel.hidden = !opening;
+        toggle.setAttribute(
+            'aria-expanded',
+            opening ? 'true' : 'false'
         );
 
-        var panel = document.querySelector(
-            '[data-video-comments-panel="' + videoId + '"]'
-        );
+        if (!opening) return;
 
-        if (!videoId || !panel) {
-            return;
-        }
-
-        var opening = panel.classList.contains('hidden');
-
-        panel.classList.toggle('hidden');
-
-        if (!opening) {
-            return;
-        }
-
-        /*
-         * Refresh every time the customer opens the panel.
-         * This keeps comments/counts fresh without a heavy page observer.
-         */
         try {
-            commentsMessage(
-                videoId,
-                '',
-                false
-            );
-
-            await loadComments(videoId);
-
-            panel.dataset.loaded = '1';
+            setMessage(message, '', false);
+            await loadComments(card);
         } catch (error) {
-            commentsMessage(
-                videoId,
+            setMessage(
+                message,
                 error && error.message
                     ? error.message
                     : 'Could not load comments.',
@@ -13798,61 +14378,52 @@
         }
     }
 
-    async function submitComment(submit) {
-        var videoId = submit.getAttribute(
-            'data-video-comment-submit'
-        );
+    async function submitComment(button) {
+        var card = button.closest('[data-video-commerce-card]');
+        if (!card) return;
 
-        var input = document.querySelector(
-            '[data-video-comment-input="' + videoId + '"]'
-        );
+        var input = card.querySelector('[data-video-comment-input]');
+        var message = card.querySelector('[data-video-comment-message]');
 
         var body = input
             ? input.value.trim()
             : '';
 
-        if (!videoId) {
-            return;
-        }
-
         if (!body) {
-            commentsMessage(
-                videoId,
+            setMessage(
+                message,
                 'Write a comment before posting.',
                 true
             );
             return;
         }
 
-        submit.disabled = true;
-        submit.classList.add(
-            'opacity-60',
-            'cursor-not-allowed'
-        );
+        var url = engagementEndpoint(card, 'comments');
 
-        commentsMessage(
-            videoId,
-            'Saving…',
-            false
-        );
+        if (!url) {
+            setMessage(
+                message,
+                'Comments are unavailable for this video.',
+                true
+            );
+            return;
+        }
+
+        button.disabled = true;
+        setMessage(message, 'Saving…', false);
 
         try {
-            var response = await fetch(
-                '/products/mobile/product-videos/' +
-                    encodeURIComponent(videoId) +
-                    '/comments/',
-                {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        body: body
-                    })
-                }
-            );
+            var response = await fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    body: body
+                })
+            });
 
             var data = await response
                 .json()
@@ -13867,140 +14438,40 @@
                 );
             }
 
-            /*
-             * Clear the composer immediately after a successful save.
-             * loadComments() intentionally does NOT repopulate it.
-             */
             if (input) {
                 input.value = '';
             }
 
             updateCommentCount(
-                videoId,
+                card,
                 data.comment_count
             );
 
-            commentsMessage(
-                videoId,
-                data.message ||
-                'Comment saved.',
+            updateRatingSummary(card, data);
+
+            setMessage(
+                message,
+                data.message || 'Comment saved.',
                 false
             );
 
-            await loadComments(videoId);
+            await loadComments(card);
         } catch (error) {
-            commentsMessage(
-                videoId,
+            setMessage(
+                message,
                 error && error.message
                     ? error.message
                     : 'Could not post comment.',
                 true
             );
         } finally {
-            submit.disabled = false;
-            submit.classList.remove(
-                'opacity-60',
-                'cursor-not-allowed'
-            );
+            button.disabled = false;
         }
     }
 
-    document.addEventListener(
-        'click',
-        function (event) {
-            var toggle = event.target.closest(
-                '[data-video-comments-toggle]'
-            );
-
-            if (toggle) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                toggleComments(toggle);
-                return;
-            }
-
-            var submit = event.target.closest(
-                '[data-video-comment-submit]'
-            );
-
-            if (!submit) {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            submitComment(submit);
-        }
-    );
-
-    /*
-     * Press Ctrl/Cmd + Enter inside a comment box to post.
-     */
-    document.addEventListener(
-        'keydown',
-        function (event) {
-            var input = event.target.closest(
-                '[data-video-comment-input]'
-            );
-
-            if (
-                !input ||
-                event.key !== 'Enter' ||
-                !(event.ctrlKey || event.metaKey)
-            ) {
-                return;
-            }
-
-            event.preventDefault();
-
-            var videoId = input.getAttribute(
-                'data-video-comment-input'
-            );
-
-            var submit = document.querySelector(
-                '[data-video-comment-submit="' + videoId + '"]'
-            );
-
-            if (submit) {
-                submitComment(submit);
-            }
-        }
-    );
-
-    /*
-     * Fix initial "Comments 0" after refresh:
-     * silently ask the comments API for the real count as soon as the page is
-     * ready. No MutationObserver and no continuous polling.
-     */
-    if (document.readyState === 'loading') {
-        document.addEventListener(
-            'DOMContentLoaded',
-            preloadAllCommentCounts,
-            { once: true }
-        );
-    } else {
-        preloadAllCommentCounts();
-    }
-})();
-</script>
-
-<script>
-(function () {
-    'use strict';
-
-    var feed = document.querySelector('[data-video-commerce-feed]');
-    if (!feed || !('IntersectionObserver' in window)) return;
-
-    var cards = Array.prototype.slice.call(
-        feed.querySelectorAll('[data-video-commerce-card]')
-    );
-    var visible = new Map();
-    var activeCard = null;
-    var unmutedCard = null;
-    var activationFrame = 0;
-    var eventUrl = '/api/video-commerce/events/';
+    /* ============================================================
+       VIDEO ANALYTICS
+       ============================================================ */
 
     function eventPayload(card, eventType) {
         return {
@@ -14015,8 +14486,13 @@
 
     function postEvent(card, eventType) {
         if (!card || !eventType) return;
+
         var payload = eventPayload(card, eventType);
-        if (!payload.content_type || !payload.source_id) return;
+
+        if (!payload.content_type || !payload.source_id) {
+            return;
+        }
+
         fetch(eventUrl, {
             method: 'POST',
             credentials: 'same-origin',
@@ -14029,113 +14505,425 @@
         }).catch(function () {});
     }
 
-    function withAutoplay(url) {
-        if (!url) return '';
-        var joiner = url.indexOf('?') === -1 ? '?' : '&';
-        return url + joiner + 'autoplay=1&mute=1';
+    /* ============================================================
+       EMBED HELPERS
+       ============================================================ */
+
+    function withAutoplay(rawUrl) {
+        if (!rawUrl) return '';
+
+        try {
+            var url = new URL(
+                rawUrl,
+                window.location.origin
+            );
+
+            url.searchParams.set('autoplay', '1');
+            url.searchParams.set('mute', '1');
+            url.searchParams.set('playsinline', '1');
+
+            if (/youtube(?:-nocookie)?\.com/i.test(url.hostname)) {
+                url.searchParams.set('enablejsapi', '1');
+                url.searchParams.set(
+                    'origin',
+                    window.location.origin
+                );
+            }
+
+            if (/vimeo\.com/i.test(url.hostname)) {
+                url.searchParams.set('muted', '1');
+            }
+
+            return url.toString();
+        } catch (error) {
+            var joiner = rawUrl.indexOf('?') === -1
+                ? '?'
+                : '&';
+
+            return (
+                rawUrl +
+                joiner +
+                'autoplay=1&mute=1&playsinline=1'
+            );
+        }
     }
 
     function commandEmbed(frame, command) {
         if (!frame || !frame.contentWindow) return;
-        var source = frame.getAttribute('src') || frame.dataset.videoCommerceEmbed || '';
+
+        var source = (
+            frame.getAttribute('src') ||
+            frame.dataset.videoCommerceEmbed ||
+            ''
+        ).toLowerCase();
+
         if (source.indexOf('youtube') !== -1) {
-            frame.contentWindow.postMessage(JSON.stringify({
-                event: 'command',
-                func: command,
-                args: []
-            }), '*');
-        } else if (source.indexOf('vimeo') !== -1) {
-            var method = command === 'playVideo' ? 'play' :
-                command === 'pauseVideo' ? 'pause' :
-                command === 'unMute' ? 'setVolume' :
-                command === 'mute' ? 'setVolume' : command;
-            frame.contentWindow.postMessage({
-                method: method,
-                value: command === 'unMute' ? 1 : command === 'mute' ? 0 : undefined
-            }, '*');
+            frame.contentWindow.postMessage(
+                JSON.stringify({
+                    event: 'command',
+                    func: command,
+                    args: []
+                }),
+                '*'
+            );
+            return;
+        }
+
+        if (source.indexOf('vimeo') !== -1) {
+            var method =
+                command === 'playVideo'
+                    ? 'play'
+                    : command === 'pauseVideo'
+                        ? 'pause'
+                        : command === 'unMute'
+                            ? 'setVolume'
+                            : command === 'mute'
+                                ? 'setVolume'
+                                : command;
+
+            frame.contentWindow.postMessage(
+                {
+                    method: method,
+                    value:
+                        command === 'unMute'
+                            ? 1
+                            : command === 'mute'
+                                ? 0
+                                : undefined
+                },
+                '*'
+            );
         }
     }
 
+    /* ============================================================
+       PLAYBACK / POSTER / SOUND
+       ============================================================ */
+
+    function markStarted(card) {
+        if (!card) return;
+        card.classList.add('has-started');
+        card.classList.add('is-playing');
+    }
+
     function setSoundUi(card, muted) {
-        var button = card && card.querySelector('[data-video-commerce-sound]');
+        var button = (
+            card &&
+            card.querySelector('[data-video-commerce-sound]')
+        );
+
         if (!button) return;
-        button.setAttribute('aria-pressed', muted ? 'false' : 'true');
-        button.setAttribute('aria-label', muted ? 'Turn sound on' : 'Mute video');
+
+        button.setAttribute(
+            'aria-pressed',
+            muted ? 'false' : 'true'
+        );
+
+        button.setAttribute(
+            'aria-label',
+            muted ? 'Turn sound on' : 'Mute video'
+        );
+
         var icon = button.querySelector('i');
         var label = button.querySelector('span');
-        if (icon) icon.className = muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-        if (label) label.textContent = muted ? 'Muted' : 'Sound on';
+
+        if (icon) {
+            icon.className = muted
+                ? 'fas fa-volume-mute'
+                : 'fas fa-volume-up';
+        }
+
+        if (label) {
+            label.textContent = muted
+                ? 'Muted'
+                : 'Sound on';
+        }
     }
 
     function muteCard(card, trackEvent) {
         if (!card) return;
-        var local = card.querySelector('[data-video-commerce-local]');
-        var frame = card.querySelector('[data-video-commerce-embed]');
-        if (local) local.muted = true;
-        if (frame && frame.getAttribute('src')) commandEmbed(frame, 'mute');
+
+        var local = card.querySelector(
+            '[data-video-commerce-local]'
+        );
+
+        var frame = card.querySelector(
+            '[data-video-commerce-embed]'
+        );
+
+        if (local) {
+            local.muted = true;
+        }
+
+        if (frame && frame.getAttribute('src')) {
+            commandEmbed(frame, 'mute');
+        }
+
         setSoundUi(card, true);
-        if (unmutedCard === card) unmutedCard = null;
-        if (trackEvent) postEvent(card, 'video_mute');
+
+        if (unmutedCard === card) {
+            unmutedCard = null;
+        }
+
+        if (trackEvent) {
+            postEvent(card, 'video_mute');
+        }
     }
 
     function pauseCard(card, trackEvent) {
         if (!card) return;
-        var local = card.querySelector('[data-video-commerce-local]');
-        var frame = card.querySelector('[data-video-commerce-embed]');
-        if (local && !local.paused) local.pause();
-        if (frame && frame.getAttribute('src')) commandEmbed(frame, 'pauseVideo');
+
+        var local = card.querySelector(
+            '[data-video-commerce-local]'
+        );
+
+        var frame = card.querySelector(
+            '[data-video-commerce-embed]'
+        );
+
+        if (local && !local.paused) {
+            local.pause();
+        }
+
+        if (frame && frame.getAttribute('src')) {
+            commandEmbed(frame, 'pauseVideo');
+        }
+
         card.classList.remove('is-playing');
         muteCard(card, false);
-        if (trackEvent) postEvent(card, 'video_pause');
-    }
 
-    function playCard(card) {
-        if (!card || activeCard === card) return;
-        if (activeCard) pauseCard(activeCard, true);
-        activeCard = card;
-        var local = card.querySelector('[data-video-commerce-local]');
-        var frame = card.querySelector('[data-video-commerce-embed]');
-        muteCard(card, false);
-        card.classList.add('is-playing');
-        postEvent(card, 'video_impression');
-        if (local) {
-            var result = local.play();
-            if (result && typeof result.then === 'function') {
-                result.then(function () {
-                    postEvent(card, 'video_play');
-                }).catch(function () {
-                    card.classList.remove('is-playing');
-                });
-            } else {
-                postEvent(card, 'video_play');
-            }
-        } else if (frame) {
-            if (!frame.getAttribute('src')) {
-                frame.setAttribute('src', withAutoplay(frame.dataset.videoCommerceEmbed));
-            } else {
-                commandEmbed(frame, 'playVideo');
-            }
-            postEvent(card, 'video_play');
+        if (trackEvent) {
+            postEvent(card, 'video_pause');
         }
     }
 
+    function playCard(card) {
+        if (!card) return;
+
+        var changedCard = activeCard !== card;
+
+        if (changedCard && activeCard) {
+            pauseCard(activeCard, true);
+        }
+
+        activeCard = card;
+
+        var local = card.querySelector(
+            '[data-video-commerce-local]'
+        );
+
+        var frame = card.querySelector(
+            '[data-video-commerce-embed]'
+        );
+
+        muteCard(card, false);
+
+        if (changedCard) {
+            postEvent(card, 'video_impression');
+        }
+
+        if (local) {
+            local.muted = true;
+            local.playsInline = true;
+
+            var result = local.play();
+
+            if (
+                result &&
+                typeof result.then === 'function'
+            ) {
+                result
+                    .then(function () {
+                        markStarted(card);
+                        postEvent(card, 'video_play');
+                    })
+                    .catch(function () {
+                        card.classList.remove('is-playing');
+
+                        /*
+                         * IMPORTANT:
+                         * do NOT add has-started on failure.
+                         * The poster therefore stays visible.
+                         */
+                    });
+            } else {
+                markStarted(card);
+                postEvent(card, 'video_play');
+            }
+
+            return;
+        }
+
+        if (frame) {
+            if (!frame.getAttribute('src')) {
+                frame.setAttribute(
+                    'src',
+                    withAutoplay(
+                        frame.dataset.videoCommerceEmbed
+                    )
+                );
+            } else {
+                commandEmbed(frame, 'playVideo');
+            }
+        }
+    }
+
+    /* ============================================================
+       FULLSCREEN
+       ============================================================ */
+
+    async function openFullscreen(card) {
+        if (!card) return;
+
+        var media = card.querySelector(
+            '[data-video-commerce-media]'
+        );
+
+        var local = card.querySelector(
+            '[data-video-commerce-local]'
+        );
+
+        if (!media) return;
+
+        /*
+         * iPhone/iOS native video fullscreen fallback.
+         */
+        if (
+            local &&
+            typeof local.webkitEnterFullscreen === 'function' &&
+            !document.fullscreenEnabled
+        ) {
+            try {
+                local.webkitEnterFullscreen();
+                return;
+            } catch (error) {}
+        }
+
+        try {
+            if (media.requestFullscreen) {
+                await media.requestFullscreen();
+            } else if (media.webkitRequestFullscreen) {
+                media.webkitRequestFullscreen();
+            } else if (
+                local &&
+                typeof local.webkitEnterFullscreen === 'function'
+            ) {
+                local.webkitEnterFullscreen();
+            }
+        } catch (error) {
+            /*
+             * Keep normal inline playback if fullscreen is denied.
+             */
+        }
+    }
+
+    function updateFullscreenIcons() {
+        var fullscreenElement =
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            null;
+
+        cards.forEach(function (card) {
+            var button = card.querySelector(
+                '[data-video-commerce-fullscreen]'
+            );
+
+            if (!button) return;
+
+            var media = card.querySelector(
+                '[data-video-commerce-media]'
+            );
+
+            var active = Boolean(
+                fullscreenElement &&
+                media === fullscreenElement
+            );
+
+            var icon = button.querySelector('i');
+
+            button.setAttribute(
+                'aria-label',
+                active
+                    ? 'Exit fullscreen'
+                    : 'Open video fullscreen'
+            );
+
+            button.title = active
+                ? 'Exit fullscreen'
+                : 'Fullscreen';
+
+            if (icon) {
+                icon.className = active
+                    ? 'fas fa-compress'
+                    : 'fas fa-expand';
+            }
+        });
+    }
+
+    async function toggleFullscreen(card) {
+        var fullscreenElement =
+            document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            null;
+
+        if (fullscreenElement) {
+            try {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            } catch (error) {}
+
+            return;
+        }
+
+        await openFullscreen(card);
+    }
+
+    /* ============================================================
+       AUTOMATIC ACTIVE CARD
+       ============================================================ */
+
     function chooseActiveCard() {
         activationFrame = 0;
+
         var viewportX = window.innerWidth / 2;
         var viewportY = window.innerHeight / 2;
+
         var candidates = cards.filter(function (card) {
             return (visible.get(card) || 0) >= 0.6;
         });
+
         candidates.sort(function (left, right) {
             var a = left.getBoundingClientRect();
             var b = right.getBoundingClientRect();
-            var aDistance = Math.abs((a.left + a.width / 2) - viewportX) +
-                Math.abs((a.top + a.height / 2) - viewportY);
-            var bDistance = Math.abs((b.left + b.width / 2) - viewportX) +
-                Math.abs((b.top + b.height / 2) - viewportY);
+
+            var aDistance =
+                Math.abs(
+                    (a.left + a.width / 2) -
+                    viewportX
+                ) +
+                Math.abs(
+                    (a.top + a.height / 2) -
+                    viewportY
+                );
+
+            var bDistance =
+                Math.abs(
+                    (b.left + b.width / 2) -
+                    viewportX
+                ) +
+                Math.abs(
+                    (b.top + b.height / 2) -
+                    viewportY
+                );
+
             return aDistance - bDistance;
         });
+
         var next = candidates[0] || null;
+
         if (next) {
             playCard(next);
         } else if (activeCard) {
@@ -14145,76 +14933,304 @@
     }
 
     function scheduleChoice() {
-        if (activationFrame) cancelAnimationFrame(activationFrame);
-        activationFrame = requestAnimationFrame(chooseActiveCard);
+        if (activationFrame) {
+            cancelAnimationFrame(activationFrame);
+        }
+
+        activationFrame = requestAnimationFrame(
+            chooseActiveCard
+        );
     }
 
-    var observer = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-            visible.set(entry.target, entry.isIntersecting ? entry.intersectionRatio : 0);
-        });
-        scheduleChoice();
-    }, { threshold: [0, 0.25, 0.6, 0.75, 1] });
+    /* ============================================================
+       INITIALIZE MEDIA
+       ============================================================ */
 
     cards.forEach(function (card) {
-        observer.observe(card);
-        var local = card.querySelector('[data-video-commerce-local]');
+        preloadEngagement(card);
+
+        var local = card.querySelector(
+            '[data-video-commerce-local]'
+        );
+
+        var frame = card.querySelector(
+            '[data-video-commerce-embed]'
+        );
+
         if (local) {
+            local.muted = true;
+            local.playsInline = true;
+
+            local.addEventListener('playing', function () {
+                markStarted(card);
+            });
+
+            local.addEventListener('error', function () {
+                /*
+                 * Never replace the poster with a blank media surface.
+                 */
+                card.classList.remove('is-playing');
+            });
+
             local.addEventListener('timeupdate', function () {
-                if (!local.duration || !Number.isFinite(local.duration)) return;
-                var progress = local.currentTime / local.duration;
-                var milestones = card._videoCommerceMilestones || (card._videoCommerceMilestones = {});
-                [[.25, 'video_25'], [.5, 'video_50'], [.75, 'video_75']].forEach(function (item) {
-                    if (progress >= item[0] && !milestones[item[1]]) {
+                if (
+                    !local.duration ||
+                    !Number.isFinite(local.duration)
+                ) {
+                    return;
+                }
+
+                var progress =
+                    local.currentTime /
+                    local.duration;
+
+                var milestones =
+                    card._videoCommerceMilestones ||
+                    (
+                        card._videoCommerceMilestones = {}
+                    );
+
+                [
+                    [.25, 'video_25'],
+                    [.5, 'video_50'],
+                    [.75, 'video_75']
+                ].forEach(function (item) {
+                    if (
+                        progress >= item[0] &&
+                        !milestones[item[1]]
+                    ) {
                         milestones[item[1]] = true;
                         postEvent(card, item[1]);
                     }
                 });
             });
+
             local.addEventListener('ended', function () {
                 postEvent(card, 'video_complete');
                 card.classList.remove('is-playing');
-                if (activeCard === card) activeCard = null;
+
+                if (activeCard === card) {
+                    activeCard = null;
+                }
+            });
+        }
+
+        if (frame) {
+            frame.addEventListener('load', function () {
+                /*
+                 * The iframe only receives src when the card becomes active.
+                 * Once that player document has loaded, the poster may safely
+                 * leave instead of exposing a blank blue container too early.
+                 */
+                if (frame.getAttribute('src')) {
+                    markStarted(card);
+                    postEvent(card, 'video_play');
+                }
             });
         }
     });
 
-    feed.addEventListener('click', function (event) {
-        var sound = event.target.closest('[data-video-commerce-sound]');
-        if (sound) {
-            event.preventDefault();
-            var card = sound.closest('[data-video-commerce-card]');
-            if (!card) return;
-            if (unmutedCard === card) {
-                muteCard(card, true);
-                return;
+    if (supportsObserver) {
+        var observer = new IntersectionObserver(
+            function (entries) {
+                entries.forEach(function (entry) {
+                    visible.set(
+                        entry.target,
+                        entry.isIntersecting
+                            ? entry.intersectionRatio
+                            : 0
+                    );
+                });
+
+                scheduleChoice();
+            },
+            {
+                threshold: [0, 0.25, 0.6, 0.75, 1]
             }
-            if (unmutedCard) muteCard(unmutedCard, true);
-            playCard(card);
-            var local = card.querySelector('[data-video-commerce-local]');
-            var frame = card.querySelector('[data-video-commerce-embed]');
-            if (local) local.muted = false;
-            if (frame) commandEmbed(frame, 'unMute');
-            unmutedCard = card;
-            setSoundUi(card, false);
-            postEvent(card, 'video_unmute');
+        );
+
+        cards.forEach(function (card) {
+            observer.observe(card);
+        });
+    }
+
+    /* ============================================================
+       CLICK HANDLERS
+       ============================================================ */
+
+    feed.addEventListener('click', function (event) {
+        var ratingButton = event.target.closest(
+            '[data-video-rating]'
+        );
+
+        if (ratingButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            submitRating(ratingButton);
             return;
         }
-        var cta = event.target.closest('[data-video-commerce-cta]');
-        if (cta) postEvent(cta.closest('[data-video-commerce-card]'), 'video_cta_click');
-    });
 
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden && activeCard) {
-            pauseCard(activeCard, true);
-            activeCard = null;
-        } else {
-            scheduleChoice();
+        var commentsToggle = event.target.closest(
+            '[data-video-comments-toggle]'
+        );
+
+        if (commentsToggle) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleComments(commentsToggle);
+            return;
+        }
+
+        var commentSubmit = event.target.closest(
+            '[data-video-comment-submit]'
+        );
+
+        if (commentSubmit) {
+            event.preventDefault();
+            event.stopPropagation();
+            submitComment(commentSubmit);
+            return;
+        }
+
+        var sound = event.target.closest(
+            '[data-video-commerce-sound]'
+        );
+
+        if (sound) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            var soundCard = sound.closest(
+                '[data-video-commerce-card]'
+            );
+
+            if (!soundCard) return;
+
+            if (unmutedCard === soundCard) {
+                muteCard(soundCard, true);
+                return;
+            }
+
+            if (unmutedCard) {
+                muteCard(unmutedCard, true);
+            }
+
+            playCard(soundCard);
+
+            var local = soundCard.querySelector(
+                '[data-video-commerce-local]'
+            );
+
+            var frame = soundCard.querySelector(
+                '[data-video-commerce-embed]'
+            );
+
+            if (local) {
+                local.muted = false;
+            }
+
+            if (frame) {
+                commandEmbed(frame, 'unMute');
+            }
+
+            unmutedCard = soundCard;
+            setSoundUi(soundCard, false);
+            postEvent(soundCard, 'video_unmute');
+            return;
+        }
+
+        var fullscreen = event.target.closest(
+            '[data-video-commerce-fullscreen]'
+        );
+
+        if (fullscreen) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            toggleFullscreen(
+                fullscreen.closest(
+                    '[data-video-commerce-card]'
+                )
+            );
+
+            return;
+        }
+
+        var cta = event.target.closest(
+            '[data-video-commerce-cta]'
+        );
+
+        if (cta) {
+            postEvent(
+                cta.closest('[data-video-commerce-card]'),
+                'video_cta_click'
+            );
         }
     });
-    window.addEventListener('resize', scheduleChoice, { passive: true });
+
+    feed.addEventListener('keydown', function (event) {
+        var input = event.target.closest(
+            '[data-video-comment-input]'
+        );
+
+        if (
+            !input ||
+            event.key !== 'Enter' ||
+            !(event.ctrlKey || event.metaKey)
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+
+        var card = input.closest(
+            '[data-video-commerce-card]'
+        );
+
+        var button = (
+            card &&
+            card.querySelector(
+                '[data-video-comment-submit]'
+            )
+        );
+
+        if (button) {
+            submitComment(button);
+        }
+    });
+
+    document.addEventListener(
+        'fullscreenchange',
+        updateFullscreenIcons
+    );
+
+    document.addEventListener(
+        'webkitfullscreenchange',
+        updateFullscreenIcons
+    );
+
+    document.addEventListener(
+        'visibilitychange',
+        function () {
+            if (document.hidden && activeCard) {
+                pauseCard(activeCard, true);
+                activeCard = null;
+            } else if (supportsObserver) {
+                scheduleChoice();
+            }
+        }
+    );
+
+    window.addEventListener(
+        'resize',
+        function () {
+            if (supportsObserver) {
+                scheduleChoice();
+            }
+        },
+        { passive: true }
+    );
 })();
 </script>
-
 
 {% endblock %}
