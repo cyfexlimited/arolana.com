@@ -6344,6 +6344,13 @@
         max-height: none !important;
     }
 
+    .apd-product-tabs-sticky-sentinel {
+        width: 100%;
+        height: 1px;
+        margin-bottom: -1px;
+        pointer-events: none;
+    }
+
     .apd-product-tab-nav {
         position: sticky !important;
         top: var(--apd-product-tabs-sticky-top) !important;
@@ -6403,6 +6410,19 @@
         border-top: 0 !important;
         border-left: 1px solid rgba(7, 26, 68, 0.08) !important;
         background: #fff;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+            opacity .16s ease,
+            visibility 0s linear .16s;
+    }
+
+    .apd-product-tab-nav.is-stuck .apd-follow-tabs-actions {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition-delay: 0s;
     }
 
     .apd-product-tab-nav .apd-follow-contact-btn {
@@ -6439,24 +6459,7 @@
         }
 
         .apd-product-tab-nav .apd-follow-tabs-actions {
-            width: 100% !important;
-            margin-left: 0 !important;
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            padding: .4rem !important;
-            border-top: 1px solid rgba(7, 26, 68, 0.08) !important;
-            border-left: 0 !important;
-        }
-
-        .apd-product-tab-nav .apd-follow-tabs-actions.is-single-action {
-            grid-template-columns: minmax(0, 1fr);
-        }
-
-        .apd-product-tab-nav .apd-follow-contact-btn {
-            width: 100%;
-            min-height: 2.75rem !important;
-            padding: .62rem .7rem !important;
-            font-size: .78rem !important;
+            display: none !important;
         }
     }
 
@@ -7349,6 +7352,7 @@
 
     <!-- Modern Tabs with Smooth Animations -->
     <div class="mt-12 overflow-visible apd-tabs-clean" x-data="{ tab: ['#reviews', '#review-form'].includes(window.location.hash) ? 'reviews' : 'overview' }">
+        <div class="apd-product-tabs-sticky-sentinel" aria-hidden="true"></div>
         <div class="apd-detail-lower-layout">
             <nav class="apd-product-tab-nav"
                  aria-label="Product sections and supplier actions">
@@ -7366,7 +7370,9 @@
 
                 {% if vendor_contact_options.phone or vendor_chat_available %}
                 <div class="apd-follow-tabs-actions{% if not vendor_contact_options.phone or not vendor_chat_available %} is-single-action{% endif %}"
-                     aria-label="Supplier actions">
+                     aria-label="Supplier actions"
+                     aria-hidden="true"
+                     inert>
                     {% if vendor_contact_options.phone %}
                     <a href="tel:{{ vendor_contact_options.phone }}"
                        class="apd-follow-contact-btn apd-follow-contact-call"
@@ -12687,6 +12693,101 @@
         bootArolanaFollowTabs();
     }
     window.addEventListener('pageshow', removeLegacyFollowTabs);
+})();
+</script>
+
+
+<script>
+/* ============================================================
+   AROLANA PRODUCT DETAIL — NATIVE STICKY ACTION STATE
+   The bar stays CSS-sticky. This observer only exposes the gated
+   convenience actions after the sentinel has passed the sticky top.
+   ============================================================ */
+(function () {
+    'use strict';
+
+    function bootArolanaStickyTabActions() {
+        var bar = document.querySelector('.apd-product-tab-nav');
+        var sentinel = document.querySelector('.apd-product-tabs-sticky-sentinel');
+        var actions = bar ? bar.querySelector('.apd-follow-tabs-actions') : null;
+
+        if (!bar || !sentinel || !actions || bar.dataset.stickyActionStateBound === 'true') {
+            return;
+        }
+
+        bar.dataset.stickyActionStateBound = 'true';
+
+        var desktopQuery = window.matchMedia('(min-width: 769px)');
+        var observer = null;
+        var rebuildFrame = 0;
+
+        function setStuck(isStuck) {
+            var showActions = Boolean(isStuck && desktopQuery.matches);
+            bar.classList.toggle('is-stuck', showActions);
+            actions.setAttribute('aria-hidden', showActions ? 'false' : 'true');
+
+            if (showActions) {
+                actions.removeAttribute('inert');
+            } else {
+                actions.setAttribute('inert', '');
+            }
+        }
+
+        function buildObserver() {
+            window.cancelAnimationFrame(rebuildFrame);
+            rebuildFrame = 0;
+
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+
+            setStuck(false);
+
+            if (!desktopQuery.matches || !('IntersectionObserver' in window)) {
+                return;
+            }
+
+            var stickyTop = parseFloat(window.getComputedStyle(bar).top);
+            stickyTop = Number.isFinite(stickyTop) ? Math.max(0, stickyTop) : 0;
+
+            observer = new IntersectionObserver(function (entries) {
+                var entry = entries[0];
+                var passedStickyTop = !entry.isIntersecting
+                    && entry.boundingClientRect.top < stickyTop;
+                setStuck(passedStickyTop);
+            }, {
+                root: null,
+                threshold: [0, 1],
+                rootMargin: (-stickyTop) + 'px 0px 0px 0px'
+            });
+
+            observer.observe(sentinel);
+        }
+
+        function requestObserverRebuild() {
+            if (rebuildFrame) {
+                return;
+            }
+
+            rebuildFrame = window.requestAnimationFrame(buildObserver);
+        }
+
+        buildObserver();
+        window.addEventListener('resize', requestObserverRebuild, { passive: true });
+        window.addEventListener('orientationchange', requestObserverRebuild, { passive: true });
+        window.addEventListener('pageshow', requestObserverRebuild);
+
+        if (typeof desktopQuery.addEventListener === 'function') {
+            desktopQuery.addEventListener('change', requestObserverRebuild);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootArolanaStickyTabActions, { once: true });
+    } else {
+        bootArolanaStickyTabActions();
+    }
 })();
 </script>
 
