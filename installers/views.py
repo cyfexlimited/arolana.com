@@ -243,6 +243,18 @@ def category_detail(
         }
     )
 
+    # ---------------------------------------------------------
+    # SEO VISIBILITY
+    #
+    # Empty installer categories remain accessible to users,
+    # but are automatically removed from search indexing until
+    # at least one public/verified provider exists.
+    #
+    # Once a provider becomes publicly eligible, this becomes
+    # indexable automatically without any admin action.
+    # ---------------------------------------------------------
+    category_has_public_provider = providers.exists()
+
     projects = (
         ServicePortfolio.objects
         .public()
@@ -269,6 +281,14 @@ def category_detail(
             "page_obj": page,
             "providers": page.object_list,
             "projects": projects,
+
+            # SEO
+            "category_has_public_provider": (
+                category_has_public_provider
+            ),
+            "seo_noindex": (
+                not category_has_public_provider
+            ),
             "seo_title": (
                 f"Verified {category.name} "
                 "in Nigeria | Arolana"
@@ -279,6 +299,44 @@ def category_detail(
                     f"Find trusted and verified "
                     f"{category.name.lower()} on Arolana."
                 )
+            ),
+        },
+    )
+    
+    
+def category_directory(request):
+    categories = (
+        ServiceCategory.objects
+        .filter(is_active=True)
+        .annotate(
+            provider_count=Count(
+                "provider_services__provider",
+                distinct=True,
+            ),
+            project_count=Count(
+                "projects",
+                filter=Q(
+                    projects__approval_status=ServicePortfolio.STATUS_APPROVED,
+                    projects__is_active=True,
+                ),
+                distinct=True,
+            ),
+        )
+        .order_by("name")
+    )
+
+    return render(
+        request,
+        "installers/category_directory.html",
+        {
+            "categories": categories,
+            "seo_title": (
+                "Installer & Engineering Categories | Arolana"
+            ),
+            "seo_description": (
+                "Browse installer, engineering, repair, "
+                "maintenance, and technical service categories "
+                "on Arolana."
             ),
         },
     )

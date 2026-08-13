@@ -1,24 +1,499 @@
 {% extends "base/base.html" %}
 {% load optimized_images %}
+
 {% block title %}{{ seo_title }}{% endblock %}
-{% block meta_description %}<meta name="description" content="{{ seo_description }}">{% endblock %}
+
+{% block meta_description %}
+<meta
+  name="description"
+  content="{{ seo_description|default:'Find trusted and verified installers, engineers, and professionals on Arolana.' }}"
+>
+{% endblock %}
+
 {% block content %}
-<main class="bg-[#F6F9FC] pb-20">
-  <section class="relative overflow-hidden bg-[#071A44] px-4 py-16 text-white">
-    {% if category.image %}<img src="{{ category.image|optimized_image_url:'category_banner' }}" alt="" class="absolute inset-0 h-full w-full object-cover opacity-30">{% endif %}
-    <div class="relative mx-auto max-w-7xl"><a href="{% url 'installers:directory' %}" class="text-sm font-bold text-white/70">Installers & Engineers</a><h1 class="mt-3 text-4xl font-black md:text-6xl">{{ category.name }}</h1><p class="mt-4 max-w-3xl text-lg text-white/80">{{ category.description }}</p><a href="{% url 'installers:request_quote' %}?category={{ category.id }}" class="mt-7 inline-flex rounded-2xl bg-[#FF7A00] px-6 py-3 font-black">Request {{ category.name }} quote</a></div>
+
+<main class="min-h-screen bg-[#F6F9FC] text-[#071A44]">
+
+  <!-- =========================================================
+       HERO
+       ========================================================= -->
+  <section class="relative isolate overflow-hidden bg-[#071A44] text-white">
+
+    {% if category.image %}
+      <img
+        src="{{ category.image|optimized_image_url:'category_banner' }}"
+        alt=""
+        aria-hidden="true"
+        class="absolute inset-0 h-full w-full object-cover opacity-25"
+      >
+      <div class="absolute inset-0 bg-gradient-to-r from-[#071A44] via-[#071A44]/95 to-[#071A44]/65"></div>
+    {% else %}
+      <div class="absolute inset-0 bg-gradient-to-br from-[#071A44] via-[#0B255A] to-[#123C7A]"></div>
+    {% endif %}
+
+    <!-- subtle decorative glow -->
+    <div
+      aria-hidden="true"
+      class="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-[#0066CC]/20 blur-3xl"
+    ></div>
+
+    <div class="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+
+      <!-- Breadcrumb -->
+      <nav
+        aria-label="Breadcrumb"
+        class="mb-8 flex flex-wrap items-center gap-2 text-sm"
+      >
+        <a
+          href="{% url 'installers:directory' %}"
+          class="font-bold text-white/65 transition hover:text-white"
+        >
+          Installers & Engineers
+        </a>
+
+        <span class="text-white/35" aria-hidden="true">/</span>
+
+        <span class="font-semibold text-white/90">
+          {{ category.name }}
+        </span>
+      </nav>
+
+      <div class="max-w-4xl">
+
+        <!-- Eyebrow -->
+        <div class="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 backdrop-blur">
+          <span class="h-2 w-2 rounded-full bg-[#FF7A00]"></span>
+
+          <span class="text-xs font-black uppercase tracking-[0.16em] text-white/85">
+            Arolana Verified Professionals
+          </span>
+        </div>
+
+        <!-- Title -->
+        <h1 class="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+          {{ category.name }}
+        </h1>
+
+        <!-- Description -->
+        {% if category.description %}
+          <p class="mt-5 max-w-3xl text-base leading-7 text-white/75 sm:text-lg">
+            {{ category.description }}
+          </p>
+        {% else %}
+          <p class="mt-5 max-w-3xl text-base leading-7 text-white/75 sm:text-lg">
+            Find trusted and verified {{ category.name|lower }}
+            for installation, setup, repair, maintenance and professional
+            technical services.
+          </p>
+        {% endif %}
+
+        <!-- CTA row -->
+        <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+
+          <a
+            href="{% url 'installers:request_quote' %}?category={{ category.id }}"
+            class="inline-flex items-center justify-center rounded-2xl bg-[#FF7A00] px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-900/20 transition hover:-translate-y-0.5 hover:bg-[#F56F00] focus:outline-none focus:ring-4 focus:ring-orange-300/40"
+          >
+            Request a {{ category.name }} quote
+            <span class="ml-2 text-lg leading-none" aria-hidden="true">→</span>
+          </a>
+
+          <a
+            href="{% url 'installers:directory' %}"
+            class="inline-flex items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-6 py-3.5 text-sm font-black text-white backdrop-blur transition hover:bg-white/15"
+          >
+            Browse all professionals
+          </a>
+
+        </div>
+
+      </div>
+
+      <!-- Hero stats -->
+      <div class="mt-10 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3">
+
+        <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+          <div class="text-2xl font-black">
+            {{ page_obj.paginator.count }}
+          </div>
+
+          <div class="mt-1 text-xs font-bold uppercase tracking-wide text-white/60">
+            Verified providers
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+          <div class="text-2xl font-black">
+            {{ projects|length }}
+          </div>
+
+          <div class="mt-1 text-xs font-bold uppercase tracking-wide text-white/60">
+            Recent projects
+          </div>
+        </div>
+
+        <div class="col-span-2 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur sm:col-span-1">
+          <div class="text-2xl font-black">
+            Nigeria
+          </div>
+
+          <div class="mt-1 text-xs font-bold uppercase tracking-wide text-white/60">
+            Service marketplace
+          </div>
+        </div>
+
+      </div>
+
+    </div>
   </section>
+
+
+  <!-- =========================================================
+       COMPLETED PROJECTS
+       ========================================================= -->
   {% if projects %}
-  <section class="mx-auto max-w-7xl px-4 pt-10">
-    <div class="mb-5 flex items-end justify-between gap-4">
-      <div><p class="text-xs font-black uppercase tracking-[.18em] text-[#FF7A00]">Completed work</p><h2 class="mt-1 text-3xl font-black text-[#071A44]">Recent {{ category.name }} projects</h2></div>
-      <a href="{% url 'projects:directory' %}?category={{ category.slug }}" class="font-black text-[#0066CC]">View all projects →</a>
-    </div>
-    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-      {% for project in projects %}{% include "installers/partials/project_card.html" with project=project %}{% endfor %}
-    </div>
-  </section>
+    <section class="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8 lg:pt-14">
+
+      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+
+        <div>
+          <p class="text-xs font-black uppercase tracking-[0.18em] text-[#FF7A00]">
+            Completed work
+          </p>
+
+          <h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+            Recent {{ category.name }} projects
+          </h2>
+
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+            Explore real work completed by professionals in this category.
+          </p>
+        </div>
+
+        <a
+          href="{% url 'projects:directory' %}?category={{ category.slug }}"
+          class="inline-flex shrink-0 items-center font-black text-[#0066CC] transition hover:text-[#004F9E]"
+        >
+          View all projects
+          <span class="ml-1" aria-hidden="true">→</span>
+        </a>
+
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {% for project in projects %}
+          {% include "installers/partials/project_card.html" with project=project %}
+        {% endfor %}
+      </div>
+
+    </section>
   {% endif %}
-  <section class="mx-auto max-w-7xl px-4 py-10"><div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{% for provider in providers %}{% include "installers/partials/provider_card.html" %}{% empty %}<div class="col-span-full rounded-3xl bg-white p-12 text-center"><h2 class="text-2xl font-black">No verified providers listed yet</h2><p class="mt-2 text-slate-500">Send a quote request and Arolana support will help source the right professional.</p></div>{% endfor %}</div></section>
+
+
+  <!-- =========================================================
+       PROVIDERS
+       ========================================================= -->
+  <section class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+
+    <div class="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+
+      <div>
+        <p class="text-xs font-black uppercase tracking-[0.18em] text-[#FF7A00]">
+          Verified professionals
+        </p>
+
+        <h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+          {{ category.name }} you can trust
+        </h2>
+
+        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+          Connect with verified professionals and request a quote for your project.
+        </p>
+      </div>
+
+      {% if page_obj.paginator.count %}
+        <div class="text-sm font-bold text-slate-500">
+          {{ page_obj.paginator.count }}
+          {% if page_obj.paginator.count == 1 %}
+            professional
+          {% else %}
+            professionals
+          {% endif %}
+        </div>
+      {% endif %}
+
+    </div>
+
+
+    {% if providers %}
+
+      <!-- Provider cards -->
+      <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {% for provider in providers %}
+          {% include "installers/partials/provider_card.html" with provider=provider %}
+        {% endfor %}
+      </div>
+
+
+      <!-- =====================================================
+           PAGINATION
+           ===================================================== -->
+      {% if page_obj.has_other_pages %}
+        <nav
+          aria-label="{{ category.name }} providers pagination"
+          class="mt-10 flex flex-wrap items-center justify-center gap-2"
+        >
+
+          {% if page_obj.has_previous %}
+            <a
+              href="?page={{ page_obj.previous_page_number }}"
+              class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-[#071A44] shadow-sm transition hover:border-[#0066CC] hover:text-[#0066CC]"
+            >
+              ← Previous
+            </a>
+          {% endif %}
+
+
+          {% for number in page_obj.paginator.page_range %}
+
+            {% if page_obj.number == number %}
+
+              <span
+                aria-current="page"
+                class="inline-flex h-11 min-w-11 items-center justify-center rounded-xl bg-[#071A44] px-3 text-sm font-black text-white shadow-sm"
+              >
+                {{ number }}
+              </span>
+
+            {% elif number > page_obj.number|add:'-2' and number < page_obj.number|add:'2' %}
+
+              <a
+                href="?page={{ number }}"
+                class="inline-flex h-11 min-w-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-[#071A44] shadow-sm transition hover:border-[#0066CC] hover:text-[#0066CC]"
+              >
+                {{ number }}
+              </a>
+
+            {% endif %}
+
+          {% endfor %}
+
+
+          {% if page_obj.has_next %}
+            <a
+              href="?page={{ page_obj.next_page_number }}"
+              class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-[#071A44] shadow-sm transition hover:border-[#0066CC] hover:text-[#0066CC]"
+            >
+              Next →
+            </a>
+          {% endif %}
+
+        </nav>
+      {% endif %}
+
+
+    {% else %}
+
+      <!-- =====================================================
+           EMPTY PROVIDER STATE
+           ===================================================== -->
+      <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+
+        <div class="relative px-6 py-14 text-center sm:px-12 sm:py-16">
+
+          <div
+            aria-hidden="true"
+            class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#071A44] text-2xl text-white shadow-lg"
+          >
+            ✓
+          </div>
+
+          <h3 class="mt-6 text-2xl font-black tracking-tight text-[#071A44]">
+            No verified providers listed yet
+          </h3>
+
+          <p class="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500 sm:text-base">
+            We don't have a verified {{ category.name|lower }} listed in this
+            category yet. You can still submit your project and Arolana will
+            help connect you with the right professional.
+          </p>
+
+          <div class="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+
+            <a
+              href="{% url 'installers:request_quote' %}?category={{ category.id }}"
+              class="inline-flex items-center justify-center rounded-2xl bg-[#FF7A00] px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-900/10 transition hover:bg-[#F56F00]"
+            >
+              Request a quote
+              <span class="ml-2 text-lg" aria-hidden="true">→</span>
+            </a>
+
+            <a
+              href="{% url 'installers:directory' %}"
+              class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-black text-[#071A44] transition hover:border-[#0066CC] hover:text-[#0066CC]"
+            >
+              Browse other categories
+            </a>
+
+          </div>
+
+        </div>
+
+        <!-- reassurance strip -->
+        <div class="grid border-t border-slate-100 bg-slate-50 sm:grid-cols-3">
+
+          <div class="border-b border-slate-100 px-5 py-5 text-center sm:border-b-0 sm:border-r">
+            <div class="text-sm font-black text-[#071A44]">
+              Verified professionals
+            </div>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+              Arolana verifies eligible providers before public listing.
+            </p>
+          </div>
+
+          <div class="border-b border-slate-100 px-5 py-5 text-center sm:border-b-0 sm:border-r">
+            <div class="text-sm font-black text-[#071A44]">
+              Request once
+            </div>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+              Tell us what you need and let the marketplace help source it.
+            </p>
+          </div>
+
+          <div class="px-5 py-5 text-center">
+            <div class="text-sm font-black text-[#071A44]">
+              Built for Nigeria
+            </div>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+              Find technical professionals for projects across Nigeria.
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
+    {% endif %}
+
+  </section>
+
+
+  <!-- =========================================================
+       HOW IT WORKS
+       ========================================================= -->
+  <section class="border-t border-slate-200 bg-white">
+
+    <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+
+      <div class="max-w-2xl">
+        <p class="text-xs font-black uppercase tracking-[0.18em] text-[#FF7A00]">
+          Simple process
+        </p>
+
+        <h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+          Get the right professional for your project
+        </h2>
+
+        <p class="mt-3 text-sm leading-6 text-slate-500 sm:text-base">
+          Arolana makes it easier to find, compare and request services from
+          verified installers, engineers and technical professionals.
+        </p>
+      </div>
+
+
+      <div class="mt-8 grid gap-5 md:grid-cols-3">
+
+        <!-- Step 1 -->
+        <div class="rounded-3xl border border-slate-200 bg-[#F8FAFC] p-6">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#071A44] text-sm font-black text-white">
+            01
+          </div>
+
+          <h3 class="mt-5 text-lg font-black">
+            Tell us what you need
+          </h3>
+
+          <p class="mt-2 text-sm leading-6 text-slate-500">
+            Submit a quote request describing your installation, repair,
+            maintenance or technical project.
+          </p>
+        </div>
+
+
+        <!-- Step 2 -->
+        <div class="rounded-3xl border border-slate-200 bg-[#F8FAFC] p-6">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0066CC] text-sm font-black text-white">
+            02
+          </div>
+
+          <h3 class="mt-5 text-lg font-black">
+            We find the right professional
+          </h3>
+
+          <p class="mt-2 text-sm leading-6 text-slate-500">
+            Arolana helps connect your request with suitable verified
+            professionals in the relevant service category.
+          </p>
+        </div>
+
+
+        <!-- Step 3 -->
+        <div class="rounded-3xl border border-slate-200 bg-[#F8FAFC] p-6">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FF7A00] text-sm font-black text-white">
+            03
+          </div>
+
+          <h3 class="mt-5 text-lg font-black">
+            Get your project moving
+          </h3>
+
+          <p class="mt-2 text-sm leading-6 text-slate-500">
+            Discuss the project, receive a quote and work with the professional
+            to complete the job.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================================================
+       FINAL CTA
+       ========================================================= -->
+  <section class="bg-[#071A44] text-white">
+
+    <div class="mx-auto max-w-5xl px-4 py-12 text-center sm:px-6 lg:px-8 lg:py-16">
+
+      <p class="text-xs font-black uppercase tracking-[0.18em] text-[#FF7A00]">
+        Need professional help?
+      </p>
+
+      <h2 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+        Start your {{ category.name|lower }} project today.
+      </h2>
+
+      <p class="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/65 sm:text-base">
+        Tell Arolana what you need and we'll help you find the right
+        professional for the job.
+      </p>
+
+      <div class="mt-7">
+        <a
+          href="{% url 'installers:request_quote' %}?category={{ category.id }}"
+          class="inline-flex items-center justify-center rounded-2xl bg-[#FF7A00] px-7 py-3.5 text-sm font-black text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-[#F56F00]"
+        >
+          Request a {{ category.name }} quote
+          <span class="ml-2 text-lg" aria-hidden="true">→</span>
+        </a>
+      </div>
+
+    </div>
+
+  </section>
+
 </main>
+
 {% endblock %}

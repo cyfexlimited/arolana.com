@@ -21,6 +21,17 @@ urlpatterns = [
     path("dashboard/projects/<int:project_id>/analytics/", views.provider_project_analytics, name="provider_project_analytics"),
     path("request-quote/", views.request_quote, name="request_quote"),
     path("request-quote/success/", views.quote_success, name="quote_success"),
+    path(
+        "category/",
+        views.category_directory,
+        name="category_directory",
+    ),
+
+    path(
+        "category/<slug:slug>/",
+        views.category_detail,
+        name="category_detail",
+    ),
     path("category/<slug:slug>/", views.category_detail, name="category_detail"),
     path("<slug:provider_slug>/services/<int:service_id>/", views.service_detail, name="service_detail"),
     path("<slug:slug>/review/", views.submit_review, name="submit_review"),
