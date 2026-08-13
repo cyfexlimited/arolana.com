@@ -7899,18 +7899,26 @@
                         {% if summary_features %}
                         <ul class="apd-key-features-list">
                             {% for feature in summary_features %}
-                                <li>{{ feature }}</li>
+                                {% if feature %}
+                                    {% with clean_feature=feature|striptags %}
+                                        {% if "SpecificationsFieldValueNotes" not in clean_feature and "Specifications Field Value Notes" not in clean_feature %}
+                                            <li>{{ clean_feature|safe }}</li>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
                             {% endfor %}
                         </ul>
                         {% endif %}
 
                         {% if summary_intro %}
                             <p class="apd-key-features-intro">
-                                {{ summary_intro }}
+                                {{ summary_intro|striptags }}
                             </p>
                         {% endif %}
 
-                        <button type="button" onclick="scrollToProductOverview()" class="apd-key-features-more">
+                        <button type="button"
+                                onclick="scrollToProductOverview()"
+                                class="apd-key-features-more">
                             More Details
                             <i class="fas fa-arrow-down text-xs"></i>
                         </button>
