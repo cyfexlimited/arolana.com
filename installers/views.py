@@ -183,16 +183,26 @@ def directory(request):
     categories = (
         ServiceCategory.objects
         .filter(
-            is_active=True
+            is_active=True,
         )
         .annotate(
             provider_count=Count(
                 "provider_services__provider",
                 distinct=True,
-            )
+            ),
+            project_count=Count(
+                "projects",
+                filter=Q(
+                    projects__approval_status=(
+                        ServicePortfolio.STATUS_APPROVED
+                    ),
+                    projects__is_active=True,
+                ),
+                distinct=True,
+            ),
         )
         .order_by(
-            "name"
+            "name",
         )
     )
 
@@ -219,8 +229,9 @@ def directory(request):
                 "Verified Installers & Engineers | Arolana"
             ),
             "seo_description": (
-                "Find verified installers, repair engineers, "
-                "technicians, trainers, and consultants on Arolana."
+                "Find verified installers, engineers, "
+                "technicians, repair professionals, "
+                "and service providers across Nigeria."
             ),
         },
     )
@@ -236,23 +247,15 @@ def category_detail(
         is_active=True,
     )
 
+    provider_filters = {
+        **request.GET.dict(),
+        "category": category.slug,
+    }
+
     providers = filter_public_providers(
-        {
-            **request.GET.dict(),
-            "category": category.slug,
-        }
+        provider_filters
     )
 
-    # ---------------------------------------------------------
-    # SEO VISIBILITY
-    #
-    # Empty installer categories remain accessible to users,
-    # but are automatically removed from search indexing until
-    # at least one public/verified provider exists.
-    #
-    # Once a provider becomes publicly eligible, this becomes
-    # indexable automatically without any admin action.
-    # ---------------------------------------------------------
     category_has_public_provider = providers.exists()
 
     projects = (
@@ -260,7 +263,43 @@ def category_detail(
         .public()
         .optimized()
         .filter(
-            service_category=category
+            service_category=category,
+        )
+        .order_by(
+            "-is_featured",
+            "-published_at",
+        )[:8]
+    )
+
+    # Other active categories for the "Explore more services"
+    # section at the bottom of the page.
+    related_categories = (
+        ServiceCategory.objects
+        .filter(
+            is_active=True,
+        )
+        .exclude(
+            pk=category.pk,
+        )
+        .annotate(
+            provider_count=Count(
+                "provider_services__provider",
+                distinct=True,
+            ),
+            project_count=Count(
+                "projects",
+                filter=Q(
+                    projects__approval_status=(
+                        ServicePortfolio.STATUS_APPROVED
+                    ),
+                    projects__is_active=True,
+                ),
+                distinct=True,
+            ),
+        )
+        .order_by(
+            "-provider_count",
+            "name",
         )[:8]
     )
 
@@ -269,7 +308,7 @@ def category_detail(
         18,
     ).get_page(
         request.GET.get(
-            "page"
+            "page",
         )
     )
 
@@ -281,6 +320,7 @@ def category_detail(
             "page_obj": page,
             "providers": page.object_list,
             "projects": projects,
+            "related_categories": related_categories,
 
             # SEO
             "category_has_public_provider": (
@@ -297,7 +337,8 @@ def category_detail(
                 category.description
                 or (
                     f"Find trusted and verified "
-                    f"{category.name.lower()} on Arolana."
+                    f"{category.name.lower()} "
+                    "professionals on Arolana."
                 )
             ),
         },
