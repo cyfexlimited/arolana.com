@@ -198,6 +198,7 @@ INSTALLED_APPS = [
     'ai_core.apps.AiCoreConfig',
     'manufacturers',
     'subscriptions',
+    'social_publishing.apps.SocialPublishingConfig',
     'kyc',
     'reports',
     'currency',
@@ -421,6 +422,76 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+
+# ============ YOUTUBE DATA API / OAUTH ============
+YOUTUBE_CLIENT_ID = config(
+    "YOUTUBE_CLIENT_ID",
+    default="",
+)
+
+YOUTUBE_CLIENT_SECRET = config(
+    "YOUTUBE_CLIENT_SECRET",
+    default="",
+)
+
+YOUTUBE_CATEGORY_ID = config(
+    "YOUTUBE_CATEGORY_ID",
+    default="28",
+)
+
+YOUTUBE_DEFAULT_PRIVACY = config(
+    "YOUTUBE_DEFAULT_PRIVACY",
+    default="unlisted",
+)
+
+YOUTUBE_REFRESH_TOKEN = config(
+    "YOUTUBE_REFRESH_TOKEN",
+    default="",
+)
+
+YOUTUBE_REDIRECT_URI = config(
+    "YOUTUBE_REDIRECT_URI",
+    default="http://127.0.0.1:8000/integrations/youtube/oauth/callback/",
+)
+
+# Social publishing stays dark until each external app is configured and approved.
+SOCIAL_PUBLISHING_ENABLED = config("SOCIAL_PUBLISHING_ENABLED", default=False, cast=bool)
+SOCIAL_PUBLISHING_TEMP_RETENTION_HOURS = config(
+    "SOCIAL_PUBLISHING_TEMP_RETENTION_HOURS", default=24, cast=int
+)
+SOCIAL_PUBLISHING_INSTAGRAM_ENABLED = config("SOCIAL_PUBLISHING_INSTAGRAM_ENABLED", default=False, cast=bool)
+SOCIAL_PUBLISHING_FACEBOOK_ENABLED = config("SOCIAL_PUBLISHING_FACEBOOK_ENABLED", default=False, cast=bool)
+SOCIAL_PUBLISHING_TIKTOK_ENABLED = config("SOCIAL_PUBLISHING_TIKTOK_ENABLED", default=False, cast=bool)
+SOCIAL_PUBLISHING_LINKEDIN_ENABLED = config("SOCIAL_PUBLISHING_LINKEDIN_ENABLED", default=False, cast=bool)
+
+# Phase 2 OAuth connection configuration. Keep platform flags disabled until
+# credentials, redirect URIs and required app reviews are ready.
+SOCIAL_PUBLISHING_TOKEN_KEY = config("SOCIAL_PUBLISHING_TOKEN_KEY", default="")
+SOCIAL_PUBLISHING_META_GRAPH_VERSION = config("SOCIAL_PUBLISHING_META_GRAPH_VERSION", default="v25.0")
+SOCIAL_PUBLISHING_META_APP_ID = config("SOCIAL_PUBLISHING_META_APP_ID", default="")
+SOCIAL_PUBLISHING_META_APP_SECRET = config("SOCIAL_PUBLISHING_META_APP_SECRET", default="")
+
+SOCIAL_PUBLISHING_INSTAGRAM_APP_ID = config(
+    "SOCIAL_PUBLISHING_INSTAGRAM_APP_ID",
+    default="",
+)
+SOCIAL_PUBLISHING_INSTAGRAM_APP_SECRET = config(
+    "SOCIAL_PUBLISHING_INSTAGRAM_APP_SECRET",
+    default="",
+)
+SOCIAL_PUBLISHING_INSTAGRAM_SCOPES = config("SOCIAL_PUBLISHING_INSTAGRAM_SCOPES", default="")
+SOCIAL_PUBLISHING_FACEBOOK_SCOPES = config("SOCIAL_PUBLISHING_FACEBOOK_SCOPES", default="")
+SOCIAL_PUBLISHING_INSTAGRAM_REDIRECT_URI = config("SOCIAL_PUBLISHING_INSTAGRAM_REDIRECT_URI", default="")
+SOCIAL_PUBLISHING_FACEBOOK_REDIRECT_URI = config("SOCIAL_PUBLISHING_FACEBOOK_REDIRECT_URI", default="")
+SOCIAL_PUBLISHING_TIKTOK_CLIENT_KEY = config("SOCIAL_PUBLISHING_TIKTOK_CLIENT_KEY", default="")
+SOCIAL_PUBLISHING_TIKTOK_CLIENT_SECRET = config("SOCIAL_PUBLISHING_TIKTOK_CLIENT_SECRET", default="")
+SOCIAL_PUBLISHING_TIKTOK_SCOPES = config("SOCIAL_PUBLISHING_TIKTOK_SCOPES", default="")
+SOCIAL_PUBLISHING_TIKTOK_REDIRECT_URI = config("SOCIAL_PUBLISHING_TIKTOK_REDIRECT_URI", default="")
+SOCIAL_PUBLISHING_LINKEDIN_CLIENT_ID = config("SOCIAL_PUBLISHING_LINKEDIN_CLIENT_ID", default="")
+SOCIAL_PUBLISHING_LINKEDIN_CLIENT_SECRET = config("SOCIAL_PUBLISHING_LINKEDIN_CLIENT_SECRET", default="")
+SOCIAL_PUBLISHING_LINKEDIN_SCOPES = config("SOCIAL_PUBLISHING_LINKEDIN_SCOPES", default="")
+SOCIAL_PUBLISHING_LINKEDIN_REDIRECT_URI = config("SOCIAL_PUBLISHING_LINKEDIN_REDIRECT_URI", default="")
+
 AROLANA_SUPPORT_PHONE = config("AROLANA_SUPPORT_PHONE", default="")
 AROLANA_SUPPORT_WHATSAPP = config("AROLANA_SUPPORT_WHATSAPP", default=AROLANA_SUPPORT_PHONE)
 AROLANA_SUPPORT_EMAIL = config("AROLANA_SUPPORT_EMAIL", default="")
@@ -492,6 +563,26 @@ PROJECT_NETWORK_ENABLED = config("PROJECT_NETWORK_ENABLED", default=True, cast=b
 LOCAL_PROJECT_VIDEO_UPLOADS_ENABLED = config(
     "LOCAL_PROJECT_VIDEO_UPLOADS_ENABLED",
     default=True,
+    cast=bool,
+)
+ADS_RECOMMENDATION_V2_API_ENABLED = config(
+    "ADS_RECOMMENDATION_V2_API_ENABLED",
+    default=False,
+    cast=bool,
+)
+ADS_RECOMMENDATION_V2_SPONSORED_ENABLED = config(
+    "ADS_RECOMMENDATION_V2_SPONSORED_ENABLED",
+    default=False,
+    cast=bool,
+)
+ADS_RECOMMENDATION_V2_INTERNAL_TESTING_ENABLED = config(
+    "ADS_RECOMMENDATION_V2_INTERNAL_TESTING_ENABLED",
+    default=False,
+    cast=bool,
+)
+ADS_EXTERNAL_CHANNEL_SYNC_ENABLED = config(
+    "ADS_EXTERNAL_CHANNEL_SYNC_ENABLED",
+    default=False,
     cast=bool,
 )
 PROJECT_PUBLICATION_REQUIRES_APPROVAL = config(
@@ -831,6 +922,14 @@ AROLANA_RATE_LIMIT_RULES = [
         'limit': config('RATE_LIMIT_AI_SEARCH_LIMIT', default=30, cast=int),
         'window': config('RATE_LIMIT_AI_SEARCH_WINDOW', default=300, cast=int),
         'message': 'Too many search requests. Please wait a moment before searching again.',
+    },
+    {
+        'name': 'ads-v2-events',
+        'paths': ['/api/ads/v2/events/'],
+        'methods': ['POST'],
+        'limit': config('RATE_LIMIT_ADS_V2_EVENTS_LIMIT', default=120, cast=int),
+        'window': config('RATE_LIMIT_ADS_V2_EVENTS_WINDOW', default=60, cast=int),
+        'message': 'Too many ad event requests. Please wait a moment and try again.',
     },
 ]
 

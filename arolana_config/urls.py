@@ -750,6 +750,10 @@ urlpatterns = [
         include((provider_urlpatterns, "provider_api"), namespace="provider_api"),
     ),
     path(
+        "api/ads/v2/",
+        include(("ads.api_urls", "ads_api"), namespace="ads_api"),
+    ),
+    path(
         "api/projects/",
         include(("installers.project_api_urls", "projects_api"), namespace="projects_api"),
     ),
@@ -833,6 +837,8 @@ urlpatterns = [
         name="api_currency_convert",
     ),
     path("subscriptions/", include("subscriptions.urls")),
+    path("social-publishing/", include("social_publishing.web_urls")),
+    path("api/social-publishing/", include("social_publishing.urls")),
     path("videos/", include("videos.urls")),
     path("reports/", include("reports.urls")),
     path("notifications/", include("notifications.urls")),
