@@ -1,0 +1,7 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Analytics{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-card"><h2>Aggregate analytics</h2><p class="ads-mkt-muted">Customer, order, and payment identifiers are intentionally hidden.</p></section>
+<section class="ads-mkt-grid">{% include "ads/marketing/partials/metric.html" with label="Valid orders" value=metrics.valid_orders %}{% include "ads/marketing/partials/metric.html" with label="Qualified leads" value=metrics.qualified_leads %}{% include "ads/marketing/partials/metric.html" with label="Net revenue" value=metrics.net_attributed_revenue %}{% include "ads/marketing/partials/metric.html" with label="ROAS" value=metrics.roas|default:"Unavailable" %}</section>
+<section class="ads-mkt-card ads-mkt-list">{% for campaign in campaigns %}{% include "ads/marketing/partials/campaign_row.html" with campaign=campaign %}{% endfor %}</section>
+{% endblock %}

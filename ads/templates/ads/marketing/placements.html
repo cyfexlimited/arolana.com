@@ -1,0 +1,5 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Placements{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-card ads-mkt-list">{% for placement in placements %}<article class="ads-mkt-row"><h3>{{ placement.name }}</h3><p class="ads-mkt-muted">{{ placement.placement_type }} · {{ placement.width }}×{{ placement.height }}</p></article>{% empty %}<p class="ads-mkt-muted">No active placements configured.</p>{% endfor %}</section>
+{% endblock %}

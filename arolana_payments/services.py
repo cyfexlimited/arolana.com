@@ -977,6 +977,16 @@ def _handle_paypal_refund(payment, event):
                 "updated_at",
             ]
         )
+        try:
+            from ads.attribution import commerce_attribution_service
+
+            commerce_attribution_service.reverse_order_attribution(
+                order,
+                reason="paypal_full_refund",
+                reference=refund_id,
+            )
+        except Exception:
+            pass
 
     metadata = _payment_event_metadata(payment, order, event, capture_id)
     metadata["paypal_refund_id"] = refund_id

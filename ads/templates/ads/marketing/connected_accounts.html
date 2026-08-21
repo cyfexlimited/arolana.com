@@ -1,0 +1,56 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Connected Accounts{% endblock %}
+{% block ads_content %}
+{% if request.GET.oauth == "connected" %}<section class="ads-mkt-card" role="status"><strong>Connected</strong><p class="ads-mkt-muted">The selected Google Ads account is now connected.</p></section>{% endif %}
+{% if request.GET.oauth_error %}<section class="ads-mkt-card" role="alert" style="border-color:#fecaca"><strong>Google connection could not be completed</strong><p class="ads-mkt-muted">No account was connected. Try again or reauthorize the Google account.</p></section>{% endif %}
+<section class="ads-mkt-grid">
+  {% for account in accounts %}
+    <article class="ads-mkt-card">
+      <h2>{{ account.label }}</h2>
+      <p class="ads-mkt-pill">{{ account.status|default:"not_connected" }}</p>
+      <p class="ads-mkt-muted">{{ account.message }}</p>
+      {% if account.accounts %}
+        <ul class="ads-mkt-list">
+          {% for connected in account.accounts %}
+            <li>
+              <strong>{{ connected.display_name|default:connected.external_account_id }}</strong>
+              <span class="ads-mkt-muted">Customer ID: {{ connected.external_account_id }}</span>
+              <span class="ads-mkt-muted">{{ connected.status }}</span>
+              {% if connected.currency %}<span class="ads-mkt-muted">{{ connected.currency }}</span>{% endif %}
+              {% if connected.timezone %}<span class="ads-mkt-muted">{{ connected.timezone }}</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if account.available %}
+        <form method="post" action="{% url 'ads_api:management_connected_account_connect' account.channel %}" class="ads-oauth-connect-form">
+          {% csrf_token %}
+          <button class="ads-mkt-btn" type="submit">{% if account.status == "connected" %}Reconnect{% else %}Connect{% endif %} {{ account.label }}</button>
+          <p class="ads-mkt-muted ads-oauth-error" role="alert" hidden></p>
+        </form>
+      {% else %}
+        <p class="ads-mkt-muted">Provider connection is disabled until founder approval/configuration.</p>
+      {% endif %}
+    </article>
+  {% endfor %}
+</section>
+<script>
+document.querySelectorAll(".ads-oauth-connect-form").forEach(function(form){
+  form.addEventListener("submit", async function(event){
+    event.preventDefault();
+    var button=form.querySelector("button");
+    var error=form.querySelector(".ads-oauth-error");
+    button.disabled=true; error.hidden=true;
+    try {
+      var response=await fetch(form.action,{method:"POST",headers:{"Accept":"application/json","X-CSRFToken":form.querySelector('[name="csrfmiddlewaretoken"]').value},credentials:"same-origin"});
+      var payload=await response.json();
+      if(!response.ok||!payload.authorization_url){throw new Error("connection_start_failed");}
+      window.location.assign(payload.authorization_url);
+    } catch (_error) {
+      error.textContent="Google connection could not be started. Check the provider configuration and try again.";
+      error.hidden=false; button.disabled=false;
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -246,6 +246,20 @@ def start_order_robot(order, payment=None):
         return None
 
 
+def attribute_paid_order_for_ads(order):
+    """Attach Ads V2 attribution for paid orders without affecting fulfillment."""
+    if not order or order.payment_status != 'paid':
+        return []
+    if order.status in {'cancelled', 'refunded'}:
+        return []
+    try:
+        from ads.attribution import commerce_attribution_service
+
+        return commerce_attribution_service.attribute_order(order)
+    except Exception:
+        return []
+
+
 @transaction.atomic
 def mark_order_paid(payment):
     """
@@ -293,6 +307,7 @@ def mark_order_paid(payment):
         )
 
         if not was_already_paid:
+            attribute_paid_order_for_ads(existing_order)
             start_order_robot(
                 existing_order,
                 payment=payment,
@@ -464,5 +479,6 @@ def mark_order_paid(payment):
         priority=4 if is_admin_quote_delivery else 3,
     )
     send_paid_order_emails(order, delivery)
+    attribute_paid_order_for_ads(order)
     start_order_robot(order, payment=payment)
     return order

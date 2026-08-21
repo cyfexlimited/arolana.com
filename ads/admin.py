@@ -3,7 +3,10 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from .models import (
     AdPlacement, AdCampaign, AdCreative, AdBanner, 
-    AdImpression, AdClick, AdConversion, AdAnalytics, Advertisement
+    AdImpression, AdClick, AdConversion, AdAnalytics, Advertisement,
+    AdvertiserIdentity, CampaignAsset, ExternalAdvertisingAccount,
+    AdvertisingCredential, AdvertisingOAuthState, AdvertisingConnectionAuditLog,
+    AdChannelExecution, AdChannelReportingSnapshot, AdEvent, AdAttribution
 )
 
 
@@ -36,14 +39,14 @@ class AdPlacementAdmin(admin.ModelAdmin):
 
 @admin.register(AdCampaign)
 class AdCampaignAdmin(admin.ModelAdmin):
-    list_display = ['name', 'campaign_id', 'campaign_type', 'status', 'budget_status', 'performance_metrics']
-    list_filter = ['status', 'campaign_type', 'approved']
-    search_fields = ['name', 'campaign_id']
+    list_display = ['name', 'campaign_id', 'advertiser_identity', 'objective', 'campaign_type', 'status', 'approved', 'budget_status', 'performance_metrics']
+    list_filter = ['status', 'campaign_type', 'objective', 'approved', 'advertiser_identity__owner_type']
+    search_fields = ['name', 'campaign_id', 'advertiser_identity__display_name']
     readonly_fields = ['campaign_id', 'spent', 'impressions', 'clicks', 'ctr', 'quality_score', 
                        'created_at', 'updated_at', 'start_date', 'approved_at']
     
     fieldsets = (
-        ('Campaign Info', {'fields': ('name', 'campaign_id', 'campaign_type')}),
+        ('Campaign Info', {'fields': ('name', 'campaign_id', 'campaign_type', 'objective', 'advertiser_identity')}),
         ('Budget', {'fields': ('budget_type', 'daily_budget', 'total_budget', 'spent', 'bid_strategy', 'target_cpa', 'max_bid')}),
         ('Schedule', {'fields': ('start_date', 'end_date', 'timezone', 'dayparting')}),
         ('Targeting', {'fields': ('targeting', 'geo_targeting', 'device_targeting', 'browser_targeting', 'os_targeting', 'interest_targeting', 'custom_segments')}),
@@ -52,6 +55,7 @@ class AdCampaignAdmin(admin.ModelAdmin):
         ('Tracking', {'fields': ('utm_source', 'utm_medium', 'utm_campaign')}),
         ('Status', {'fields': ('status', 'approved', 'approved_by', 'approved_at')}),
     )
+    actions = ['approve_campaigns', 'reject_campaigns', 'pause_campaigns']
     
     def budget_status(self, obj):
         percentage = float(obj.budget_used_percentage)
@@ -64,6 +68,21 @@ class AdCampaignAdmin(admin.ModelAdmin):
         quality_val = str(obj.quality_score)
         return mark_safe(f'<div><strong>CTR:</strong> {ctr_val:.2f}%<br><strong>Quality:</strong> {quality_val}</div>')
     performance_metrics.short_description = 'Performance'
+
+    def approve_campaigns(self, request, queryset):
+        updated = queryset.update(approved=True, status='active')
+        self.message_user(request, f"{updated} campaign(s) approved.")
+    approve_campaigns.short_description = "Approve selected campaigns"
+
+    def reject_campaigns(self, request, queryset):
+        updated = queryset.update(approved=False, status='rejected')
+        self.message_user(request, f"{updated} campaign(s) rejected.")
+    reject_campaigns.short_description = "Reject selected campaigns"
+
+    def pause_campaigns(self, request, queryset):
+        updated = queryset.update(status='paused')
+        self.message_user(request, f"{updated} campaign(s) paused.")
+    pause_campaigns.short_description = "Pause selected campaigns"
 
 @admin.register(AdCreative)
 class AdCreativeAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
@@ -230,3 +249,99 @@ class AdvertisementAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
     def ctr_display(self, obj):
         return f"{float(obj.ctr):.2f}%" if float(obj.ctr) > 0 else "0%"
     ctr_display.short_description = 'CTR'
+
+
+@admin.register(AdvertiserIdentity)
+class AdvertiserIdentityAdmin(admin.ModelAdmin):
+    list_display = ['display_name', 'owner_type', 'vendor', 'provider', 'user', 'is_active']
+    list_filter = ['owner_type', 'is_active']
+    search_fields = ['display_name', 'vendor__store_name', 'provider__business_name', 'user__username']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(CampaignAsset)
+class CampaignAssetAdmin(admin.ModelAdmin):
+    list_display = ['campaign', 'asset_type', 'advertiser_identity', 'title', 'object_id', 'is_active']
+    list_filter = ['asset_type', 'is_active']
+    search_fields = ['title', 'campaign__name', 'advertiser_identity__display_name']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(ExternalAdvertisingAccount)
+class ExternalAdvertisingAccountAdmin(admin.ModelAdmin):
+    list_display = ['display_name', 'channel', 'advertiser_identity', 'status', 'last_sync_at']
+    list_filter = ['channel', 'status', 'is_active']
+    search_fields = ['display_name', 'external_account_id', 'advertiser_identity__display_name']
+    readonly_fields = ['created_at', 'updated_at', 'connected_at', 'last_sync_at']
+    exclude = []
+
+
+@admin.register(AdvertisingCredential)
+class AdvertisingCredentialAdmin(admin.ModelAdmin):
+    list_display = ['external_account', 'provider', 'access_token_expires_at', 'refresh_token_expires_at', 'revoked_at', 'credential_version']
+    list_filter = ['provider', 'revoked_at']
+    search_fields = ['external_account__display_name', 'external_account__external_account_id']
+    readonly_fields = ['external_account', 'provider', 'access_token_expires_at', 'refresh_token_expires_at', 'revoked_at', 'credential_version', 'scopes', 'metadata', 'created_at', 'updated_at']
+    exclude = ['encrypted_access_token', 'encrypted_refresh_token']
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(AdvertisingOAuthState)
+class AdvertisingOAuthStateAdmin(admin.ModelAdmin):
+    list_display = ['provider', 'advertiser_identity', 'user', 'expires_at', 'used_at']
+    list_filter = ['provider', 'expires_at', 'used_at']
+    search_fields = ['advertiser_identity__display_name', 'user__username']
+    readonly_fields = ['provider', 'advertiser_identity', 'user', 'session_key', 'expires_at', 'used_at', 'redirect_uri', 'metadata', 'created_at', 'updated_at']
+    exclude = ['state']
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(AdvertisingConnectionAuditLog)
+class AdvertisingConnectionAuditLogAdmin(admin.ModelAdmin):
+    list_display = ['provider', 'event_type', 'advertiser_identity', 'external_account', 'user', 'status', 'created_at']
+    list_filter = ['provider', 'event_type', 'status']
+    search_fields = ['advertiser_identity__display_name', 'external_account__display_name', 'user__username', 'message']
+    readonly_fields = ['provider', 'event_type', 'advertiser_identity', 'external_account', 'user', 'status', 'message', 'metadata', 'created_at', 'updated_at']
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(AdChannelExecution)
+class AdChannelExecutionAdmin(admin.ModelAdmin):
+    list_display = ['campaign', 'channel', 'advertiser_identity', 'status', 'external_status', 'budget_allocation', 'currency', 'last_synced_at']
+    list_filter = ['channel', 'status', 'is_active']
+    search_fields = ['campaign__name', 'external_campaign_id', 'advertiser_identity__display_name']
+    readonly_fields = ['created_at', 'updated_at', 'last_synced_at']
+
+
+@admin.register(AdChannelReportingSnapshot)
+class AdChannelReportingSnapshotAdmin(admin.ModelAdmin):
+    list_display = ['execution', 'provider', 'reporting_start', 'reporting_end', 'impressions', 'clicks', 'spend', 'currency']
+    list_filter = ['provider', 'reporting_start', 'reporting_end']
+    search_fields = ['execution__campaign__name', 'execution__external_campaign_id']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(AdEvent)
+class AdEventAdmin(admin.ModelAdmin):
+    list_display = ['event_uuid', 'event_type', 'campaign', 'asset', 'event_source', 'occurred_at']
+    list_filter = ['event_type', 'event_source', 'occurred_at']
+    search_fields = ['event_uuid', 'session_id', 'request_id']
+    readonly_fields = ['event_uuid', 'created_at', 'updated_at']
+    date_hierarchy = 'occurred_at'
+
+
+@admin.register(AdAttribution)
+class AdAttributionAdmin(admin.ModelAdmin):
+    list_display = ['source_event', 'advertiser_identity', 'campaign', 'attribution_type', 'lifecycle_status', 'revenue_amount', 'net_revenue_amount', 'currency', 'created_at']
+    list_filter = ['attribution_type', 'lifecycle_status', 'currency']
+    search_fields = ['source_event__event_uuid', 'campaign__name', 'advertiser_identity__display_name']
+    readonly_fields = ['created_at', 'updated_at']

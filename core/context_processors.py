@@ -275,6 +275,9 @@ def global_context(request):
         "DEBUG": settings.DEBUG,
         "SITE_URL": getattr(settings, "SITE_URL", "http://localhost:8000"),
         "GOOGLE_MAPS_API_KEY": getattr(settings, "GOOGLE_MAPS_API_KEY", ""),
+        "ADS_ADVERTISER_DASHBOARD_ENABLED": bool(
+            getattr(settings, "ADS_ADVERTISER_DASHBOARD_ENABLED", False)
+        ),
 
         "notification_unread_count": notification_unread_count,
         "recent_user_notifications": recent_user_notifications,

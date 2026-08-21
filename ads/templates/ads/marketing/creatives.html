@@ -1,0 +1,10 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Creative Library{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-card">
+  <h2>Create creative</h2>
+  {% if form_error %}<p style="color:#991b1b">{{ form_error }}</p>{% endif %}
+  <form method="post" class="ads-mkt-form">{% csrf_token %}<select name="campaign_id">{% for campaign in campaigns %}<option value="{{ campaign.id }}">{{ campaign.name }}</option>{% endfor %}</select><select name="creative_type"><option value="image">Image</option><option value="video">Video</option><option value="native">Card/native</option><option value="carousel">Carousel</option></select><input name="headline" maxlength="100" placeholder="Headline"><textarea name="description" placeholder="Description"></textarea><input name="cta_text" placeholder="CTA"><input name="clickthrough_url" placeholder="https://arolana.com"><button class="ads-mkt-btn">Save creative</button></form>
+</section>
+<section class="ads-mkt-card ads-mkt-list">{% for creative in creatives %}<article class="ads-mkt-row"><h3>{{ creative.headline }}</h3><p class="ads-mkt-muted">{{ creative.creative_type }} · {{ creative.campaign.name }}</p></article>{% empty %}<p class="ads-mkt-muted">No creatives yet.</p>{% endfor %}</section>
+{% endblock %}

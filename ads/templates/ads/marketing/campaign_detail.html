@@ -1,0 +1,58 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Campaign Detail{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-card">
+  {% include "ads/marketing/partials/campaign_row.html" with campaign=campaign %}
+  <p class="ads-mkt-muted">Private ranking internals and credential data are not exposed.</p>
+</section>
+<section class="ads-mkt-grid">
+  {% for execution in campaign.execution_cards %}
+    <article class="ads-mkt-card">
+      <h2>{{ execution.label }}</h2>
+      <p class="ads-mkt-pill">{{ execution.connection_status }}</p>
+      <p>Status: {{ execution.execution_status }}</p>
+      {% if execution.external_campaign_id %}<p>External campaign: {{ execution.external_campaign_id }}</p>{% endif %}
+      <p>Budget allocation: {{ execution.budget_allocation|default:"Unavailable" }} {{ execution.currency }}</p>
+      <p>Spend: {{ execution.spend|default:"Unavailable" }}</p>
+      <p>Impressions: {{ execution.impressions }}</p>
+      <p>Clicks: {{ execution.clicks }}</p>
+      <p>Last sync: {{ execution.last_sync|default:"Never" }}</p>
+      {% if execution.error %}<p class="ads-mkt-error">{{ execution.error }}</p>{% endif %}
+      {% if request.user.is_staff and execution.channel != "internal" %}
+        <p class="ads-mkt-pill">TEST MODE</p>
+        <form method="post" action="{% url 'ads_api:management_campaign_external_preview' campaign.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="channel" value="{{ execution.channel }}">
+          <button class="ads-mkt-button" type="submit">Preview Google Payload</button>
+        </form>
+        {% if execution.channel == "google" %}
+          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="channel" value="google">
+            <input type="hidden" name="action" value="create">
+            <button class="ads-mkt-button" type="submit">Create Test Google Campaign</button>
+          </form>
+          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="channel" value="google">
+            <input type="hidden" name="action" value="sync">
+            <button class="ads-mkt-button" type="submit">Sync Google Status</button>
+          </form>
+          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="channel" value="google">
+            <input type="hidden" name="action" value="reporting">
+            <button class="ads-mkt-button" type="submit">Fetch Test Reporting</button>
+          </form>
+          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="channel" value="google">
+            <input type="hidden" name="action" value="pause">
+            <button class="ads-mkt-button" type="submit">Pause Test Campaign</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

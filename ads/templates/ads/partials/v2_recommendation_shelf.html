@@ -1,0 +1,280 @@
+{% if enabled and results %}
+<section class="ads-v2-shelf" data-ads-v2-shelf data-ads-placement="{{ placement }}" data-ads-client="{{ client }}" aria-label="Internal Ads V2 recommendation preview">
+    <div class="ads-v2-shelf__header">
+        <p class="ads-v2-shelf__eyebrow">Internal Ads V2 preview</p>
+        <h2 class="ads-v2-shelf__title">Recommended for this surface</h2>
+    </div>
+    <div class="ads-v2-shelf__grid">
+        {% for result in results %}
+            <a
+                class="ads-v2-card ads-v2-card--{{ result.type }}"
+                href="{{ result.url|default:'#' }}"
+                data-ads-v2-card
+                data-ads-event-url="{% url 'ads_api:events_v2' %}"
+                data-ads-delivery-id="{{ result.tracking.delivery_id }}"
+                data-ads-asset-id="{{ result.tracking.asset_id|default:'' }}"
+                data-ads-campaign-id="{{ result.tracking.campaign_id|default:'' }}"
+                data-ads-item-type="{{ result.type }}"
+                data-ads-surface="{{ placement }}"
+            >
+                <div class="ads-v2-card__media">
+                    {% if result.item.image_url %}
+                        <img src="{{ result.item.image_url }}" alt="{{ result.title }}" loading="lazy">
+                    {% elif result.item.thumbnail_url %}
+                        <img src="{{ result.item.thumbnail_url }}" alt="{{ result.title }}" loading="lazy">
+                    {% elif result.type == "product_video" %}
+                        <div class="ads-v2-card__video-placeholder">Video</div>
+                    {% else %}
+                        <div class="ads-v2-card__placeholder">{{ result.type|title }}</div>
+                    {% endif %}
+                    {% if result.type == "product_video" %}
+                        <span class="ads-v2-card__play" aria-hidden="true">▶</span>
+                    {% endif %}
+                </div>
+                <div class="ads-v2-card__body">
+                    {% if result.sponsored %}
+                        <span class="ads-v2-card__badge">Sponsored</span>
+                    {% endif %}
+                    <h3 class="ads-v2-card__title">{{ result.title|default:"Recommendation" }}</h3>
+                    {% if result.item.description %}
+                        <p class="ads-v2-card__description">{{ result.item.description|truncatechars:96 }}</p>
+                    {% endif %}
+                    {% if result.sponsored and result.sponsor.name %}
+                        <p class="ads-v2-card__sponsor">{{ result.sponsor.name }}</p>
+                    {% endif %}
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</section>
+<style>
+    .ads-v2-shelf {
+        margin: 1.5rem 0;
+        padding: 1rem;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 1rem;
+        background: #fff;
+    }
+    .ads-v2-shelf__header {
+        margin-bottom: 0.85rem;
+    }
+    .ads-v2-shelf__eyebrow {
+        margin: 0 0 0.2rem;
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .ads-v2-shelf__title {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(1.05rem, 2vw, 1.35rem);
+    }
+    .ads-v2-shelf__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+        gap: 0.85rem;
+    }
+    .ads-v2-card {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        overflow: hidden;
+        color: inherit;
+        text-decoration: none;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 0.85rem;
+        background: #f8fafc;
+    }
+    .ads-v2-card__media {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        background: linear-gradient(135deg, #e2e8f0, #f8fafc);
+    }
+    .ads-v2-card__media img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .ads-v2-card__placeholder,
+    .ads-v2-card__video-placeholder {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        place-items: center;
+        color: #64748b;
+        font-weight: 700;
+    }
+    .ads-v2-card__play {
+        position: absolute;
+        right: 0.65rem;
+        bottom: 0.55rem;
+        display: grid;
+        width: 2rem;
+        height: 2rem;
+        place-items: center;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.82);
+        color: #fff;
+        font-size: 0.75rem;
+    }
+    .ads-v2-card__body {
+        padding: 0.8rem;
+    }
+    .ads-v2-card__badge {
+        display: inline-flex;
+        margin-bottom: 0.45rem;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #4338ca;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+    .ads-v2-card__title {
+        margin: 0;
+        color: #111827;
+        font-size: 0.95rem;
+        line-height: 1.25;
+    }
+    .ads-v2-card__description,
+    .ads-v2-card__sponsor {
+        margin: 0.4rem 0 0;
+        color: #64748b;
+        font-size: 0.8rem;
+        line-height: 1.35;
+    }
+    @media (max-width: 430px) {
+        .ads-v2-shelf {
+            margin-inline: -0.25rem;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+        }
+        .ads-v2-shelf__grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+        }
+        .ads-v2-card__body {
+            padding: 0.65rem;
+        }
+    }
+</style>
+<script>
+    (function () {
+        if (window.__arolanaAdsV2TrackingReady) {
+            return;
+        }
+        window.__arolanaAdsV2TrackingReady = true;
+        window.__arolanaAdsV2Tracked = window.__arolanaAdsV2Tracked || new Set();
+
+        function stableUuid(key) {
+            var storageKey = "ads_v2_event_uuid:" + key;
+            try {
+                var stored = window.sessionStorage.getItem(storageKey);
+                if (stored) {
+                    return stored;
+                }
+                var uuid = window.crypto && window.crypto.randomUUID
+                    ? window.crypto.randomUUID()
+                    : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, function (c) {
+                        return (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16);
+                    });
+                window.sessionStorage.setItem(storageKey, uuid);
+                return uuid;
+            } catch (error) {
+                return window.crypto && window.crypto.randomUUID
+                    ? window.crypto.randomUUID()
+                    : String(Date.now()) + "-0000-4000-8000-000000000000";
+            }
+        }
+
+        function sendEvent(card, eventType) {
+            var deliveryId = card.getAttribute("data-ads-delivery-id");
+            if (!deliveryId) {
+                return;
+            }
+            var key = deliveryId + ":" + eventType;
+            if (window.__arolanaAdsV2Tracked.has(key)) {
+                return;
+            }
+            try {
+                if (window.sessionStorage.getItem("ads_v2_sent:" + key)) {
+                    window.__arolanaAdsV2Tracked.add(key);
+                    return;
+                }
+            } catch (error) {}
+            window.__arolanaAdsV2Tracked.add(key);
+            try {
+                window.sessionStorage.setItem("ads_v2_sent:" + key, "1");
+            } catch (error) {}
+
+            var payload = {
+                event_uuid: stableUuid(key),
+                event_type: eventType,
+                delivery_id: deliveryId,
+                asset_id: card.getAttribute("data-ads-asset-id") || null,
+                campaign_id: card.getAttribute("data-ads-campaign-id") || null,
+                event_source: "web",
+                metadata: {
+                    surface: card.getAttribute("data-ads-surface") || "",
+                    item_type: card.getAttribute("data-ads-item-type") || ""
+                }
+            };
+            var body = JSON.stringify(payload);
+            var url = card.getAttribute("data-ads-event-url");
+            if (navigator.sendBeacon) {
+                try {
+                    var blob = new Blob([body], {type: "application/json"});
+                    if (navigator.sendBeacon(url, blob)) {
+                        return;
+                    }
+                } catch (error) {}
+            }
+            fetch(url, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {"Content-Type": "application/json"},
+                body: body,
+                keepalive: true
+            }).catch(function () {});
+        }
+
+        function observe() {
+            var cards = document.querySelectorAll("[data-ads-v2-card]");
+            if (!cards.length) {
+                return;
+            }
+            if (!("IntersectionObserver" in window)) {
+                cards.forEach(function (card) {
+                    sendEvent(card, "impression");
+                });
+                return;
+            }
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                        sendEvent(entry.target, "impression");
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {threshold: [0.5]});
+            cards.forEach(function (card) {
+                observer.observe(card);
+                card.addEventListener("click", function () {
+                    sendEvent(card, "click");
+                }, {passive: true});
+            });
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", observe, {once: true});
+        } else {
+            observe();
+        }
+        document.addEventListener("htmx:afterSettle", observe);
+    })();
+</script>
+{% endif %}

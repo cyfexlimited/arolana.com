@@ -1,0 +1,23 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Create Campaign{% endblock %}
+{% block ads_content %}
+<form method="post" class="ads-mkt-form">
+  {% csrf_token %}
+  {% if form_error %}<div class="ads-mkt-card" style="border-color:#fecaca;color:#991b1b">{{ form_error }}</div>{% endif %}
+  <section><h2>1. What do you want to promote?</h2><p class="ads-mkt-muted">Product, Product Video, Service, Provider, and Store are supported when owned. Brand/category/collection are hidden unless canonical ownership exists.</p></section>
+  <section><h2>2. Select owned asset</h2><input type="hidden" name="asset_type"><input type="hidden" name="object_id"><select name="content_type_id" required>{% for asset in asset_options %}<option value="{{ asset.content_type_id }}" data-asset-type="{{ asset.asset_type }}" data-object-id="{{ asset.object_id }}">{{ asset.asset_type }} · {{ asset.title }}</option>{% endfor %}</select></section>
+  <section><h2>3. Goal / objective</h2><select name="objective">{% for value,label in objectives %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></section>
+  <section><h2>4. Placement</h2><select name="placements">{% for placement in placements %}<option value="{{ placement.slug }}">{{ placement.name }}</option>{% endfor %}</select></section>
+  <section><h2>5. Audience</h2><select name="targeting"><option value="all">All visitors</option><option value="logged_in">Logged in users</option><option value="new">New visitors</option><option value="returning">Returning visitors</option></select></section>
+  <section><h2>6. Creative</h2><p class="ads-mkt-muted">Create or select creatives from the Creative Library. HTML5 advanced fields remain admin-only.</p></section>
+  <section><h2>7. Budget and schedule</h2><input name="name" required placeholder="Campaign name"><input name="total_budget" type="number" step="0.01" value="100.00"><input name="max_bid" type="number" step="0.01" value="0.50"></section>
+  <section><h2>8. Review</h2><p class="ads-mkt-pill">Sponsored label preview</p><p class="ads-mkt-muted">Review asset, objective, placement, audience, creative, budget, and schedule before submission.</p></section>
+  <div class="ads-mkt-sticky"><button class="ads-mkt-btn secondary" type="submit" name="submit" value="0">Save draft</button><button class="ads-mkt-btn" type="submit" name="submit" value="1">Submit for approval</button></div>
+</form>
+<script>
+function syncAdsWizardAsset(form){var select=form.querySelector('[name="content_type_id"]');if(!select||!select.selectedOptions.length){return;}var option=select.selectedOptions[0];form.asset_type.value=option.dataset.assetType||"";form.object_id.value=option.dataset.objectId||"";}
+document.querySelectorAll(".ads-mkt-form").forEach(syncAdsWizardAsset);
+document.addEventListener("change", function(event){if(event.target.name==="content_type_id"){syncAdsWizardAsset(event.target.form);}});
+document.addEventListener("submit", function(event){if(event.target.classList.contains("ads-mkt-form")){syncAdsWizardAsset(event.target);}});
+</script>
+{% endblock %}

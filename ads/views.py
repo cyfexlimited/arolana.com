@@ -1,16 +1,239 @@
-from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 from django.utils import timezone
 from django.core.paginator import Paginator
-from .models import AdBanner, AdPlacement, AdImpression, AdClick, AdCampaign
+from .models import AdBanner, AdPlacement, AdImpression, AdClick, AdCampaign, ExternalAdvertisingAccount
+from .management import (
+    AdvertiserAccessError,
+    AdvertiserValidationError,
+    connected_account_shells,
+    create_campaign,
+    create_creative,
+    creative_queryset,
+    current_advertiser_identity,
+    owned_asset_options,
+    overview_metrics,
+    campaign_queryset,
+    serialize_campaign,
+)
 from django.conf import settings
+from decimal import Decimal
 import json
 import os
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _dashboard_enabled():
+    return bool(getattr(settings, "ADS_ADVERTISER_DASHBOARD_ENABLED", False))
+
+
+def _dashboard_context(request, section):
+    if not _dashboard_enabled():
+        return {
+            "dashboard_enabled": False,
+            "section": section,
+        }
+    try:
+        identity = current_advertiser_identity(
+            request.user,
+            advertiser_id=request.GET.get("advertiser_id"),
+        )
+    except AdvertiserAccessError:
+        return {
+            "dashboard_enabled": True,
+            "access_denied": True,
+            "section": section,
+        }
+    return {
+        "dashboard_enabled": True,
+        "advertiser": identity,
+        "section": section,
+        "nav_items": [
+            ("overview", "Overview", "ads:marketing_overview"),
+            ("campaigns", "Campaigns", "ads:marketing_campaigns"),
+            ("create", "Create Campaign", "ads:marketing_create_campaign"),
+            ("assets", "Promoted Assets", "ads:marketing_assets"),
+            ("creatives", "Creative Library", "ads:marketing_creatives"),
+            ("placements", "Placements", "ads:marketing_placements"),
+            ("connected", "Connected Accounts", "ads:marketing_connected_accounts"),
+            ("analytics", "Analytics", "ads:marketing_analytics"),
+            ("billing", "Billing / Funding", "ads:marketing_billing"),
+            ("settings", "Settings", "ads:marketing_settings"),
+        ],
+    }
+
+
+def _render_dashboard(request, template, section, extra=None):
+    context = _dashboard_context(request, section)
+    if context.get("dashboard_enabled") and not context.get("access_denied") and extra:
+        context.update(extra(context["advertiser"]) if callable(extra) else extra)
+    return render(request, template, context)
+
+
+@login_required
+def marketing_overview(request):
+    return _render_dashboard(
+        request,
+        "ads/marketing/overview.html",
+        "overview",
+        lambda advertiser: {
+            "metrics": overview_metrics(advertiser),
+            "campaigns": [serialize_campaign(campaign) for campaign in campaign_queryset(advertiser)[:6]],
+        },
+    )
+
+
+@login_required
+def marketing_campaigns(request):
+    return _render_dashboard(
+        request,
+        "ads/marketing/campaigns.html",
+        "campaigns",
+        lambda advertiser: {
+            "campaigns": [serialize_campaign(campaign) for campaign in campaign_queryset(advertiser)],
+        },
+    )
+
+
+@login_required
+def marketing_create_campaign(request):
+    context = _dashboard_context(request, "create")
+    if not context.get("dashboard_enabled") or context.get("access_denied"):
+        return render(request, "ads/marketing/create_campaign.html", context)
+    advertiser = context["advertiser"]
+    if request.method == "POST":
+        try:
+            campaign, _asset = create_campaign(advertiser, request.POST, submit=request.POST.get("submit") == "1")
+            return redirect("ads:marketing_campaign_detail", campaign_id=campaign.pk)
+        except (AdvertiserAccessError, AdvertiserValidationError) as exc:
+            context["form_error"] = str(exc)
+    context.update(
+        {
+            "asset_options": owned_asset_options(advertiser),
+            "placements": AdPlacement.objects.filter(is_active=True).order_by("priority", "name"),
+            "objectives": AdCampaign.OBJECTIVE_CHOICES,
+            "campaign_statuses": AdCampaign.STATUS_CHOICES,
+        }
+    )
+    return render(request, "ads/marketing/create_campaign.html", context)
+
+
+@login_required
+def marketing_campaign_detail(request, campaign_id):
+    return _render_dashboard(
+        request,
+        "ads/marketing/campaign_detail.html",
+        "campaigns",
+        lambda advertiser: {
+            "campaign": serialize_campaign(get_object_or_404(campaign_queryset(advertiser), pk=campaign_id)),
+        },
+    )
+
+
+@login_required
+def marketing_assets(request):
+    return _render_dashboard(
+        request,
+        "ads/marketing/assets.html",
+        "assets",
+        lambda advertiser: {"asset_options": owned_asset_options(advertiser)},
+    )
+
+
+@login_required
+def marketing_creatives(request):
+    context = _dashboard_context(request, "creatives")
+    if not context.get("dashboard_enabled") or context.get("access_denied"):
+        return render(request, "ads/marketing/creatives.html", context)
+    advertiser = context["advertiser"]
+    if request.method == "POST":
+        try:
+            create_creative(advertiser, request.POST)
+            return redirect("ads:marketing_creatives")
+        except (AdvertiserAccessError, AdvertiserValidationError) as exc:
+            context["form_error"] = str(exc)
+    context.update(
+        {
+            "creatives": creative_queryset(advertiser),
+            "campaigns": campaign_queryset(advertiser),
+        }
+    )
+    return render(request, "ads/marketing/creatives.html", context)
+
+
+@login_required
+def marketing_placements(request):
+    return _render_dashboard(
+        request,
+        "ads/marketing/placements.html",
+        "placements",
+        {"placements": AdPlacement.objects.filter(is_active=True).order_by("priority", "name")},
+    )
+
+
+@login_required
+def marketing_connected_accounts(request):
+    return _render_dashboard(
+        request,
+        "ads/marketing/connected_accounts.html",
+        "connected",
+        lambda advertiser: {"accounts": connected_account_shells(advertiser)},
+    )
+
+
+@login_required
+def marketing_connected_account_select(request, provider):
+    context = _dashboard_context(request, "connected")
+    if not context.get("dashboard_enabled") or context.get("access_denied"):
+        return render(request, "ads/marketing/connected_account_select.html", context)
+    pending = request.session.get("ads_pending_account_selection") or {}
+    if pending.get("provider") != provider:
+        context["selection_error"] = "No pending account connection was found. Start the connection again."
+        return render(request, "ads/marketing/connected_account_select.html", context, status=400)
+    try:
+        account = ExternalAdvertisingAccount.objects.get(
+            pk=int(pending.get("connection_id")),
+            advertiser_identity=context["advertiser"],
+            channel=provider,
+            status=ExternalAdvertisingAccount.STATUS_PENDING,
+        )
+    except (TypeError, ValueError, ExternalAdvertisingAccount.DoesNotExist):
+        context["selection_error"] = "The pending account connection is unavailable or no longer valid."
+        return render(request, "ads/marketing/connected_account_select.html", context, status=400)
+    context.update({
+        "provider": provider,
+        "connection_id": account.pk,
+        "discovered_accounts": (account.metadata or {}).get("discovered_accounts", []),
+    })
+    return render(request, "ads/marketing/connected_account_select.html", context)
+
+
+@login_required
+def marketing_analytics(request):
+    return _render_dashboard(
+        request,
+        "ads/marketing/analytics.html",
+        "analytics",
+        lambda advertiser: {
+            "metrics": overview_metrics(advertiser),
+            "campaigns": [serialize_campaign(campaign) for campaign in campaign_queryset(advertiser)],
+        },
+    )
+
+
+@login_required
+def marketing_billing(request):
+    return _render_dashboard(request, "ads/marketing/billing.html", "billing")
+
+
+@login_required
+def marketing_settings(request):
+    return _render_dashboard(request, "ads/marketing/settings.html", "settings")
 
 
 def _json_tracking_body(request):
@@ -40,6 +263,17 @@ def _ignored_tracking_response(message='Tracking ping ignored'):
         'ignored': True,
         'message': message,
     })
+
+
+def _legacy_click_cost(campaign):
+    if campaign.campaign_type == 'cpc':
+        return campaign.max_bid or Decimal("0")
+    return Decimal("0")
+
+
+def _legacy_impression_cost(campaign):
+    # The current model has no CPM price field. Do not invent spend for views.
+    return Decimal("0")
 
 
 def test_ads(request):
@@ -82,7 +316,7 @@ def track_click(request):
             banner=ad,
             campaign=campaign,
             user=request.user if request.user.is_authenticated else None,
-            session_id=request.session.session_key,
+            session_id=request.session.session_key or '',
             ip_address=request.META.get('REMOTE_ADDR'),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
         )
@@ -92,7 +326,7 @@ def track_click(request):
         ad.save()
         
         campaign.clicks += 1
-        campaign.spent += campaign.cost_per_click
+        campaign.spent += _legacy_click_cost(campaign)
         campaign.save()
         
         logger.info(f"Ad click tracked: {ad.title} - Campaign: {campaign.name}")
@@ -115,7 +349,7 @@ def track_view(request):
         campaign = ad.campaign
         
         # Check if already tracked for this session (avoid duplicates)
-        session_id = request.session.session_key
+        session_id = request.session.session_key or ''
         if session_id:
             existing = AdImpression.objects.filter(
                 banner=ad,
@@ -141,7 +375,7 @@ def track_view(request):
         ad.save()
         
         campaign.impressions += 1
-        campaign.spent += campaign.cost_per_impression / 1000  # CPM calculation
+        campaign.spent += _legacy_impression_cost(campaign)
         campaign.save()
         
         logger.info(f"Ad impression tracked: {ad.title}")

@@ -1,0 +1,9 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Promoted Assets{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-card ads-mkt-list">
+  {% for asset in asset_options %}
+    <article class="ads-mkt-row"><div class="ads-mkt-row-main"><div><h3>{{ asset.title }}</h3><p class="ads-mkt-muted">{{ asset.asset_type }}</p></div><a class="ads-mkt-btn secondary" href="{% url 'ads:marketing_create_campaign' %}?asset_type={{ asset.asset_type }}&object_id={{ asset.object_id }}">Promote</a></div></article>
+  {% empty %}<p class="ads-mkt-muted">No eligible owned assets were found.</p>{% endfor %}
+</section>
+{% endblock %}

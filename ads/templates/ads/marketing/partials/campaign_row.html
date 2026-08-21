@@ -1,0 +1,15 @@
+<article class="ads-mkt-row">
+  <div class="ads-mkt-row-main">
+    <div>
+      <h3 style="margin:0">{{ campaign.name }}</h3>
+      <p class="ads-mkt-muted" style="margin:.25rem 0 0">{{ campaign.asset_summary }} · {{ campaign.objective }}</p>
+    </div>
+    <span class="ads-mkt-pill">{{ campaign.status }}</span>
+  </div>
+  <div class="ads-mkt-grid">
+    {% include "ads/marketing/partials/metric.html" with label="Impressions" value=campaign.performance.impressions %}
+    {% include "ads/marketing/partials/metric.html" with label="Clicks" value=campaign.performance.clicks %}
+    {% include "ads/marketing/partials/metric.html" with label="Valid orders" value=campaign.performance.valid_orders %}
+    {% include "ads/marketing/partials/metric.html" with label="Net revenue" value=campaign.performance.net_attributed_revenue %}
+  </div>
+</article>

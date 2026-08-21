@@ -1,6 +1,7 @@
 from django.utils import timezone
 from django.core.cache import cache
 from .models import AdBanner, AdPlacement, AdImpression
+from decimal import Decimal
 import random
 import logging
 
@@ -11,6 +12,14 @@ class AdService:
     
     def __init__(self):
         self.cache_timeout = 300  # 5 minutes cache
+
+    def _campaign_budget_limit(self, campaign):
+        """Return the current campaign budget field used by the model."""
+        return campaign.total_budget or Decimal("0")
+
+    def _campaign_has_budget(self, campaign):
+        budget_limit = self._campaign_budget_limit(campaign)
+        return budget_limit <= 0 or campaign.spent < budget_limit
     
     def get_ad(self, placement_slug, user=None, request=None):
         """Get an ad for a specific placement with advanced rotation"""
@@ -49,8 +58,8 @@ class AdService:
         for banner in banners:
             campaign = banner.campaign
             
-            # Check budget
-            if campaign.spent >= campaign.budget:
+            # Check budget against the current campaign schema.
+            if not self._campaign_has_budget(campaign):
                 continue
             
             # Apply user targeting
@@ -74,7 +83,7 @@ class AdService:
                         timestamp__date=today
                     ).count()
                     
-                    if impressions_today >= campaign.frequency_cap:
+                    if campaign.frequency_cap and impressions_today >= campaign.frequency_cap:
                         continue
             
             eligible_banners.append(banner)
@@ -128,27 +137,24 @@ class AdService:
         # Priority factor
         score += banner.priority * 2
         
-        # Discount factor (promote discounted items)
-        if banner.campaign.discount_percent:
-            score += banner.campaign.discount_percent / 10
-        
         # Freshness factor (newer campaigns get boost)
         days_since_created = (timezone.now() - banner.created_at).days
         if days_since_created < 7:
             score += (7 - days_since_created) * 0.5
         
         # Budget remaining factor
-        if banner.campaign.budget > 0:
-            budget_remaining = (banner.campaign.budget - banner.campaign.spent) / banner.campaign.budget
-            score += budget_remaining * 2
+        campaign_budget = self._campaign_budget_limit(banner.campaign)
+        if campaign_budget > 0:
+            budget_remaining = (campaign_budget - banner.campaign.spent) / campaign_budget
+            score += float(budget_remaining) * 2
         
         return score
     
     def _track_delivery(self, banner):
         """Track ad delivery for analytics"""
-        # Update last delivered timestamp
-        banner.last_delivered = timezone.now()
-        banner.save(update_fields=['last_delivered'])
+        # The current banner model has no delivery timestamp field. Keep this
+        # path side-effect free so selection works without inventing schema.
+        return None
     
     def get_ads_batch(self, placement_slug, count=3, user=None, request=None):
         """Get multiple ads for a placement (for carousels)"""

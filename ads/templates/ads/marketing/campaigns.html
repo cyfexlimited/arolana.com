@@ -1,0 +1,11 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Campaigns{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-card ads-mkt-list">
+  {% for campaign in campaigns %}
+    {% include "ads/marketing/partials/campaign_row.html" with campaign=campaign %}
+  {% empty %}
+    <p class="ads-mkt-muted">Create your first campaign when ready.</p>
+  {% endfor %}
+</section>
+{% endblock %}

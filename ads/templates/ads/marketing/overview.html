@@ -1,0 +1,27 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Overview{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-grid">
+  {% include "ads/marketing/partials/metric.html" with label="Active campaigns" value=metrics.active_campaigns %}
+  {% include "ads/marketing/partials/metric.html" with label="Pending campaigns" value=metrics.pending_campaigns %}
+  {% include "ads/marketing/partials/metric.html" with label="Spend" value=metrics.spend|default:"Unavailable" %}
+  {% include "ads/marketing/partials/metric.html" with label="Impressions" value=metrics.impressions %}
+  {% include "ads/marketing/partials/metric.html" with label="Views" value=metrics.views %}
+  {% include "ads/marketing/partials/metric.html" with label="Clicks" value=metrics.clicks %}
+  {% include "ads/marketing/partials/metric.html" with label="CTR" value=metrics.ctr|default:"--" %}
+  {% include "ads/marketing/partials/metric.html" with label="Valid orders" value=metrics.valid_orders %}
+  {% include "ads/marketing/partials/metric.html" with label="Qualified leads" value=metrics.qualified_leads %}
+  {% include "ads/marketing/partials/metric.html" with label="Net revenue" value=metrics.net_attributed_revenue %}
+  {% include "ads/marketing/partials/metric.html" with label="ROAS" value=metrics.roas|default:"Unavailable" %}
+</section>
+<section class="ads-mkt-card">
+  <h2>Recent campaigns</h2>
+  <div class="ads-mkt-list">
+    {% for campaign in campaigns %}
+      {% include "ads/marketing/partials/campaign_row.html" with campaign=campaign %}
+    {% empty %}
+      <p class="ads-mkt-muted">No campaigns yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

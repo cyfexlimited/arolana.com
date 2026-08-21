@@ -1,0 +1,66 @@
+{% extends "base/base.html" %}
+
+{% block title %}Arolana Ads | Marketing{% endblock %}
+
+{% block content %}
+<main class="ads-mkt">
+  <style>
+    .ads-mkt{background:#f6f9fc;min-height:100vh;padding:1rem;color:#0f172a}
+    .ads-mkt-shell{max-width:1180px;margin:0 auto;display:grid;gap:1rem}
+    .ads-mkt-hero,.ads-mkt-card{background:#fff;border:1px solid #e2e8f0;border-radius:1.25rem;box-shadow:0 14px 40px rgba(15,23,42,.06)}
+    .ads-mkt-hero{padding:1.1rem;display:flex;justify-content:space-between;gap:1rem;align-items:center}
+    .ads-mkt-title{margin:0;font-size:clamp(1.4rem,5vw,2.2rem);font-weight:900}
+    .ads-mkt-muted{color:#64748b}
+    .ads-mkt-nav{display:flex;gap:.5rem;overflow-x:auto;padding:.25rem}
+    .ads-mkt-nav a{white-space:nowrap;border:1px solid #dbe4ef;border-radius:999px;background:#fff;color:#0f172a;text-decoration:none;padding:.65rem .85rem;font-weight:800;font-size:.85rem}
+    .ads-mkt-nav a.active{background:#071a44;color:#fff;border-color:#071a44}
+    .ads-mkt-card{padding:1rem}
+    .ads-mkt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem}
+    .ads-mkt-metric{padding:1rem;border-radius:1rem;background:#f8fafc;border:1px solid #e2e8f0}
+    .ads-mkt-metric span{display:block;color:#64748b;font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+    .ads-mkt-metric strong{display:block;margin-top:.35rem;font-size:1.35rem}
+    .ads-mkt-list{display:grid;gap:.75rem}
+    .ads-mkt-row{display:grid;gap:.75rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff}
+    .ads-mkt-row-main{display:flex;justify-content:space-between;gap:.8rem;align-items:flex-start}
+    .ads-mkt-pill{display:inline-flex;border-radius:999px;background:#eef2ff;color:#3730a3;padding:.2rem .55rem;font-size:.75rem;font-weight:900}
+    .ads-mkt-btn{display:inline-flex;justify-content:center;align-items:center;border:0;border-radius:.9rem;background:#0066cc;color:#fff;padding:.75rem 1rem;font-weight:900;text-decoration:none;cursor:pointer}
+    .ads-mkt-btn.secondary{background:#edf6ff;color:#0066cc}
+    .ads-mkt-form{display:grid;gap:1rem}
+    .ads-mkt-form section{display:grid;gap:.55rem;padding:1rem;border:1px solid #e2e8f0;border-radius:1rem;background:#fff}
+    .ads-mkt-form input,.ads-mkt-form select,.ads-mkt-form textarea{width:100%;min-height:44px;border:1px solid #cbd5e1;border-radius:.8rem;padding:.7rem;background:#fff}
+    .ads-mkt-sticky{position:sticky;bottom:.75rem;display:flex;gap:.6rem;justify-content:flex-end;background:rgba(246,249,252,.92);padding:.75rem;border-radius:1rem;backdrop-filter:blur(8px)}
+    @media(max-width:430px){.ads-mkt{padding:.65rem}.ads-mkt-hero{align-items:flex-start;flex-direction:column}.ads-mkt-row-main{flex-direction:column}.ads-mkt-sticky{justify-content:stretch}.ads-mkt-btn{width:100%}}
+  </style>
+  <div class="ads-mkt-shell">
+    <section class="ads-mkt-hero">
+      <div>
+        <p class="ads-mkt-muted" style="margin:0;font-weight:900">Marketing / Arolana Ads</p>
+        <h1 class="ads-mkt-title">{% block ads_title %}Arolana Ads{% endblock %}</h1>
+        {% if advertiser %}<p class="ads-mkt-muted" style="margin:.25rem 0 0">{{ advertiser.display_name|default:advertiser }}</p>{% endif %}
+      </div>
+      {% if dashboard_enabled and not access_denied %}
+        <a class="ads-mkt-btn" href="{% url 'ads:marketing_create_campaign' %}">Create Campaign</a>
+      {% endif %}
+    </section>
+
+    {% if not dashboard_enabled %}
+      <section class="ads-mkt-card">
+        <h2>Advertiser dashboard disabled</h2>
+        <p class="ads-mkt-muted">This workspace is behind <code>ADS_ADVERTISER_DASHBOARD_ENABLED</code> and is not visible in production until explicitly enabled.</p>
+      </section>
+    {% elif access_denied %}
+      <section class="ads-mkt-card">
+        <h2>No authorized advertiser identity</h2>
+        <p class="ads-mkt-muted">This account is not authorized to manage an advertiser workspace.</p>
+      </section>
+    {% else %}
+      <nav class="ads-mkt-nav" aria-label="Arolana Ads navigation">
+        {% for key,label,url_name in nav_items %}
+          <a href="{% url url_name %}" class="{% if section == key %}active{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </nav>
+      {% block ads_content %}{% endblock %}
+    {% endif %}
+  </div>
+</main>
+{% endblock %}
