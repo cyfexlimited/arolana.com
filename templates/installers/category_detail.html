@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load optimized_images %}
+{% load optimized_images ads_v2 %}
 
 {% block title %}{{ seo_title }}{% endblock %}
 
@@ -107,6 +107,10 @@
 
     </div>
 
+  </section>
+
+  <section class="mx-auto max-w-7xl px-4 pt-8">
+    {% ads_v2_recommendation_shelf "service" limit=8 category_id=category.id %}
   </section>
 
 

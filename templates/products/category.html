@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load currency_filters optimized_images %}
+{% load currency_filters optimized_images ads_v2 %}
 
 {% block content %}
 <div class="max-w-[1800px] mx-auto"
@@ -13,6 +13,8 @@
     {% if category.description %}
         <p class="text-gray-600 mb-8">{{ category.description }}</p>
     {% endif %}
+
+    {% ads_v2_recommendation_shelf "category" limit=8 category_id=category.id %}
 
     {% if products %}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">

@@ -4945,6 +4945,19 @@ class ProductVideo(BaseModel):
         help_text="YouTube video URL",
     )
 
+    youtube_video_id = models.CharField(
+        max_length=32,
+        blank=True,
+        db_index=True,
+        help_text="YouTube video ID returned by the YouTube API.",
+    )
+
+    youtube_visibility = models.CharField(
+        max_length=16,
+        choices=(("unlisted", "Unlisted"), ("public", "Public")),
+        default="unlisted",
+    )
+
     vimeo_url = models.URLField(
         blank=True,
         help_text="Vimeo video URL",
@@ -5088,36 +5101,31 @@ class ProductVideo(BaseModel):
         )
 
     def get_embed_url(self):
-        if (
-            self.source
-            == "youtube"
-            and self.youtube_url
-        ):
-            return (
-                Product._extract_youtube_embed(
+        """Return a reliable embeddable URL for this product video."""
+
+        # YouTube
+        if self.source == 'youtube':
+            video_id = self.youtube_video_id
+
+            # Fallback: extract ID from the URL if the ID is missing.
+            if not video_id and self.youtube_url:
+                video_id = Product._extract_youtube_video_id(
                     self.youtube_url
                 )
-            )
 
-        if (
-            self.source
-            == "vimeo"
-            and self.vimeo_url
-        ):
-            return (
-                Product._extract_vimeo_embed(
-                    self.vimeo_url
+            if video_id:
+                return (
+                    f'https://www.youtube.com/embed/{video_id}'
+                    '?rel=0&modestbranding=1&playsinline=1'
                 )
-            )
 
-        if (
-            self.source
-            == "local"
-            and self.local_video
-        ):
-            return (
-                self.local_video.url
-            )
+        # Vimeo
+        if self.source == 'vimeo' and self.vimeo_url:
+            return self.vimeo_url
+
+        # Local video
+        if self.source == 'local' and self.local_video:
+            return self.local_video.url
 
         return None
 

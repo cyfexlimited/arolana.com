@@ -22,6 +22,7 @@ import logging
 import random
 import string
 
+from core.youtube_service import upload_video as youtube_upload_video
 from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand, VendorProductOffer, ProductCatalogRequest
 from core.models import VendorQuoteMessage, VendorQuoteRequest
 from core.quote_services import (
@@ -1254,15 +1255,49 @@ def vendor_add_product(request):
                 )
 
                 if video_type and video_type != 'none' and not subscription_limits.get('can_upload_video'):
-                    messages.warning(request, 'Your current subscription does not allow product video upload. Upgrade your plan to add videos.')
+                    messages.warning(
+                        request,
+                        'Your current subscription does not allow product video upload. '
+                        'Upgrade your plan to add videos.'
+                    )
+
                 elif video_type == 'youtube' and video_url:
                     product.video_type = 'youtube'
                     product.video_url = video_url
                     product.save(update_fields=['video_type', 'video_url'])
+
                 elif video_type == 'local' and request.FILES.get('local_video'):
-                    product.video_type = 'local'
-                    product.local_video = request.FILES['local_video']
-                    product.save(update_fields=['video_type', 'local_video'])
+                    local_video = request.FILES['local_video']
+
+                    visibility = str(
+                        request.POST.get('youtube_visibility') or 'unlisted'
+                    ).lower()
+
+                    if visibility not in {'public', 'unlisted'}:
+                        visibility = 'unlisted'
+
+                    try:
+                        yt = youtube_upload_video(
+                            local_video,
+                            title=name[:100],
+                            description=description or '',
+                            privacy_status=visibility,
+                        )
+
+                        product.video_type = 'youtube'
+                        product.video_url = yt['url']
+                        product.save(update_fields=['video_type', 'video_url'])
+
+                        messages.success(
+                            request,
+                            f'Video uploaded to YouTube successfully as {visibility}.'
+                        )
+
+                    except Exception as exc:
+                        messages.error(
+                            request,
+                            f'YouTube video upload failed: {exc}'
+                        )
 
                 main_image = request.FILES.get('main_image')
                 if main_image:
@@ -1497,10 +1532,49 @@ def vendor_product_detail(request, product_id):
                 product.video_type = ''
                 product.video_url = ''
             else:
-                product.video_type = video_type or ''
-                product.video_url = request.POST.get('youtube_url', '') if video_type == 'youtube' else ''
-                if video_type == 'local' and request.FILES.get('local_video'):
-                    product.local_video = request.FILES['local_video']
+                if video_type == 'youtube':
+                    product.video_type = 'youtube'
+                    product.video_url = request.POST.get('youtube_url', '').strip()
+
+                elif video_type == 'local' and request.FILES.get('local_video'):
+                    local_video = request.FILES['local_video']
+
+                    visibility = str(
+                        request.POST.get('youtube_visibility') or 'unlisted'
+                    ).lower()
+
+                    if visibility not in {'public', 'unlisted'}:
+                        visibility = 'unlisted'
+
+                    try:
+                        yt = youtube_upload_video(
+                            local_video,
+                            title=product.name[:100],
+                            description=product.description or '',
+                            privacy_status=visibility,
+                        )
+
+                        product.video_type = 'youtube'
+                        product.video_url = yt['url']
+
+                        messages.success(
+                            request,
+                            f'Video uploaded directly to YouTube successfully as {visibility}.'
+                        )
+
+                    except Exception as exc:
+                        messages.error(
+                            request,
+                            f'YouTube video upload failed: {exc}'
+                        )
+
+                elif video_type in {'', 'none'}:
+                    product.video_type = ''
+                    product.video_url = ''
+
+                else:
+                    product.video_type = video_type or ''
+                    product.video_url = ''
 
             if any(item.get("pending_review") for item in upload_policy_results):
                 product.approval_status = "pending"

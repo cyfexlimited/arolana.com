@@ -126,6 +126,14 @@
                         </a>
                     </li>
 
+                    {% if ADS_ADVERTISER_DASHBOARD_ENABLED %}
+                    <li>
+                        <a href="{% url 'ads:marketing_overview' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-bullhorn w-5"></i> Arolana Ads
+                        </a>
+                    </li>
+                    {% endif %}
+
                     <!-- Analytics -->
                     <li>
                         <a href="{% url 'dashboard:vendor_analytics' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">

@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load optimized_images currency_filters auth_links %}
+{% load optimized_images currency_filters auth_links ads_v2 %}
 {% block title %}{{ seo_title }}{% endblock %}
 {% block meta_description %}<meta name="description" content="{{ seo_description }}">{% endblock %}
 {% block content %}
@@ -16,6 +16,7 @@
   <nav class="sticky top-0 z-20 overflow-x-auto border-b border-slate-200 bg-white/95 px-4 backdrop-blur"><div class="mx-auto flex max-w-7xl gap-7 py-4 font-black text-[#071A44]"><a href="#about">About</a><a href="#services">Services</a><a href="#projects">Projects</a><a href="#reviews">Reviews</a><a href="#coverage">Coverage</a></div></nav>
   <div class="mx-auto grid max-w-7xl gap-8 px-4 py-10 lg:grid-cols-[1fr_340px]">
     <div class="space-y-8">
+      {% ads_v2_recommendation_shelf "provider" limit=8 provider_id=provider.id %}
       <section id="about" class="scroll-mt-24 rounded-3xl bg-white p-7 shadow-sm"><h2 class="text-2xl font-black text-[#071A44]">About</h2><p class="mt-4 whitespace-pre-line text-slate-600">{{ provider.description }}</p><p id="coverage" class="mt-4 font-bold text-slate-500">Coverage: {{ provider.service_coverage|default:provider.location_label }}</p></section>
       <section id="services" class="scroll-mt-24">
         <div class="flex items-end justify-between gap-4"><div><p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Professional offerings</p><h2 class="text-2xl font-black text-[#071A44]">Services</h2></div><span class="text-sm font-bold text-slate-500">{{ services|length }} active</span></div>

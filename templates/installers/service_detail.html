@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load optimized_images currency_filters %}
+{% load optimized_images currency_filters ads_v2 %}
 {% block title %}{{ seo_title }}{% endblock %}
 {% block meta_description %}<meta name="description" content="{{ seo_description }}">{% endblock %}
 {% block content %}
@@ -14,6 +14,9 @@
     <article class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm md:p-9"><p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Service details</p><div class="prose prose-slate mt-5 max-w-none prose-headings:text-[#071A44] prose-a:text-[#0066CC]">{{ service.description_html|safe|default:"Contact this verified provider for complete scope, availability, and pricing details." }}</div></article>
     <aside class="space-y-4"><div class="rounded-3xl bg-white p-6 shadow-sm"><h2 class="text-xl font-black text-[#071A44]">Why request through Arolana?</h2><ul class="mt-4 space-y-3 text-sm font-bold text-slate-600"><li><i class="fas fa-shield-halved mr-2 text-[#0066CC]"></i>Verified provider identity</li><li><i class="fas fa-comments mr-2 text-[#0066CC]"></i>Request history retained</li><li><i class="fas fa-headset mr-2 text-[#0066CC]"></i>Arolana support available</li></ul></div></aside>
   </div>
+  <section class="mx-auto max-w-6xl px-4">
+    {% ads_v2_recommendation_shelf "service" limit=8 service_id=service.id provider_id=provider.id category_id=service.category_id %}
+  </section>
   {% if related_projects %}
     <section class="mx-auto max-w-6xl px-4 pb-10">
       <div class="flex flex-wrap items-end justify-between gap-3">

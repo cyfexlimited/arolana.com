@@ -4,7 +4,7 @@
 {% load products_extras %}
 {% load ad_tags %}
 {% load arolana_seo %}
-{% load media_optimization auth_links %}
+{% load media_optimization auth_links ads_v2 %}
 
 {% product_seo_title product as seo_title %}
 {% product_seo_description product as seo_description %}
@@ -7370,23 +7370,61 @@
 	                        {% endfor %}
 	                    </div>
 
-	                    <!-- Video Thumbnails -->
-                    {% if product.get_video_embed_url %}
-                    <div class="thumbnail-item flex-shrink-0 relative cursor-pointer" onclick="openProductVideosTab()">
-                        {% if product.video_thumbnail %}
-                            <img src="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}" class="w-20 h-20 object-cover rounded-lg">
-                        {% elif product.video_type == 'youtube' or product.video_type == 'vimeo' %}
-                            <img src="{{ product.video_url|get_thumbnail:'hqdefault' }}" class="w-20 h-20 object-cover rounded-lg">
-                        {% else %}
-                            <div class="w-20 h-20 bg-gray-900 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-video text-white text-xl"></i>
+	                    <!-- Product Video Thumbnails -->
+                        {% for video in product_videos %}
+                            {% if video.youtube_video_id or video.youtube_url or video.vimeo_url or video.local_video %}
+                            <div
+                                class="thumbnail-item flex-shrink-0 relative cursor-pointer"
+                                onclick="openProductVideosTab()"
+                                title="{{ video.title|default:'Watch product video' }}"
+                            >
+
+                                {% if video.thumbnail %}
+                                    <img
+                                        src="{{ video.thumbnail|optimized_image_url:'product_thumb' }}"
+                                        alt="{{ video.title|default:product.name }}"
+                                        class="w-20 h-20 object-cover rounded-lg"
+                                        loading="lazy"
+                                    >
+
+                                {% elif video.youtube_video_id %}
+                                    <img
+                                        src="https://i.ytimg.com/vi/{{ video.youtube_video_id }}/hqdefault.jpg"
+                                        alt="{{ video.title|default:product.name }}"
+                                        class="w-20 h-20 object-cover rounded-lg"
+                                        loading="lazy"
+                                        onerror="this.src='https://i.ytimg.com/vi/{{ video.youtube_video_id }}/0.jpg'"
+                                    >
+
+                                {% elif video.youtube_url %}
+                                    <img
+                                        src="{{ video.youtube_url|get_thumbnail:'hqdefault' }}"
+                                        alt="{{ video.title|default:product.name }}"
+                                        class="w-20 h-20 object-cover rounded-lg"
+                                        loading="lazy"
+                                    >
+
+                                {% elif video.vimeo_url %}
+                                    <div class="w-20 h-20 bg-gray-900 rounded-lg flex items-center justify-center">
+                                        <i class="fab fa-vimeo-v text-white text-xl"></i>
+                                    </div>
+
+                                {% else %}
+                                    <div class="w-20 h-20 bg-gray-900 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-video text-white text-xl"></i>
+                                    </div>
+                                {% endif %}
+
+                                <div class="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
+                                    <div class="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                                        <i class="fas fa-play text-gray-900 text-sm ml-0.5"></i>
+                                    </div>
+                                </div>
+
                             </div>
-                        {% endif %}
-                        <div class="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-play text-white text-xl"></i>
-                        </div>
-                    </div>
-                    {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
                 </div>
             </div>
         </div>
@@ -10032,6 +10070,9 @@
   </div>
 </section>
 {% endif %}
+
+{% ads_v2_recommendation_shelf "product_recommendations" limit=8 product_id=product.id category_id=product.category_id %}
+{% ads_v2_recommendation_shelf "video" limit=8 product_id=product.id category_id=product.category_id %}
 
 {% if trusted_brands %}
 <section

@@ -709,91 +709,130 @@
             <section class="vendor-edit-panel">
                 <div class="vendor-edit-panel-header">
                     <div>
-                        <h2 class="vendor-edit-panel-title">Basic Information</h2>
-                        <p class="vendor-edit-panel-subtitle">Update the core product details customers and Google will see.</p>
+                        <h2 class="vendor-edit-panel-title">Product Video</h2>
+                        <p class="vendor-edit-panel-subtitle">
+                            Upload a product video directly to YouTube and choose whether it is Public or Unlisted.
+                        </p>
                     </div>
                 </div>
 
                 <div class="vendor-edit-panel-body">
-                    <div class="vendor-edit-form-grid">
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Product Name *</label>
-                            <input type="text" name="name" value="{{ product.name }}" required class="vendor-edit-input">
+
+                    {% if product.video_type == 'youtube' and product.video_url %}
+                    <div class="vendor-video-preview">
+                        <strong class="vendor-edit-label">Current Video</strong>
+
+                        <div class="vendor-video-frame">
+                            <iframe
+                                id="video-preview"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowfullscreen
+                                referrerpolicy="strict-origin-when-cross-origin">
+                            </iframe>
                         </div>
 
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Category *</label>
-                            <select name="category" required class="vendor-edit-select">
-                                <option value="">Select Category</option>
-                                {% for category in categories %}
-                                <option value="{{ category.id }}" {% if product.category.id == category.id %}selected{% endif %}>
-                                    {{ category.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Brand</label>
-                            <select name="brand" class="vendor-edit-select">
-                                <option value="">Select Brand</option>
-                                {% for brand in brands %}
-                                <option value="{{ brand.id }}" {% if product.brand.id == brand.id %}selected{% endif %}>
-                                    {{ brand.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Arolana SKU</label>
-                            <input type="text" name="sku" value="{{ product.sku }}" class="vendor-edit-input">
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Manufacturer SKU</label>
-                            <input type="text" name="manufacturer_sku" value="{{ product.manufacturer_sku|default:'' }}" placeholder="Manufacturer model/SKU" class="vendor-edit-input">
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Product Condition *</label>
-                            <select name="condition" required class="vendor-edit-select">
-                                {% for value,label in condition_choices %}
-                                <option value="{{ value }}" {% if product.condition == value %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                            <p class="vendor-edit-help">Keep this accurate so customers know exactly what they are buying.</p>
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Price (NGN) *</label>
-                            <input type="number" name="price" step="0.01" value="{{ product.price }}" required class="vendor-edit-input">
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Compare Price</label>
-                            <input type="number" name="compare_price" step="0.01" value="{{ product.compare_price|default:'' }}" class="vendor-edit-input">
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Stock Quantity</label>
-                            <input type="number" name="stock_quantity" value="{{ product.stock_quantity }}" class="vendor-edit-input">
-                        </div>
-
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Visibility</label>
-                            <div class="vendor-edit-check-row">
-                                <label class="vendor-edit-check">
-                                    <input type="checkbox" name="is_featured" {% if product.is_featured %}checked{% endif %}>
-                                    Featured Product
-                                </label>
-                                <label class="vendor-edit-check">
-                                    <input type="checkbox" name="is_active" {% if product.is_active %}checked{% endif %}>
-                                    Active
-                                </label>
-                            </div>
-                        </div>
+                        <p class="vendor-video-note">
+                            YouTube: {{ product.video_url }}
+                        </p>
                     </div>
+                    {% endif %}
+
+                    <div class="vendor-edit-form-grid">
+
+                        <div class="vendor-edit-field full">
+                            <label class="vendor-edit-label">
+                                Upload Product Video to YouTube
+                            </label>
+
+                            <input
+                                type="file"
+                                id="youtubeProductVideo"
+                                accept="video/mp4,video/webm,video/quicktime"
+                                class="vendor-file-input">
+
+                            <p class="vendor-edit-help">
+                                Maximum file size: 80 MB.
+                                The video will be uploaded directly to Arolana's connected YouTube channel.
+                            </p>
+                        </div>
+
+                        <div class="vendor-edit-field">
+                            <label class="vendor-edit-label" for="youtubeVideoTitle">
+                                YouTube Title
+                            </label>
+
+                            <input
+                                type="text"
+                                id="youtubeVideoTitle"
+                                value="{{ product.name|default:'' }}"
+                                maxlength="100"
+                                class="vendor-edit-input"
+                                placeholder="Product video title">
+                        </div>
+
+                        <div class="vendor-edit-field">
+                            <label class="vendor-edit-label" for="youtubeVisibility">
+                                YouTube Visibility
+                            </label>
+
+                            <select
+                                id="youtubeVisibility"
+                                class="vendor-edit-select">
+
+                                <option value="unlisted" selected>
+                                    Unlisted — Anyone with the link
+                                </option>
+
+                                <option value="public">
+                                    Public — Listed on YouTube
+                                </option>
+
+                            </select>
+
+                            <p class="vendor-edit-help">
+                                Unlisted is recommended while the video is awaiting Arolana moderation.
+                            </p>
+                        </div>
+
+                        <div class="vendor-edit-field full">
+                            <label class="vendor-edit-label" for="youtubeVideoDescription">
+                                YouTube Description
+                            </label>
+
+                            <textarea
+                                id="youtubeVideoDescription"
+                                rows="5"
+                                maxlength="5000"
+                                class="vendor-edit-textarea"
+                                placeholder="Describe this product video..."></textarea>
+                        </div>
+
+                        <div class="vendor-edit-field full">
+
+                            <button
+                                type="button"
+                                id="uploadProductVideoToYouTube"
+                                class="vendor-edit-btn vendor-edit-btn-primary">
+
+                                <i class="fab fa-youtube"></i>
+
+                                <span id="youtubeUploadButtonText">
+                                    Upload Video to YouTube
+                                </span>
+
+                            </button>
+
+                            <div
+                                id="youtubeUploadStatus"
+                                style="display:none;margin-top:12px;"
+                                class="vendor-edit-help">
+                            </div>
+
+                        </div>
+
+                    </div>
+
                 </div>
             </section>
 
@@ -1165,5 +1204,156 @@
         updateVideoPreview();
     }
 })();
+
+<script>
+(function () {
+    const uploadButton = document.getElementById("uploadProductVideoToYouTube");
+    const videoInput = document.getElementById("youtubeProductVideo");
+    const titleInput = document.getElementById("youtubeVideoTitle");
+    const descriptionInput = document.getElementById("youtubeVideoDescription");
+    const visibilityInput = document.getElementById("youtubeVisibility");
+    const statusBox = document.getElementById("youtubeUploadStatus");
+    const buttonText = document.getElementById("youtubeUploadButtonText");
+
+    if (!uploadButton || !videoInput) {
+        return;
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) {
+            return parts.pop().split(";").shift();
+        }
+        return "";
+    }
+
+    function showStatus(message, type) {
+        statusBox.style.display = "block";
+        statusBox.textContent = message;
+
+        statusBox.style.color =
+            type === "error"
+                ? "#b91c1c"
+                : type === "success"
+                    ? "#15803d"
+                    : "#475569";
+    }
+
+    uploadButton.addEventListener("click", async function () {
+
+        const file = videoInput.files && videoInput.files[0];
+
+        if (!file) {
+            showStatus("Choose a video file first.", "error");
+            return;
+        }
+
+        if (file.size > 80 * 1024 * 1024) {
+            showStatus("Video must be 80 MB or smaller.", "error");
+            return;
+        }
+
+        const visibility =
+            visibilityInput && visibilityInput.value === "public"
+                ? "public"
+                : "unlisted";
+
+        const formData = new FormData();
+
+        formData.append(
+            "product_id",
+            "{{ product.id }}"
+        );
+
+        formData.append(
+            "video",
+            file
+        );
+
+        formData.append(
+            "title",
+            (titleInput && titleInput.value)
+                ? titleInput.value
+                : "{{ product.name|escapejs }}"
+        );
+
+        formData.append(
+            "description",
+            descriptionInput
+                ? descriptionInput.value
+                : ""
+        );
+
+        formData.append(
+            "youtube_visibility",
+            visibility
+        );
+
+        uploadButton.disabled = true;
+
+        if (buttonText) {
+            buttonText.textContent = "Uploading to YouTube...";
+        }
+
+        showStatus(
+            "Uploading video to YouTube. Please keep this page open...",
+            "info"
+        );
+
+        try {
+
+            const response = await fetch(
+                "{% url 'products:vendor_product_videos_api' %}",
+                {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken")
+                    },
+                    body: formData,
+                    credentials: "same-origin"
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.message || "YouTube upload failed."
+                );
+            }
+
+            showStatus(
+                "Video uploaded to YouTube successfully and submitted for Arolana review.",
+                "success"
+            );
+
+            if (buttonText) {
+                buttonText.textContent = "Video Uploaded";
+            }
+
+            videoInput.value = "";
+
+        } catch (error) {
+
+            console.error(
+                "Arolana YouTube upload error:",
+                error
+            );
+
+            showStatus(
+                error.message || "YouTube upload failed.",
+                "error"
+            );
+
+            uploadButton.disabled = false;
+
+            if (buttonText) {
+                buttonText.textContent = "Upload Video to YouTube";
+            }
+        }
+    });
+})();
+
 </script>
 {% endblock %}

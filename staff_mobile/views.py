@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
+from core.youtube_service import upload_video as youtube_upload_video
 from core.content_i18n import translated_field, translated_key
 from deliveries.models import DeliveryRequest, DeliveryLocationPing, RiderPayout, RiderProfile, RiderWallet
 from deliveries.models import DeliveryVehicle, DeliveryZone
@@ -810,8 +811,8 @@ def _validate_short_video_upload(upload):
 
     # Match the existing staff Product Media policy instead of introducing
     # a second upload-size rule.
-    if getattr(upload, "size", 0) > 5 * 1024 * 1024:
-        return _error("Short product video must not be more than 5MB.")
+    if upload.size > 80 * 1024 * 1024:
+        return _error("Video must be 80 MB or smaller.")
 
     return None
 
@@ -2706,88 +2707,279 @@ def vendor_product_videos_api(request):
 
     can_upload_video = _refresh_vendor_video_entitlement(profile)
 
+    # ================================================================
+    # GET — LIST VENDOR VIDEOS + PRODUCTS
+    # ================================================================
     if request.method == "GET":
         videos = (
-            ProductVideo.objects.filter(vendor=profile)
+            ProductVideo.objects
+            .filter(vendor=profile)
             .select_related("product", "vendor")
             .order_by("-created_at")
         )
-        products = Product.objects.filter(
-            vendor=profile.user,
-            approval_status="approved",
-        ).order_by("name")
+
+        products = (
+            Product.objects
+            .filter(
+                vendor=profile.user,
+                approval_status="approved",
+            )
+            .order_by("name")
+        )
 
         return JsonResponse({
             "success": True,
             "can_upload_video": can_upload_video,
             "subscription_tier": user_subscription_tier(profile.user),
+
             "videos": [
-                _staff_product_video_payload(video, request, include_comments=True)
+                _staff_product_video_payload(
+                    video,
+                    request,
+                    include_comments=True,
+                )
                 for video in videos
             ],
+
             "products": [
                 {
                     "id": product.id,
                     "name": product.name,
                     "slug": product.slug,
                     "sku": product.sku,
-                    "image": _absolute_media_url(request, product.main_image, "product_card")
-                    if product.main_image
-                    else "",
+                    "image": (
+                        _absolute_media_url(
+                            request,
+                            product.main_image,
+                            "product_card",
+                        )
+                        if product.main_image
+                        else ""
+                    ),
                 }
                 for product in products
             ],
         })
 
+    # ================================================================
+    # POST — VIDEO UPLOAD
+    # ================================================================
     if not can_upload_video:
         return _subscription_limit_error()
 
-    product_id = _int_value(request.POST.get("product_id"), 0)
-    product = _vendor_video_product(profile, product_id, require_approved=True)
+    product_id = _int_value(
+        request.POST.get("product_id"),
+        0,
+    )
+
+    product = _vendor_video_product(
+        profile,
+        product_id,
+        require_approved=True,
+    )
+
     if not product:
         return _error(
             "Select one of your approved products before uploading a video.",
             status=404,
         )
 
-    source, youtube_url, vimeo_url, local_video = _video_source_from_request(request)
-    if not source:
-        return _error("Choose a local video, YouTube URL, or Vimeo URL.")
-
-    if source == "youtube" and not youtube_url:
-        return _error("YouTube URL is required.")
-    if source == "vimeo" and not vimeo_url:
-        return _error("Vimeo URL is required.")
-
-    upload_error = _validate_short_video_upload(local_video)
-    if upload_error:
-        return upload_error
-
-    video = ProductVideo(
-        product=product,
-        vendor=profile,
-        title=_clean_text(request.POST.get("title") or product.name)[:200],
-        description=_clean_text(request.POST.get("description")),
-        source=source,
-        youtube_url=youtube_url,
-        vimeo_url=vimeo_url,
-        local_video=local_video,
-        thumbnail=request.FILES.get("thumbnail"),
-        moderation_status="pending",
-        moderation_note="",
-        approved_by=None,
-        approved_at=None,
-        duration_seconds=max(0, _int_value(request.POST.get("duration_seconds"), 0)),
-        is_active=True,
-        display_order=0,
+    # ---------------------------------------------------------------
+    # Determine requested source
+    # ---------------------------------------------------------------
+    source, youtube_url, vimeo_url, local_video = (
+        _video_source_from_request(request)
     )
-    video.save()
 
-    return JsonResponse({
-        "success": True,
-        "message": "Video submitted to Arolana for moderation.",
-        "video": _staff_product_video_payload(video, request, include_comments=True),
-    }, status=201)
+    if not source:
+        return _error(
+            "Choose a video to upload."
+        )
+
+    # ---------------------------------------------------------------
+    # Common metadata
+    # ---------------------------------------------------------------
+    title = _clean_text(
+        request.POST.get("title") or product.name
+    )[:200]
+
+    description = _clean_text(
+        request.POST.get("description")
+        or product.description
+        or ""
+    )
+
+    visibility = str(
+        request.POST.get("youtube_visibility")
+        or "unlisted"
+    ).lower()
+
+    if visibility not in {"public", "unlisted"}:
+        visibility = "unlisted"
+
+    thumbnail = request.FILES.get("thumbnail")
+
+    duration_seconds = max(
+        0,
+        _int_value(
+            request.POST.get("duration_seconds"),
+            0,
+        ),
+    )
+
+    # ================================================================
+    # YOUTUBE URL
+    # ================================================================
+    if source == "youtube":
+
+        if not youtube_url:
+            return _error(
+                "YouTube URL is required."
+            )
+
+        video = ProductVideo(
+            product=product,
+            vendor=profile,
+
+            title=title,
+            description=description,
+
+            source="youtube",
+
+            youtube_url=youtube_url,
+            youtube_video_id="",
+            youtube_visibility=visibility,
+
+            # IMPORTANT:
+            # Never store a local video file.
+            local_video=None,
+
+            thumbnail=thumbnail,
+
+            moderation_status="pending",
+            moderation_note="",
+            approved_by=None,
+            approved_at=None,
+
+            duration_seconds=duration_seconds,
+
+            is_active=True,
+            display_order=0,
+        )
+
+        video.save()
+
+    # ================================================================
+    # LOCAL VIDEO → DIRECTLY TO YOUTUBE
+    # ================================================================
+    elif source == "local":
+
+        if not local_video:
+            return _error(
+                "Choose a video file to upload."
+            )
+
+        upload_error = _validate_short_video_upload(
+            local_video
+        )
+
+        if upload_error:
+            return upload_error
+
+        # ------------------------------------------------------------
+        # CRITICAL:
+        #
+        # The uploaded file is passed directly to YouTube.
+        #
+        # Arolana does NOT assign it to ProductVideo.local_video.
+        # Arolana does NOT save it through FileField/storage.
+        # ------------------------------------------------------------
+        try:
+            yt = youtube_upload_video(
+                local_video,
+                title=title,
+                description=description,
+                privacy_status=visibility,
+            )
+
+        except Exception as exc:
+            return _error(
+                f"YouTube video upload failed: {exc}",
+                status=502,
+            )
+
+        # ------------------------------------------------------------
+        # Only YouTube metadata is stored in Arolana.
+        # ------------------------------------------------------------
+        video = ProductVideo(
+            product=product,
+            vendor=profile,
+
+            title=title,
+            description=description,
+
+            source="youtube",
+
+            youtube_url=yt["url"],
+            youtube_video_id=yt["id"],
+            youtube_visibility=visibility,
+
+            # VERY IMPORTANT:
+            # Do NOT store the uploaded file.
+            local_video=None,
+
+            thumbnail=thumbnail,
+
+            moderation_status="pending",
+            moderation_note="",
+            approved_by=None,
+            approved_at=None,
+
+            duration_seconds=duration_seconds,
+
+            is_active=True,
+            display_order=0,
+        )
+
+        video.save()
+
+    # ================================================================
+    # VIMEO
+    # ================================================================
+    elif source == "vimeo":
+
+        return _error(
+            "Vimeo videos are no longer supported. "
+            "Please use YouTube."
+        )
+
+    # ================================================================
+    # UNKNOWN SOURCE
+    # ================================================================
+    else:
+
+        return _error(
+            "Unsupported video source."
+        )
+
+    # ================================================================
+    # RESPONSE
+    # ================================================================
+    return JsonResponse(
+        {
+            "success": True,
+            "message": (
+                "Video uploaded to YouTube and "
+                "submitted to Arolana for moderation."
+            ),
+            "video": _staff_product_video_payload(
+                video,
+                request,
+                include_comments=True,
+            ),
+        },
+        status=201,
+    )
 
 
 @csrf_exempt
@@ -3015,13 +3207,46 @@ def vendor_product_media_api(request, product_id):
     apply_vendor_subscription_benefits(profile, user_subscription_tier(profile.user))
     profile.refresh_from_db()
     lower_name = upload.name.lower()
-    if media_type == "local_video" or lower_name.endswith((".mp4", ".webm", ".mov")):
+    if media_type == "local_video" or lower_name.endswith((".mp4", ".webm", ".mov", ".m4v")):
         if not profile.can_upload_video:
             return _subscription_limit_error()
-        if upload.size > 5 * 1024 * 1024:
-            return _error("Local product video must not be more than 5MB.")
-        product.local_video = upload
-        product.video_type = "local"
+
+        visibility = str(
+            request.POST.get("youtube_visibility") or "unlisted"
+        ).lower()
+
+        if visibility not in {"public", "unlisted"}:
+            visibility = "unlisted"
+
+        title = _clean_text(
+            request.POST.get("title") or product.name
+        )[:200]
+
+        description = _clean_text(
+            request.POST.get("description") or product.description or ""
+        )
+
+        try:
+            yt = youtube_upload_video(
+                upload,
+                title=title,
+                description=description,
+                privacy_status=visibility,
+            )
+        except Exception as exc:
+            return _error(
+                f"YouTube video upload failed: {exc}",
+                status=502,
+            )
+
+        product.video_type = "youtube"
+        product.video_url = yt["url"]
+
+        # Explicitly ensure an old locally stored video isn't retained.
+        if product.local_video:
+            product.local_video.delete(save=False)
+
+        product.local_video = None
     elif media_type == "certificate":
         if not profile.can_upload_certificates:
             return _subscription_limit_error()

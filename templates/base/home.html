@@ -2,6 +2,7 @@
 {% load static %}
 {% load homepage_tags %}
 {% load installers_tags %}
+{% load ads_v2 %}
 
 {% block title %}Arolana - Premium Multi-Vendor Marketplace{% endblock %}
 {% block body_class %}homepage-body homepage-content-first{% if homepage_appearance and homepage_appearance.make_sections_glass %} home-glass-sections{% endif %}{% endblock %}
@@ -15,6 +16,8 @@
     {% homepage_banner "top" %}
 
     {% video_section %}
+
+    {% ads_v2_recommendation_shelf "homepage" limit=8 %}
     
     {% homepage_banner "after_categories" %}
 

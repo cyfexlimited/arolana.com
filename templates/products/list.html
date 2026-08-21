@@ -2,6 +2,7 @@
 {% load static optimized_images %}
 {% load currency_filters %}
 {% load products_extras media_optimization %}
+{% load ads_v2 %}
 
 {% block title %}Explore Products | {{ block.super }}{% endblock %}
 {% block body_class %}products-list-full-width{% endblock %}
@@ -1990,6 +1991,12 @@
             <span>{{ collection_info.title }}</span>
             {% endif %}
         </nav>
+
+        {% if search_query %}
+            {% ads_v2_recommendation_shelf "search" limit=8 search_query=search_query %}
+        {% else %}
+            {% ads_v2_recommendation_shelf "homepage" limit=8 %}
+        {% endif %}
 
         {% if shop_banner and shop_banner.background_image %}
             {% optimized_image_url shop_banner.background_image 'hero' as shop_banner_background_url %}

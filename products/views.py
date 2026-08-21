@@ -42,6 +42,7 @@ from core.content_i18n import (
 from core.local_cache import local_get_or_set
 from core.models import HomePageAppearance
 from core.media_optimization import get_optimized_image_url, optimized_name_for
+from core.youtube_service import upload_video as youtube_upload_video
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed,
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
@@ -11152,6 +11153,8 @@ def _product_video_payload(video):
         "id": video.id, "title": video.title or product.name, "description": video.description,
         "source": video.source,
         "url": video.youtube_url or video.vimeo_url or media_url(video.local_video),
+        "youtube_video_id": video.youtube_video_id,
+        "youtube_visibility": video.youtube_visibility,
         "thumbnail": media_url(video.thumbnail) or media_url(product.main_image),
         "moderation_status": video.moderation_status, "moderation_note": video.moderation_note,
         "rating": video.average_rating, "rating_count": video.rating_count,
@@ -12302,11 +12305,70 @@ def vendor_product_videos_api(request):
     product = get_object_or_404(Product, pk=product_id, vendor=request.user, is_active=True, approval_status="approved")
     upload = request.FILES.get("video")
     if not upload:
-        return JsonResponse({"success": False, "message": "Choose a short video to upload."}, status=400)
+        return JsonResponse({"success": False, "message": "Choose a video to upload."}, status=400)
     if upload.size > 80 * 1024 * 1024:
         return JsonResponse({"success": False, "message": "Video must be 80 MB or smaller."}, status=400)
-    video = ProductVideo.objects.create(product=product, vendor=profile, title=(request.POST.get("title") or product.name)[:200], description=request.POST.get("description", ""), source="local", local_video=upload, thumbnail=request.FILES.get("thumbnail"), moderation_status="pending", is_active=True)
-    return JsonResponse({"success": True, "message": "Video submitted for Arolana review.", "video": _product_video_payload(video)}, status=201)
+    visibility = str(request.POST.get("youtube_visibility") or "unlisted").lower()
+    if visibility not in {"public", "unlisted"}:
+        visibility = "unlisted"
+    title = (request.POST.get("title") or product.name)[:200]
+    try:
+        yt = youtube_upload_video(
+            upload,
+            title=title,
+            description=request.POST.get("description", ""),
+            privacy_status=visibility,
+        )
+    except Exception as exc:
+        return JsonResponse({"success": False, "message": f"YouTube upload failed: {exc}"}, status=502)
+    video = ProductVideo.objects.create(
+        product=product,
+        title=title,
+        description=request.POST.get("description", ""),
+        source="youtube",
+        youtube_url=yt["url"],
+        youtube_video_id=yt["id"],
+        youtube_visibility=visibility,
+        moderation_status="approved",
+        approved_by=request.user,
+        approved_at=timezone.now(),
+        is_active=True,
+    )
+    return JsonResponse({"success": True, "message": "Video uploaded to YouTube and submitted for Arolana review.", "video": _product_video_payload(video)}, status=201)
+
+@staff_member_required
+@require_http_methods(["POST"])
+def admin_product_video_upload_api(request):
+    product_id = request.POST.get("product_id")
+    product = get_object_or_404(Product, pk=product_id, is_active=True)
+    upload = request.FILES.get("video")
+    if not upload:
+        return JsonResponse({"success": False, "message": "Choose a video to upload."}, status=400)
+    if upload.size > 500 * 1024 * 1024:
+        return JsonResponse({"success": False, "message": "Video must be 500 MB or smaller."}, status=400)
+    visibility = str(request.POST.get("youtube_visibility") or "unlisted").lower()
+    if visibility not in {"public", "unlisted"}:
+        visibility = "unlisted"
+    title = (request.POST.get("title") or product.name)[:200]
+    try:
+        yt = youtube_upload_video(upload, title=title, description=request.POST.get("description", ""), privacy_status=visibility)
+    except Exception as exc:
+        return JsonResponse({"success": False, "message": f"YouTube upload failed: {exc}"}, status=502)
+    video = ProductVideo.objects.create(
+        product=product,
+        vendor=profile,
+        title=title,
+        description=request.POST.get("description", ""),
+        source="youtube",
+        youtube_url=yt["url"],
+        youtube_video_id=yt["id"],
+        youtube_visibility=visibility,
+        moderation_status="pending",
+        is_active=True,
+    )
+
+    return JsonResponse({"success": True, "message": "Video uploaded to YouTube.", "video": _product_video_payload(video)}, status=201)
+
 
 @staff_member_required
 @require_http_methods(["GET"])

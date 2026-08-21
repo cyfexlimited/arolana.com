@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static optimized_images %}
 {% load currency_filters %}
-{% load humanize auth_links %}
+{% load humanize auth_links ads_v2 %}
 
 {% block title %}{{ vendor.store_name }} Store | Arolana{% endblock %}
 
@@ -1464,6 +1464,8 @@
     <form id="vendor-follow-security-form" hidden>
         {% csrf_token %}
     </form>
+
+    {% ads_v2_recommendation_shelf "store" limit=8 vendor_id=vendor.id %}
 
     <section class="vendor-store-hero">
         <div class="vendor-hero-banner">

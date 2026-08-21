@@ -350,10 +350,408 @@ class ProductVariantTypeConfigAdmin(admin.ModelAdmin):
     search_fields = ['label', 'key']
 
 
-class ProductVideoInline(admin.TabularInline):
+class ProductVideoInline(admin.StackedInline):
+    """
+    Product Video Gallery.
+
+    Supports two workflows:
+
+    1. Paste an existing YouTube URL.
+       Arolana extracts and stores the YouTube video ID.
+
+    2. Upload a local MP4/WebM/MOV/M4V file.
+       Arolana uploads it directly to YouTube and stores the
+       resulting YouTube reference instead of permanently storing
+       the original video file.
+    """
+
     model = ProductVideo
     extra = 1
-    fields = ['title', 'description', 'source', 'youtube_url', 'vimeo_url', 'local_video', 'thumbnail', 'vendor', 'moderation_status', 'is_main', 'display_order']
+    show_change_link = True
+
+    fields = [
+        'title',
+        'description',
+        'video_upload',
+        'youtube_visibility',
+        'youtube_url',
+        'youtube_video_id',
+        'thumbnail',
+        'is_main',
+        'display_order',
+    ]
+
+    # URL is editable.
+    # Video ID is generated automatically.
+    readonly_fields = [
+        'youtube_video_id',
+    ]
+
+    def get_formset(self, request, obj=None, **kwargs):
+        from django import forms
+        from core.youtube_service import upload_video
+        from urllib.parse import urlparse, parse_qs
+        import re
+
+        class ProductVideoGalleryForm(forms.ModelForm):
+
+            youtube_url = forms.URLField(
+                required=False,
+                label='YouTube Video URL',
+                widget=forms.URLInput(
+                    attrs={
+                        'placeholder': (
+                            'https://www.youtube.com/watch?v=VIDEO_ID'
+                        ),
+                        'style': 'width: 100%;',
+                    }
+                ),
+                help_text=(
+                    'Paste an existing YouTube video URL. '
+                    'Supported formats: youtube.com/watch, '
+                    'youtu.be, youtube.com/shorts, and '
+                    'youtube.com/embed. '
+                    'Leave this blank if uploading a local video.'
+                ),
+            )
+
+            video_upload = forms.FileField(
+                required=False,
+                label='Local Video Upload',
+                help_text=(
+                    'Select an MP4, WebM, MOV, or M4V video. '
+                    'The video will be uploaded directly to YouTube '
+                    'when this video gallery item is saved. '
+                    'The source video is not permanently stored by Arolana.'
+                ),
+            )
+
+            class Meta:
+                model = ProductVideo
+                fields = [
+                    'title',
+                    'description',
+                    'video_upload',
+                    'youtube_visibility',
+                    'youtube_url',
+                    'youtube_video_id',
+                    'thumbnail',
+                    'is_main',
+                    'display_order',
+                ]
+
+            @staticmethod
+            def extract_youtube_id(value):
+                """
+                Extract a YouTube video ID from common YouTube URL formats.
+                """
+
+                if not value:
+                    return None
+
+                value = str(value).strip()
+
+                try:
+                    parsed = urlparse(value)
+                except Exception:
+                    return None
+
+                host = parsed.netloc.lower().split(':')[0]
+                path = parsed.path.strip('/')
+
+                # -------------------------------------------------
+                # youtube.com/watch?v=VIDEO_ID
+                # -------------------------------------------------
+                if host in {
+                    'youtube.com',
+                    'www.youtube.com',
+                    'm.youtube.com',
+                }:
+                    if path == 'watch':
+                        video_id = parse_qs(
+                            parsed.query
+                        ).get('v', [None])[0]
+
+                        if video_id:
+                            return video_id
+
+                    # youtube.com/shorts/VIDEO_ID
+                    if path.startswith('shorts/'):
+                        parts = path.split('/')
+
+                        if len(parts) >= 2:
+                            return parts[1]
+
+                    # youtube.com/embed/VIDEO_ID
+                    if path.startswith('embed/'):
+                        parts = path.split('/')
+
+                        if len(parts) >= 2:
+                            return parts[1]
+
+                # -------------------------------------------------
+                # youtu.be/VIDEO_ID
+                # -------------------------------------------------
+                if host == 'youtu.be':
+                    if path:
+                        return path.split('/')[0]
+
+                return None
+
+            @staticmethod
+            def validate_youtube_id(video_id):
+                """
+                YouTube video IDs are normally 11 characters using
+                letters, numbers, '-' and '_'.
+                """
+
+                if not video_id:
+                    return False
+
+                return bool(
+                    re.fullmatch(
+                        r'[A-Za-z0-9_-]{11}',
+                        video_id,
+                    )
+                )
+
+            def clean_youtube_url(self):
+                value = self.cleaned_data.get('youtube_url')
+
+                if not value:
+                    return value
+
+                video_id = self.extract_youtube_id(value)
+
+                if not video_id:
+                    raise forms.ValidationError(
+                        'Please enter a valid YouTube video URL. '
+                        'Supported formats include: '
+                        'youtube.com/watch?v=VIDEO_ID, '
+                        'youtu.be/VIDEO_ID, '
+                        'youtube.com/shorts/VIDEO_ID, and '
+                        'youtube.com/embed/VIDEO_ID.'
+                    )
+
+                if not self.validate_youtube_id(video_id):
+                    raise forms.ValidationError(
+                        'The YouTube video ID does not appear to be valid.'
+                    )
+
+                return value
+
+            def clean_video_upload(self):
+                upload = self.cleaned_data.get('video_upload')
+
+                if not upload:
+                    return upload
+
+                allowed_content_types = {
+                    'video/mp4',
+                    'video/webm',
+                    'video/quicktime',
+                    'video/x-m4v',
+                    'video/m4v',
+                }
+
+                allowed_extensions = (
+                    '.mp4',
+                    '.webm',
+                    '.mov',
+                    '.m4v',
+                )
+
+                content_type = str(
+                    getattr(upload, 'content_type', '')
+                    or ''
+                ).lower()
+
+                filename = str(
+                    getattr(upload, 'name', '')
+                    or ''
+                ).lower()
+
+                extension_valid = filename.endswith(
+                    allowed_extensions
+                )
+
+                if (
+                    content_type
+                    and content_type not in allowed_content_types
+                    and not extension_valid
+                ):
+                    raise forms.ValidationError(
+                        'Please upload an MP4, WebM, MOV, or M4V video.'
+                    )
+
+                max_size = 500 * 1024 * 1024
+
+                if upload.size > max_size:
+                    raise forms.ValidationError(
+                        'Video must be 500 MB or smaller.'
+                    )
+
+                return upload
+
+            def clean(self):
+                cleaned_data = super().clean()
+
+                youtube_url = cleaned_data.get('youtube_url')
+                video_upload = cleaned_data.get('video_upload')
+
+                if youtube_url and video_upload:
+                    raise forms.ValidationError(
+                        'Use either a YouTube Video URL or a Local Video Upload, '
+                        'not both.'
+                    )
+
+                return cleaned_data
+
+            def save(self, commit=True):
+                instance = super().save(commit=False)
+
+                upload = self.cleaned_data.get('video_upload')
+                youtube_url = self.cleaned_data.get('youtube_url')
+
+                # =================================================
+                # OPTION 1
+                # EXISTING YOUTUBE URL
+                # =================================================
+                if youtube_url and not upload:
+
+                    video_id = self.extract_youtube_id(
+                        youtube_url
+                    )
+
+                    if not video_id:
+                        raise forms.ValidationError(
+                            'Could not extract a YouTube video ID '
+                            'from the supplied URL.'
+                        )
+
+                    if not self.validate_youtube_id(video_id):
+                        raise forms.ValidationError(
+                            'The supplied YouTube video ID is invalid.'
+                        )
+
+                    instance.source = 'youtube'
+                    instance.youtube_video_id = video_id
+                    instance.youtube_url = youtube_url
+                    instance.local_video = None
+
+                    visibility = (
+                        self.cleaned_data.get(
+                            'youtube_visibility'
+                        )
+                        or 'unlisted'
+                    )
+
+                    if visibility not in {
+                        'public',
+                        'unlisted',
+                    }:
+                        visibility = 'unlisted'
+
+                    instance.youtube_visibility = visibility
+
+                # =================================================
+                # OPTION 2
+                # LOCAL VIDEO → YOUTUBE
+                # =================================================
+                elif upload:
+
+                    visibility = (
+                        self.cleaned_data.get(
+                            'youtube_visibility'
+                        )
+                        or 'unlisted'
+                    )
+
+                    if visibility not in {
+                        'public',
+                        'unlisted',
+                    }:
+                        visibility = 'unlisted'
+
+                    title = (
+                        self.cleaned_data.get('title')
+                        or (
+                            instance.product.name
+                            if instance.product_id
+                            else 'Arolana Product Video'
+                        )
+                    )[:200]
+
+                    description = (
+                        self.cleaned_data.get('description')
+                        or ''
+                    )
+
+                    try:
+                        result = upload_video(
+                            upload,
+                            title=title,
+                            description=description,
+                            privacy_status=visibility,
+                        )
+
+                    except Exception as exc:
+                        raise forms.ValidationError(
+                            f'YouTube upload failed: {exc}'
+                        )
+
+                    video_id = result.get('id')
+                    youtube_url_result = result.get('url')
+
+                    if not video_id:
+                        raise forms.ValidationError(
+                            'YouTube upload completed but no video ID '
+                            'was returned by YouTube.'
+                        )
+
+                    instance.source = 'youtube'
+                    instance.title = title
+                    instance.youtube_video_id = video_id
+                    instance.youtube_url = (
+                        youtube_url_result
+                        or (
+                            'https://www.youtube.com/watch?v='
+                            f'{video_id}'
+                        )
+                    )
+                    instance.youtube_visibility = visibility
+
+                    # Never permanently store the original upload.
+                    instance.local_video = None
+
+                # =================================================
+                # OPTION 3
+                # EXISTING YOUTUBE RECORD
+                # =================================================
+                elif instance.youtube_video_id:
+
+                    instance.source = 'youtube'
+
+                    if not instance.youtube_url:
+                        instance.youtube_url = (
+                            'https://www.youtube.com/watch?v='
+                            f'{instance.youtube_video_id}'
+                        )
+
+                    instance.local_video = None
+
+                if commit:
+                    instance.save()
+
+                return instance
+
+        kwargs['form'] = ProductVideoGalleryForm
+
+        return super().get_formset(
+            request,
+            obj,
+            **kwargs,
+        )
 
 
 class ProductArticleLinkInline(admin.StackedInline):
@@ -509,23 +907,35 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('warranty_years', 'warranty_description', 'extended_warranty_available', 'extended_warranty_price'),
             'classes': ('collapse',)
         }),
-        ('Media', {
-            'fields': ('main_image', 'manual_pdf', 'video_type', 'video_url', 'local_video', 'video_thumbnail', 'video_title'),
-            'description': 'Add product images, optional PDF manual/brochure, and videos (YouTube, Vimeo, or local MP4).'
-        }),
-        ('Product Detail Display Controls', {
-            'fields': (
-                'show_top_gallery',
-                'show_auto_overview_gallery',
-                'auto_fill_description_images',
-            ),
-            'description': (
-                'Control how this product appears on the frontend. '
-                'Show top gallery controls the main gallery beside checkout. '
-                'Show auto overview gallery controls the automatic gallery inside the Overview tab. '
-                'Auto fill description images fills styled description placeholders from uploaded product images.'
-            ),
-        }),
+            ('Media', {
+                'fields': (
+                    'main_image',
+                    'manual_pdf',
+                ),
+                'description': (
+                    'Add the main product image and an optional PDF manual, '
+                    'brochure, or specification sheet. Product videos are '
+                    'managed in the Product Video Gallery below and uploaded '
+                    'directly to YouTube. The source video file is not '
+                    'permanently stored by Arolana.'
+                ),
+            }),
+
+            ('Product Detail Display Controls', {
+                'fields': (
+                    'show_top_gallery',
+                    'show_auto_overview_gallery',
+                    'auto_fill_description_images',
+                ),
+                'description': (
+                    'Control how this product appears on the frontend. '
+                    'Show top gallery controls the main gallery beside checkout. '
+                    'Show auto overview gallery controls the automatic gallery '
+                    'inside the Overview tab. '
+                    'Auto fill description images fills styled description '
+                    'placeholders from uploaded product images.'
+                ),
+            }),
         ('SEO', {
             'fields': ('meta_title', 'meta_description', 'meta_keywords'),
             'classes': ('collapse',)
@@ -1000,8 +1410,21 @@ class ProductVariantAdmin(admin.ModelAdmin):
             'fields': ('price_adjustment', 'stock_quantity', 'is_active')
         }),
         ('Main Variant Image / Color', {
-            'fields': ('image', 'hover_image', 'color_code', 'manual_pdf', 'video_type', 'video_url', 'local_video', 'video_thumbnail', 'video_title'),
-            'description': 'This is only the main variant image. Add the full variant gallery below under Variant Images.',
+            'fields': (
+                'image',
+                'hover_image',
+                'color_code',
+                'manual_pdf',
+                'video_type',
+                'video_url',
+                'video_thumbnail',
+                'video_title',
+            ),
+            'description': (
+                'This is only the main variant image. '
+                'Product videos are hosted on YouTube and are not '
+                'stored on Arolana.'
+            ),
         }),
         ('Physical & Warranty Overrides', {
             'fields': ('weight', 'weight_unit', 'dimensions_length', 'dimensions_width', 'dimensions_height', 'dimension_unit', 'warranty_years', 'warranty_description', 'extended_warranty_available'),
@@ -1207,32 +1630,240 @@ class ProductCatalogRequestAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVideo)
 class ProductVideoAdmin(admin.ModelAdmin):
-    list_display = ['product_name', 'title', 'source', 'is_main', 'display_order']
-    list_filter = ['source', 'is_main', 'created_at']
-    list_editable = ['display_order', 'is_main']
-    search_fields = ['product__name', 'title']
-    list_select_related = ['product']
+    list_display = [
+        'product_name',
+        'title',
+        'source',
+        'youtube_visibility',
+        'is_main',
+        'display_order',
+    ]
+
+    list_filter = [
+        'source',
+        'youtube_visibility',
+        'is_main',
+        'created_at',
+    ]
+
+    list_editable = [
+        'display_order',
+        'is_main',
+    ]
+
+    search_fields = [
+        'product__name',
+        'title',
+        'youtube_video_id',
+    ]
+
+    list_select_related = [
+        'product',
+    ]
+
+    readonly_fields = [
+        'youtube_video_id',
+        'youtube_url',
+    ]
 
     fieldsets = (
-        ('Basic Information', {
-            'fields': ('product', 'title', 'description', 'source')
-        }),
-        ('Video Source', {
-            'fields': ('youtube_url', 'vimeo_url', 'local_video')
-        }),
-        ('Media', {
-            'fields': ('thumbnail', 'is_main'),
-            'classes': ('collapse',)
-        }),
-        ('Display', {
-            'fields': ('display_order',),
-            'classes': ('collapse',)
-        }),
+        (
+            'Basic Information',
+            {
+                'fields': (
+                    'product',
+                    'title',
+                    'description',
+                )
+            }
+        ),
+        (
+            'YouTube Video',
+            {
+                'fields': (
+                    'youtube_video',
+                    'youtube_visibility',
+                    'youtube_video_id',
+                    'youtube_url',
+                ),
+                'description': (
+                    'Upload a video directly to the connected YouTube channel. '
+                    'The uploaded video is not permanently stored by Arolana.'
+                ),
+            }
+        ),
+        (
+            'Media',
+            {
+                'fields': (
+                    'thumbnail',
+                    'is_main',
+                ),
+                'classes': ('collapse',),
+            }
+        ),
+        (
+            'Display',
+            {
+                'fields': (
+                    'display_order',
+                ),
+                'classes': ('collapse',),
+            }
+        ),
     )
 
     def product_name(self, obj):
         return obj.product.name
+
     product_name.short_description = 'Product'
+
+    def get_form(self, request, obj=None, **kwargs):
+        from django import forms
+        from core.youtube_service import upload_video
+
+        class YouTubeProductVideoForm(forms.ModelForm):
+
+            youtube_video = forms.FileField(
+                required=False,
+                label='Upload Video to YouTube',
+                help_text=(
+                    'MP4, WebM, MOV, or M4V. '
+                    'The video will be uploaded to YouTube. '
+                    'Arolana will not permanently store the video file.'
+                ),
+            )
+
+            class Meta:
+                model = ProductVideo
+                fields = [
+                    'product',
+                    'title',
+                    'description',
+                    'youtube_video',
+                    'youtube_visibility',
+                    'youtube_url',
+                    'youtube_video_id',
+                    'thumbnail',
+                    'is_main',
+                    'display_order',
+                ]
+
+            def clean(self):
+                cleaned = super().clean()
+
+                upload = cleaned.get('youtube_video')
+
+                if upload:
+                    allowed = {
+                        'video/mp4',
+                        'video/webm',
+                        'video/quicktime',
+                        'video/x-m4v',
+                    }
+
+                    content_type = str(
+                        getattr(upload, 'content_type', '')
+                        or ''
+                    ).lower()
+
+                    filename = str(
+                        getattr(upload, 'name', '')
+                        or ''
+                    ).lower()
+
+                    allowed_extensions = (
+                        '.mp4',
+                        '.webm',
+                        '.mov',
+                        '.m4v',
+                    )
+
+                    extension_valid = filename.endswith(
+                        allowed_extensions
+                    )
+
+                    if (
+                        content_type
+                        and content_type not in allowed
+                        and not extension_valid
+                    ):
+                        raise forms.ValidationError(
+                            'Please upload an MP4, WebM, MOV, or M4V video.'
+                        )
+
+                return cleaned
+
+            def save(self, commit=True):
+                instance = super().save(commit=False)
+
+                upload = self.cleaned_data.get('youtube_video')
+
+                if upload:
+                    visibility = (
+                        self.cleaned_data.get('youtube_visibility')
+                        or 'unlisted'
+                    )
+
+                    if visibility not in {
+                        'public',
+                        'unlisted',
+                    }:
+                        visibility = 'unlisted'
+
+                    title = (
+                        self.cleaned_data.get('title')
+                        or (
+                            instance.product.name
+                            if instance.product_id
+                            else 'Arolana Product Video'
+                        )
+                    )[:200]
+
+                    description = (
+                        self.cleaned_data.get('description')
+                        or ''
+                    )
+
+                    try:
+                        result = upload_video(
+                            upload,
+                            title=title,
+                            description=description,
+                            privacy_status=visibility,
+                        )
+
+                    except Exception as exc:
+                        raise forms.ValidationError(
+                            f'YouTube upload failed: {exc}'
+                        )
+
+                    # Store ONLY the YouTube reference.
+                    instance.source = 'youtube'
+                    instance.title = title
+                    instance.youtube_video_id = result['id']
+                    instance.youtube_url = result['url']
+                    instance.youtube_visibility = visibility
+
+                    # Never store the uploaded video as Arolana media.
+
+
+                else:
+                    # Existing YouTube records remain YouTube records.
+                    instance.source = 'youtube'
+
+                if commit:
+                    instance.save()
+
+                return instance
+
+        kwargs['form'] = YouTubeProductVideoForm
+
+        return super().get_form(
+            request,
+            obj,
+            **kwargs,
+        )
 
 
 # =================================

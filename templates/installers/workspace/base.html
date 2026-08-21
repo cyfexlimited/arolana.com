@@ -46,6 +46,9 @@
       <a href="{% url 'provider_workspace:reviews' %}" class="{% if workspace_active == 'reviews' %}active{% endif %}"><i class="fas fa-star"></i> Reviews</a>
       <a href="{% url 'provider_workspace:subscription' %}" class="{% if workspace_active == 'subscription' %}active{% endif %}"><i class="fas fa-crown"></i> Subscription</a>
       <a href="{% url 'social_publishing_web:accounts' %}?role=provider" class="{% if workspace_active == 'social_accounts' %}active{% endif %}"><i class="fas fa-share-nodes"></i> Social Accounts</a>
+      {% if ADS_ADVERTISER_DASHBOARD_ENABLED %}
+      <a href="{% url 'ads:marketing_overview' %}" class="{% if workspace_active == 'arolana_ads' %}active{% endif %}"><i class="fas fa-bullhorn"></i> Arolana Ads</a>
+      {% endif %}
       <a href="{% url 'provider_workspace:coverage' %}" class="{% if workspace_active == 'availability' %}active{% endif %}"><i class="fas fa-location-dot"></i> Coverage & Availability</a>
       <a href="{% url 'provider_workspace:kyc' %}" class="{% if workspace_active == 'kyc' %}active{% endif %}"><i class="fas fa-shield-check"></i> KYC</a>
       <a href="{% url 'subscriptions:plans' %}?role=provider"><i class="fas fa-credit-card"></i> Subscription & Billing</a>
