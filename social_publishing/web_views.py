@@ -23,6 +23,7 @@ from .services import normalize_owner_role, platform_enabled, social_publishing_
 
 User = get_user_model()
 LAUNCH_SALT = "arolana.social-publishing.launch.v1"
+OAUTH_STATE_SALT = "arolana.social-publishing.oauth-state.v1"
 
 
 def _role_allowed(user, role):
@@ -54,6 +55,49 @@ def make_launch_token(user, role, platform, return_url=""):
         salt=LAUNCH_SALT,
         compress=True,
     )
+
+
+
+def _make_oauth_state(user, role, platform, return_url=""):
+    return signing.dumps(
+        {
+            "user_id": user.pk,
+            "role": normalize_owner_role(role),
+            "platform": platform,
+            "return_url": _safe_return_url(return_url),
+            "nonce": secrets.token_urlsafe(16),
+        },
+        salt=OAUTH_STATE_SALT,
+        compress=True,
+    )
+
+
+def _load_oauth_state(value, platform):
+    try:
+        data = signing.loads(value, salt=OAUTH_STATE_SALT, max_age=600)
+    except signing.SignatureExpired as exc:
+        raise PermissionError("This social authorization request has expired.") from exc
+    except signing.BadSignature as exc:
+        raise PermissionError("Invalid social authorization state.") from exc
+
+    if data.get("platform") != platform:
+        raise PermissionError("Social authorization platform mismatch.")
+
+    user = User.objects.filter(pk=data.get("user_id"), is_active=True).first()
+    if not user:
+        raise PermissionError("Arolana account could not be resolved.")
+
+    role = normalize_owner_role(data.get("role"))
+    if not _role_allowed(user, role):
+        raise PermissionError("This role is not available for this Arolana account.")
+
+    return {
+        "state": value,
+        "user_id": user.pk,
+        "role": role,
+        "platform": platform,
+        "return_url": _safe_return_url(data.get("return_url")),
+    }
 
 
 def _launch_identity(request, platform):
@@ -159,7 +203,7 @@ def connect_account(request, platform):
     if not platform_enabled(platform):
         return HttpResponseForbidden(f"{platform.title()} connection is not enabled yet.")
 
-    state = secrets.token_urlsafe(32)
+    state = _make_oauth_state(user, role, platform, return_url)
     request.session["social_oauth"] = {
         "state": state,
         "user_id": user.pk,
@@ -177,11 +221,17 @@ def connect_account(request, platform):
 
 def oauth_callback(request, platform):
     platform = str(platform or "").strip().lower()
+    returned_state = request.GET.get("state", "")
     pending = request.session.get("social_oauth") or {}
-    if pending.get("platform") != platform or not pending.get("state"):
-        return HttpResponseBadRequest("No matching Arolana social authorization session was found.")
-    if request.GET.get("state") != pending.get("state"):
-        return HttpResponseBadRequest("Social authorization state validation failed.")
+
+    if pending.get("platform") == platform and pending.get("state"):
+        if returned_state != pending.get("state"):
+            return HttpResponseBadRequest("Social authorization state validation failed.")
+    else:
+        try:
+            pending = _load_oauth_state(returned_state, platform)
+        except (PermissionError, ValueError) as exc:
+            return HttpResponseBadRequest(str(exc))
 
     return_url = _safe_return_url(pending.get("return_url"))
     role = normalize_owner_role(pending.get("role"))
