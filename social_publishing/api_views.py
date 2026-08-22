@@ -1,11 +1,20 @@
+from django.contrib.contenttypes.models import ContentType
+from django.http import Http404
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from staff_mobile.models import StaffMobileToken
+
+from .authentication import StaffMobileTokenAuthentication
 from .models import SocialAccount, SocialPlatform
 from .oauth import platform_config
+from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
+from .serializers import InstagramVideoPublicationSerializer
 from .services import normalize_owner_role, platform_enabled, social_publishing_access
 from .web_views import make_launch_token
 
@@ -18,6 +27,108 @@ def _role_available(user, role):
     if role == "provider":
         return hasattr(user, "service_provider_profile")
     return False
+
+
+def _publishing_role(request, requested_role):
+    mobile_session = request.auth if isinstance(request.auth, StaffMobileToken) else None
+    if mobile_session:
+        role = normalize_owner_role(mobile_session.role)
+        if requested_role and normalize_owner_role(requested_role) != role:
+            raise PermissionDenied("The requested role does not match this mobile session.")
+    else:
+        role = normalize_owner_role(requested_role or "vendor")
+    if not _role_available(request.user, role):
+        raise PermissionDenied("This role is not available for your account.")
+    return role
+
+
+def _resolve_publication_content(*, user, owner_role, content_reference, object_id):
+    app_label, model = content_reference.split(".", 1)
+    try:
+        content_type = ContentType.objects.get(app_label=app_label, model=model)
+    except ContentType.DoesNotExist as exc:
+        raise Http404("Content was not found.") from exc
+    model_class = content_type.model_class()
+    if model_class is None:
+        raise Http404("Content was not found.")
+    try:
+        content_object = model_class._default_manager.get(pk=object_id)
+    except model_class.DoesNotExist as exc:
+        raise Http404("Content was not found.") from exc
+
+    if owner_role == "admin":
+        return content_object
+    if content_reference == "products.product" and owner_role == "vendor":
+        allowed = content_object.vendor_id == user.pk
+    elif content_reference == "products.productvideo" and owner_role == "vendor":
+        vendor_profile_id = getattr(getattr(user, "vendor_profile", None), "pk", None)
+        allowed = (
+            content_object.vendor_id == vendor_profile_id
+            or content_object.product.vendor_id == user.pk
+        )
+    elif content_reference == "installers.serviceportfolio" and owner_role == "provider":
+        allowed = content_object.provider.user_id == user.pk
+    elif content_reference == "installers.serviceprojectmedia" and owner_role == "provider":
+        allowed = content_object.project.provider.user_id == user.pk
+    else:
+        allowed = False
+    if not allowed:
+        raise PermissionDenied("This content is not available for the requested role.")
+    return content_object
+
+
+def _publication_payload(publication):
+    return {
+        "publication_id": publication.pk,
+        "status": publication.status,
+        "instagram_media_id": publication.external_id or "",
+        "instagram_permalink": publication.external_url or "",
+    }
+
+
+_PUBLIC_PUBLISHING_ERRORS = {
+    "social_publishing_access_denied": (
+        status.HTTP_403_FORBIDDEN,
+        "Social publishing is not available for this account.",
+    ),
+    "instagram_publishing_disabled": (
+        status.HTTP_409_CONFLICT,
+        "Instagram publishing is not enabled.",
+    ),
+    "instagram_not_connected": (
+        status.HTTP_409_CONFLICT,
+        "A connected Instagram account is required.",
+    ),
+    "instagram_reauthorization_required": (
+        status.HTTP_409_CONFLICT,
+        "The connected Instagram account requires reauthorization.",
+    ),
+    "already_published": (
+        status.HTTP_409_CONFLICT,
+        "This content has already been published to Instagram.",
+    ),
+    "publish_in_progress": (
+        status.HTTP_409_CONFLICT,
+        "This content is already being published to Instagram.",
+    ),
+    "invalid_content_object": (
+        status.HTTP_400_BAD_REQUEST,
+        "The selected content is invalid.",
+    ),
+    "https_video_url_required": (
+        status.HTTP_502_BAD_GATEWAY,
+        "Instagram video delivery is temporarily unavailable.",
+    ),
+}
+
+
+def _public_publishing_error(exc):
+    public_code = exc.code if exc.code in _PUBLIC_PUBLISHING_ERRORS else "instagram_publish_failed"
+    response_status, detail = _PUBLIC_PUBLISHING_ERRORS.get(
+        public_code,
+        (status.HTTP_502_BAD_GATEWAY, "Instagram publishing failed."),
+    )
+    return public_code, detail, response_status
 
 
 def _platform_payload(platform, label, account=None):
@@ -128,3 +239,42 @@ def social_account_disconnect(request, platform):
         return Response({"detail": "Arolana YouTube hosting cannot be disconnected here."}, status=status.HTTP_400_BAD_REQUEST)
     deleted, _ = SocialAccount.objects.filter(user=request.user, owner_role=role, platform=platform).delete()
     return Response({"success": True, "disconnected": bool(deleted), "platform": platform})
+
+
+@api_view(["POST"])
+@authentication_classes(
+    [SessionAuthentication, BasicAuthentication, StaffMobileTokenAuthentication]
+)
+@permission_classes([IsAuthenticated])
+def publish_instagram_video(request):
+    serializer = InstagramVideoPublicationSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    try:
+        owner_role = _publishing_role(request, data.get("role"))
+        content_object = _resolve_publication_content(
+            user=request.user,
+            owner_role=owner_role,
+            content_reference=data["content_type"],
+            object_id=data["object_id"],
+        )
+        publication = publish_uploaded_video_to_instagram(
+            user=request.user,
+            owner_role=owner_role,
+            content_object=content_object,
+            uploaded_file=data["video"],
+            caption=data["caption"],
+            share_to_feed=data["share_to_feed"],
+        )
+    except InstagramPublicationError as exc:
+        public_code, detail, response_status = _public_publishing_error(exc)
+        payload = {
+            "detail": detail,
+            "error_code": public_code,
+        }
+        if exc.publication is not None:
+            payload.update(_publication_payload(exc.publication))
+        return Response(payload, status=response_status)
+
+    return Response(_publication_payload(publication), status=status.HTTP_201_CREATED)
