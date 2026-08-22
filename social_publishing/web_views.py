@@ -13,12 +13,23 @@ from django.core import signing
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .crypto import encrypt_token
 from .models import SocialAccount, SocialConnectionStatus, SocialOwnerRole, SocialPlatform
-from .oauth import build_authorization_url, exchange_code, platform_config, resolve_identity, token_expiry
+from .oauth import (
+    INSTAGRAM_LONG_LIVED_TOKEN_KIND,
+    INSTAGRAM_TOKEN_ISSUED_AT_KEY,
+    INSTAGRAM_TOKEN_KIND_KEY,
+    build_authorization_url,
+    exchange_code,
+    exchange_instagram_long_lived_token,
+    platform_config,
+    resolve_identity,
+    token_expiry,
+)
 from .services import normalize_owner_role, platform_enabled, social_publishing_access
 
 User = get_user_model()
@@ -254,7 +265,16 @@ def oauth_callback(request, platform):
 
     try:
         token_data = exchange_code(request, platform, code)
+        if platform == SocialPlatform.INSTAGRAM:
+            long_lived = exchange_instagram_long_lived_token(token_data["access_token"])
+            token_data = {**token_data, **long_lived}
         identity = resolve_identity(platform, token_data)
+        if platform == SocialPlatform.INSTAGRAM:
+            identity["platform_metadata"] = {
+                **identity.get("platform_metadata", {}),
+                INSTAGRAM_TOKEN_KIND_KEY: INSTAGRAM_LONG_LIVED_TOKEN_KIND,
+                INSTAGRAM_TOKEN_ISSUED_AT_KEY: timezone.now().isoformat(),
+            }
         account, _ = SocialAccount.objects.update_or_create(
             user=user,
             owner_role=role,
@@ -279,7 +299,7 @@ def oauth_callback(request, platform):
         request.session.save()
         if return_url:
             return redirect(f"{return_url}?status=error&platform={platform}")
-        messages.error(request, f"Could not connect {platform.title()}: {exc}")
+        messages.error(request, f"Could not connect {platform.title()}. Please try again.")
         return redirect(f"{reverse('social_publishing_web:accounts')}?role={role}")
 
     request.session.pop("social_oauth", None)

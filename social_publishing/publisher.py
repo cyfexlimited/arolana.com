@@ -15,6 +15,7 @@ from .models import (
     SocialPlatform,
     SocialPublication,
 )
+from .oauth import InstagramTokenLifecycleError, refresh_instagram_account_if_needed
 from .services import normalize_owner_role, platform_enabled, social_publishing_access
 from .video_staging import (
     cleanup_video_lease,
@@ -76,6 +77,14 @@ def _connected_instagram_account(user, owner_role):
         raise InstagramPublicationError(
             "A connected Instagram account is required.",
             code="instagram_not_connected",
+        ) from exc
+
+    try:
+        account = refresh_instagram_account_if_needed(account)
+    except InstagramTokenLifecycleError as exc:
+        raise InstagramPublicationError(
+            "The connected Instagram account requires reauthorization.",
+            code="instagram_reauthorization_required",
         ) from exc
 
     if not account.is_connected:
@@ -225,6 +234,10 @@ def publish_uploaded_video_to_instagram(
         )
         return publication
     except Exception as exc:
+        if str(getattr(exc, "error_code", "")) == "190":
+            account.status = SocialConnectionStatus.EXPIRED
+            account.last_error = "Instagram authorization expired. Reauthorization is required."
+            account.save(update_fields=["status", "last_error", "updated_at"])
         safe_code = exc.code if isinstance(exc, InstagramPublicationError) else _safe_error_code(exc)
         safe_message = _safe_error_message(exc)
         publication.status = PublicationStatus.FAILED

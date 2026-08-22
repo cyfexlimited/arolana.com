@@ -1,4 +1,5 @@
 from unittest.mock import Mock, patch
+from datetime import timedelta
 
 from social_publishing.instagram import (
     InstagramPublishingError,
@@ -14,6 +15,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from .services import normalize_owner_role
@@ -25,6 +27,15 @@ from .models import (
     SocialPublication,
 )
 from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
+from .oauth import (
+    INSTAGRAM_LONG_LIVED_TOKEN_KIND,
+    INSTAGRAM_TOKEN_ISSUED_AT_KEY,
+    INSTAGRAM_TOKEN_KIND_KEY,
+    InstagramTokenLifecycleError,
+    exchange_instagram_long_lived_token,
+    refresh_instagram_account_if_needed,
+    refresh_instagram_long_lived_token,
+)
 from staff_mobile.models import StaffMobileToken
 
 
@@ -68,6 +79,199 @@ class SocialPublishingPhase2Tests(SimpleTestCase):
         )
         self.assertTrue(token)
         self.assertNotIn("secret", token.lower())
+
+
+@override_settings(SOCIAL_PUBLISHING_INSTAGRAM_APP_SECRET="instagram-app-secret")
+class InstagramOAuthTokenExchangeTests(SimpleTestCase):
+    @patch("social_publishing.oauth.requests.get")
+    def test_short_lived_token_is_exchanged_for_long_lived_token(self, mock_get):
+        response = Mock(ok=True, status_code=200)
+        response.json.return_value = {
+            "access_token": "long-lived-token",
+            "token_type": "bearer",
+            "expires_in": 5184000,
+        }
+        mock_get.return_value = response
+
+        result = exchange_instagram_long_lived_token("short-lived-token")
+
+        self.assertEqual(result["access_token"], "long-lived-token")
+        params = mock_get.call_args.kwargs["params"]
+        self.assertEqual(params["grant_type"], "ig_exchange_token")
+        self.assertEqual(params["access_token"], "short-lived-token")
+
+    @patch("social_publishing.oauth.requests.get")
+    def test_long_lived_token_refresh_uses_instagram_refresh_endpoint(self, mock_get):
+        response = Mock(ok=True, status_code=200)
+        response.json.return_value = {
+            "access_token": "refreshed-token",
+            "token_type": "bearer",
+            "expires_in": 5184000,
+        }
+        mock_get.return_value = response
+
+        result = refresh_instagram_long_lived_token("current-token")
+
+        self.assertEqual(result["access_token"], "refreshed-token")
+        self.assertIn("refresh_access_token", mock_get.call_args.args[0])
+        self.assertEqual(
+            mock_get.call_args.kwargs["params"]["grant_type"],
+            "ig_refresh_token",
+        )
+
+
+class InstagramOAuthTokenLifecycleTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="instagram-oauth-admin",
+            email="instagram-oauth-admin@example.com",
+            password="test-password",
+            is_staff=True,
+        )
+
+    @patch("social_publishing.web_views.exchange_instagram_long_lived_token")
+    @patch("social_publishing.web_views.exchange_code")
+    def test_callback_persists_long_lived_token_and_expiry(
+        self, mock_exchange_code, mock_long_lived
+    ):
+        mock_exchange_code.return_value = {
+            "access_token": "short-lived-token",
+            "user_id": "instagram-user-1",
+        }
+        mock_long_lived.return_value = {
+            "access_token": "long-lived-token",
+            "expires_in": 5184000,
+            "token_type": "bearer",
+        }
+        self.client.force_login(self.user)
+        session = self.client.session
+        session["social_oauth"] = {
+            "state": "safe-state",
+            "user_id": self.user.pk,
+            "role": "admin",
+            "platform": "instagram",
+            "return_url": "",
+        }
+        session.save()
+
+        response = self.client.get(
+            reverse(
+                "social_publishing_web:oauth_callback",
+                kwargs={"platform": "instagram"},
+            ),
+            {"state": "safe-state", "code": "authorization-code"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        account = SocialAccount.objects.get(user=self.user, owner_role="admin")
+        self.assertEqual(decrypt_token(account.access_token_encrypted), "long-lived-token")
+        self.assertEqual(account.external_account_id, "instagram-user-1")
+        self.assertGreater(account.token_expires_at, timezone.now() + timedelta(days=59))
+        self.assertEqual(
+            account.platform_metadata[INSTAGRAM_TOKEN_KIND_KEY],
+            INSTAGRAM_LONG_LIVED_TOKEN_KIND,
+        )
+        mock_long_lived.assert_called_once_with("short-lived-token")
+
+    @patch("social_publishing.oauth.refresh_instagram_long_lived_token")
+    def test_approaching_expiry_refreshes_and_persists_token(self, mock_refresh):
+        account = SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            access_token_encrypted=encrypt_token("current-long-lived-token"),
+            token_expires_at=timezone.now() + timedelta(days=1),
+            platform_metadata={
+                INSTAGRAM_TOKEN_KIND_KEY: INSTAGRAM_LONG_LIVED_TOKEN_KIND,
+                INSTAGRAM_TOKEN_ISSUED_AT_KEY: (
+                    timezone.now() - timedelta(days=30)
+                ).isoformat(),
+            },
+        )
+        mock_refresh.return_value = {
+            "access_token": "new-long-lived-token",
+            "expires_in": 5184000,
+        }
+
+        refresh_instagram_account_if_needed(account)
+
+        account.refresh_from_db()
+        refresh_instagram_account_if_needed(account)
+        self.assertEqual(decrypt_token(account.access_token_encrypted), "new-long-lived-token")
+        self.assertGreater(account.token_expires_at, timezone.now() + timedelta(days=59))
+        self.assertEqual(account.status, SocialConnectionStatus.CONNECTED)
+        mock_refresh.assert_called_once_with("current-long-lived-token")
+
+    @patch("social_publishing.oauth.refresh_instagram_long_lived_token")
+    def test_refresh_failure_is_safe_and_requires_attention(self, mock_refresh):
+        account = SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            access_token_encrypted=encrypt_token("current-secret-token"),
+            token_expires_at=timezone.now() + timedelta(days=1),
+            platform_metadata={
+                INSTAGRAM_TOKEN_KIND_KEY: INSTAGRAM_LONG_LIVED_TOKEN_KIND,
+                INSTAGRAM_TOKEN_ISSUED_AT_KEY: (
+                    timezone.now() - timedelta(days=30)
+                ).isoformat(),
+            },
+        )
+        mock_refresh.side_effect = InstagramTokenLifecycleError(
+            "Instagram long-lived token refresh failed (400)."
+        )
+
+        with self.assertRaises(InstagramTokenLifecycleError) as caught:
+            refresh_instagram_account_if_needed(account)
+
+        account.refresh_from_db()
+        self.assertEqual(account.status, SocialConnectionStatus.ERROR)
+        self.assertNotIn("current-secret-token", str(caught.exception))
+        self.assertNotIn("current-secret-token", account.last_error)
+
+    @patch("social_publishing.oauth.refresh_instagram_long_lived_token")
+    def test_unverified_token_is_never_sent_to_refresh_endpoint(self, mock_refresh):
+        account = SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            access_token_encrypted=encrypt_token("unverified-token"),
+            token_expires_at=timezone.now() + timedelta(days=1),
+            platform_metadata={},
+        )
+
+        with self.assertRaises(InstagramTokenLifecycleError):
+            refresh_instagram_account_if_needed(account)
+
+        account.refresh_from_db()
+        self.assertEqual(account.status, SocialConnectionStatus.ERROR)
+        mock_refresh.assert_not_called()
+
+    @patch("social_publishing.oauth.refresh_instagram_long_lived_token")
+    def test_long_lived_token_younger_than_24_hours_is_not_refreshed(self, mock_refresh):
+        account = SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            access_token_encrypted=encrypt_token("young-long-lived-token"),
+            token_expires_at=timezone.now() + timedelta(days=1),
+            platform_metadata={
+                INSTAGRAM_TOKEN_KIND_KEY: INSTAGRAM_LONG_LIVED_TOKEN_KIND,
+                INSTAGRAM_TOKEN_ISSUED_AT_KEY: (
+                    timezone.now() - timedelta(hours=12)
+                ).isoformat(),
+            },
+        )
+
+        result = refresh_instagram_account_if_needed(account)
+
+        self.assertEqual(result.pk, account.pk)
+        self.assertEqual(result.status, SocialConnectionStatus.CONNECTED)
+        mock_refresh.assert_not_called()
 
 
 class _FakeInstagramAccount:
@@ -470,6 +674,37 @@ class InstagramPublicationOrchestrationTests(TestCase):
         publication = SocialPublication.objects.get()
         self.assertEqual(publication.status, PublicationStatus.FAILED)
         mock_publish.assert_not_called()
+        mock_cleanup.assert_called_once()
+
+    @patch("social_publishing.publisher.cleanup_video_lease")
+    @patch("social_publishing.publisher.publish_reel")
+    @patch(
+        "social_publishing.publisher.get_video_delivery_url",
+        return_value="https://media.example/reel.mp4",
+    )
+    @patch(
+        "social_publishing.publisher.stage_video_for_social",
+        return_value=SimpleNamespace(),
+    )
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_meta_oauth_code_190_marks_account_expired(
+        self, mock_access, _mock_stage, _mock_url, mock_publish, mock_cleanup
+    ):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        account = self._account()
+        mock_publish.side_effect = InstagramPublishingError(
+            "The access token has expired.",
+            status_code=400,
+            error_code=190,
+        )
+
+        with self.assertRaises(InstagramPublicationError) as caught:
+            self._publish()
+
+        account.refresh_from_db()
+        self.assertEqual(account.status, SocialConnectionStatus.EXPIRED)
+        self.assertEqual(caught.exception.code, "190")
+        self.assertNotIn("encrypted-test-token", str(caught.exception))
         mock_cleanup.assert_called_once()
 
 

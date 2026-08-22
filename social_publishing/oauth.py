@@ -12,8 +12,148 @@ import requests
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
-from .models import SocialPlatform
+from .crypto import decrypt_token, encrypt_token
+from .models import SocialConnectionStatus, SocialPlatform
+
+
+INSTAGRAM_LONG_LIVED_TOKEN_URL = "https://graph.instagram.com/access_token"
+INSTAGRAM_REFRESH_TOKEN_URL = "https://graph.instagram.com/refresh_access_token"
+INSTAGRAM_REFRESH_WINDOW = timedelta(days=7)
+INSTAGRAM_MINIMUM_REFRESH_AGE = timedelta(hours=24)
+INSTAGRAM_TOKEN_KIND_KEY = "access_token_kind"
+INSTAGRAM_TOKEN_ISSUED_AT_KEY = "long_lived_token_issued_at"
+INSTAGRAM_LONG_LIVED_TOKEN_KIND = "long_lived"
+
+
+class InstagramTokenLifecycleError(RuntimeError):
+    """Safe Instagram token exchange/refresh failure without credential data."""
+
+
+def _safe_token_response(response, action):
+    if not response.ok:
+        raise InstagramTokenLifecycleError(
+            f"Instagram {action} failed ({response.status_code})."
+        )
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise InstagramTokenLifecycleError(
+            f"Instagram {action} returned an invalid response."
+        ) from exc
+    if not isinstance(data, dict) or not data.get("access_token"):
+        raise InstagramTokenLifecycleError(
+            f"Instagram {action} returned no access token."
+        )
+    return data
+
+
+def exchange_instagram_long_lived_token(short_lived_token):
+    """Exchange an Instagram Login short-lived token for a long-lived token."""
+
+    cfg = platform_config(SocialPlatform.INSTAGRAM)
+    try:
+        response = requests.get(
+            INSTAGRAM_LONG_LIVED_TOKEN_URL,
+            params={
+                "grant_type": "ig_exchange_token",
+                "client_secret": cfg.client_secret,
+                "access_token": short_lived_token,
+            },
+            timeout=30,
+        )
+    except requests.RequestException:
+        raise InstagramTokenLifecycleError(
+            "Instagram long-lived token exchange could not be completed."
+        ) from None
+    return _safe_token_response(response, "long-lived token exchange")
+
+
+def refresh_instagram_long_lived_token(access_token):
+    """Refresh an existing, still-valid Instagram long-lived access token."""
+
+    try:
+        response = requests.get(
+            INSTAGRAM_REFRESH_TOKEN_URL,
+            params={
+                "grant_type": "ig_refresh_token",
+                "access_token": access_token,
+            },
+            timeout=30,
+        )
+    except requests.RequestException:
+        raise InstagramTokenLifecycleError(
+            "Instagram long-lived token refresh could not be completed."
+        ) from None
+    return _safe_token_response(response, "long-lived token refresh")
+
+
+def refresh_instagram_account_if_needed(account, *, now=None):
+    """Refresh and persist a role-bound account when its token is near expiry."""
+
+    now = now or timezone.now()
+    if account.platform != SocialPlatform.INSTAGRAM:
+        return account
+    if account.status != SocialConnectionStatus.CONNECTED:
+        raise InstagramTokenLifecycleError(
+            "The Instagram account requires reauthorization."
+        )
+    if account.token_expires_at is None or account.token_expires_at > now + INSTAGRAM_REFRESH_WINDOW:
+        return account
+    if account.token_expires_at <= now:
+        account.status = SocialConnectionStatus.EXPIRED
+        account.last_error = "Instagram access token expired. Reauthorization is required."
+        account.save(update_fields=["status", "last_error", "updated_at"])
+        raise InstagramTokenLifecycleError(
+            "The Instagram account requires reauthorization."
+        )
+
+    metadata = dict(account.platform_metadata or {})
+    issued_at = parse_datetime(str(metadata.get(INSTAGRAM_TOKEN_ISSUED_AT_KEY) or ""))
+    if metadata.get(INSTAGRAM_TOKEN_KIND_KEY) != INSTAGRAM_LONG_LIVED_TOKEN_KIND or issued_at is None:
+        account.status = SocialConnectionStatus.ERROR
+        account.last_error = "Instagram token lifecycle is unverified. Reauthorization is required."
+        account.save(update_fields=["status", "last_error", "updated_at"])
+        raise InstagramTokenLifecycleError(
+            "The Instagram account requires reauthorization."
+        )
+    if timezone.is_naive(issued_at):
+        issued_at = timezone.make_aware(issued_at, timezone.get_current_timezone())
+    if now - issued_at < INSTAGRAM_MINIMUM_REFRESH_AGE:
+        return account
+
+    try:
+        current_token = decrypt_token(account.access_token_encrypted)
+        refreshed = refresh_instagram_long_lived_token(current_token)
+        refreshed_expiry = token_expiry(refreshed)
+        account.access_token_encrypted = encrypt_token(refreshed["access_token"])
+        if refreshed_expiry is not None:
+            account.token_expires_at = refreshed_expiry
+        account.status = SocialConnectionStatus.CONNECTED
+        account.last_error = ""
+        metadata[INSTAGRAM_TOKEN_ISSUED_AT_KEY] = now.isoformat()
+        account.platform_metadata = metadata
+        account.save(
+            update_fields=[
+                "access_token_encrypted",
+                "token_expires_at",
+                "status",
+                "last_error",
+                "platform_metadata",
+                "updated_at",
+            ]
+        )
+        return account
+    except Exception as exc:
+        account.status = SocialConnectionStatus.ERROR
+        account.last_error = "Instagram token refresh failed. Reauthorization may be required."
+        account.save(update_fields=["status", "last_error", "updated_at"])
+        if isinstance(exc, InstagramTokenLifecycleError):
+            raise
+        raise InstagramTokenLifecycleError(
+            "Instagram long-lived token refresh failed."
+        ) from exc
 
 
 @dataclass(frozen=True)
