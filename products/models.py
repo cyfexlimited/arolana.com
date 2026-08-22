@@ -5109,7 +5109,7 @@ class ProductVideo(BaseModel):
 
             # Fallback: extract ID from the URL if the ID is missing.
             if not video_id and self.youtube_url:
-                video_id = Product._extract_youtube_video_id(
+                return Product._extract_youtube_embed(
                     self.youtube_url
                 )
 

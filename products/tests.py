@@ -3,13 +3,13 @@ from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.test import Client, RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse, resolve
 
 from currency.models import Currency
 from orders.models import Cart, CartItem
 from products import views
-from products.models import Brand, Category, Product
+from products.models import Brand, Category, Product, ProductVideo
 
 User = get_user_model()
 
@@ -151,6 +151,100 @@ class ProductDescriptionSanitizationTests(SimpleTestCase):
         self.assertNotIn('<figure', cleaned)
         self.assertIn('<p>Before</p>', cleaned)
         self.assertIn('<p>After</p>', cleaned)
+
+
+class ProductVideoEmbedTests(TestCase):
+    def setUp(self):
+        self.vendor = User.objects.create_user(
+            username="video-product-vendor",
+            email="video-product-vendor@example.com",
+            password="password123",
+            user_type="vendor",
+        )
+        self.category = Category.objects.create(
+            name="Video Product Tests",
+            slug="video-product-tests",
+            is_active=True,
+        )
+        self.product = Product.objects.create(
+            vendor=self.vendor,
+            category=self.category,
+            sku="VIDEO-PRODUCT-001",
+            name="Video Product",
+            slug="video-product",
+            description="Approved product with video.",
+            price="1000.00",
+            stock_quantity=1,
+            approval_status="approved",
+            is_active=True,
+        )
+
+    def test_youtube_watch_url_returns_embed_url_without_attribute_error(self):
+        video = ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            moderation_status="approved",
+            is_active=True,
+        )
+
+        self.assertEqual(
+            video.get_embed_url(),
+            "https://www.youtube.com/embed/dQw4w9WgXcQ"
+            "?rel=0&modestbranding=1&playsinline=1",
+        )
+
+    def test_youtu_be_url_returns_embed_url(self):
+        video = ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_url="https://youtu.be/dQw4w9WgXcQ?si=test",
+            moderation_status="approved",
+            is_active=True,
+        )
+
+        self.assertEqual(
+            video.get_embed_url(),
+            "https://www.youtube.com/embed/dQw4w9WgXcQ"
+            "?rel=0&modestbranding=1&playsinline=1",
+        )
+
+    def test_blank_or_invalid_youtube_url_fails_safely(self):
+        blank_video = ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_url="",
+            moderation_status="approved",
+            is_active=True,
+        )
+        invalid_video = ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_url="https://example.com/not-youtube",
+            moderation_status="approved",
+            is_active=True,
+        )
+
+        self.assertIsNone(blank_video.get_embed_url())
+        self.assertIsNone(invalid_video.get_embed_url())
+
+    def test_product_detail_with_youtube_product_video_renders(self):
+        ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            moderation_status="approved",
+            is_active=True,
+        )
+
+        response = Client().get(
+            reverse(
+                "products:detail",
+                args=[self.product.slug],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
 
     def test_real_description_images_are_preserved(self):
         html = '<figure class="image"><img src="/media/products/real.webp"></figure>'
