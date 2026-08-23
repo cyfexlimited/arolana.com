@@ -1079,8 +1079,14 @@ def vendor_add_product(request):
     current_featured_count = Product.objects.filter(vendor=request.user, is_featured=True).exclude(approval_status='rejected').count()
     
     if request.method == 'POST':
-        wants_json = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        wants_json = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest'
+            or 'application/json' in request.headers.get('accept', '').lower()
+        )
         try:
+            created_product_video_id = None
+            youtube_upload_requested = False
+            youtube_upload_succeeded = False
             product_mode = request.POST.get('product_mode', 'new_product')
             max_products = subscription_limits['max_products']
             product_limit_reached = max_products != -1 and current_product_count >= max_products
@@ -1235,7 +1241,6 @@ def vendor_add_product(request):
                 messages.warning(request, 'Featured product limit reached for your current plan. The product was saved without featured placement.')
             
             with transaction.atomic():
-                created_product_video = None
                 product = Product.objects.create(
                     name=name,
                     description=description,
@@ -1269,6 +1274,7 @@ def vendor_add_product(request):
                     product.save(update_fields=['video_type', 'video_url'])
 
                 elif video_type == 'local' and request.FILES.get('local_video'):
+                    youtube_upload_requested = True
                     local_video = request.FILES['local_video']
 
                     visibility = str(
@@ -1301,6 +1307,8 @@ def vendor_add_product(request):
                             moderation_status='pending',
                             is_active=True,
                         )
+                        created_product_video_id = created_product_video.id
+                        youtube_upload_succeeded = True
 
                         messages.success(
                             request,
@@ -1417,7 +1425,9 @@ def vendor_add_product(request):
                     return JsonResponse({
                         'success': True,
                         'product_id': product.id,
-                        'product_video_id': getattr(created_product_video, 'id', None),
+                        'product_video_id': created_product_video_id,
+                        'youtube_upload_requested': youtube_upload_requested,
+                        'youtube_upload_succeeded': youtube_upload_succeeded,
                         'redirect_url': reverse('dashboard:vendor_product_detail', args=[product.id]),
                     }, status=201)
                 return redirect('dashboard:vendor_product_detail', product_id=product.id)
@@ -1426,7 +1436,9 @@ def vendor_add_product(request):
                 return JsonResponse({
                     'success': True,
                     'product_id': product.id,
-                    'product_video_id': getattr(created_product_video, 'id', None),
+                    'product_video_id': created_product_video_id,
+                    'youtube_upload_requested': youtube_upload_requested,
+                    'youtube_upload_succeeded': youtube_upload_succeeded,
                     'redirect_url': reverse('dashboard:vendor_products'),
                 }, status=201)
             return redirect('dashboard:vendor_products')
