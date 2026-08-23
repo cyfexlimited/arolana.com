@@ -1486,7 +1486,11 @@
             }
         );
         const data = await response.json();
-        if (!response.ok) throw new Error("Instagram publishing failed.");
+        if (!response.ok) {
+            const error = new Error("Instagram publishing failed.");
+            error.code = data.error_code || "instagram_publish_failed";
+            throw error;
+        }
         const permalink = data.instagram_permalink || "";
         showInstagramPermalink(permalink);
         return data;
@@ -1636,9 +1640,11 @@
         } catch (error) {
 
             showStatus(
-                uploadedProductVideoId
-                    ? "Instagram publishing failed. Your YouTube upload remains saved; retry will not upload it again."
-                    : (error.message || "Video publishing failed."),
+                error.code === "content_awaiting_moderation"
+                    ? "YouTube: Published. Instagram: Waiting for Arolana approval — retry Instagram after approval."
+                    : uploadedProductVideoId
+                        ? "YouTube: Published. Instagram: Failed — retry will not upload YouTube again."
+                        : (error.message || "Video publishing failed."),
                 "error"
             );
 

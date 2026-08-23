@@ -111,6 +111,10 @@ _PUBLIC_PUBLISHING_ERRORS = {
         status.HTTP_409_CONFLICT,
         "This content is already being published to Instagram.",
     ),
+    "content_awaiting_moderation": (
+        status.HTTP_409_CONFLICT,
+        "This video must be approved before it can be published to Instagram.",
+    ),
     "invalid_content_object": (
         status.HTTP_400_BAD_REQUEST,
         "The selected content is invalid.",
@@ -162,15 +166,15 @@ def _platform_payload(platform, label, account=None):
 
 
 @api_view(["GET"])
+@authentication_classes(
+    [SessionAuthentication, BasicAuthentication, StaffMobileTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
 def social_accounts_status(request):
-    role = request.query_params.get("role", "vendor")
     try:
-        role = normalize_owner_role(role)
+        role = _publishing_role(request, request.query_params.get("role"))
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    if not _role_available(request.user, role):
-        return Response({"detail": "This role is not available for your account."}, status=status.HTTP_403_FORBIDDEN)
 
     access = social_publishing_access(request.user, role)
     accounts = {
@@ -194,17 +198,18 @@ def social_accounts_status(request):
 
 
 @api_view(["POST"])
+@authentication_classes(
+    [SessionAuthentication, BasicAuthentication, StaffMobileTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
 def social_account_connect_launch(request, platform):
     platform = str(platform or "").strip().lower()
     if platform == SocialPlatform.YOUTUBE or platform not in dict(SocialPlatform.choices):
         return Response({"detail": "This platform is not connectable here."}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        role = normalize_owner_role(request.data.get("role", "vendor"))
+        role = _publishing_role(request, request.data.get("role"))
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    if not _role_available(request.user, role):
-        return Response({"detail": "This role is not available for your account."}, status=status.HTTP_403_FORBIDDEN)
 
     access = social_publishing_access(request.user, role)
     if not access.allowed:
@@ -226,15 +231,19 @@ def social_account_connect_launch(request, platform):
 
 
 @api_view(["DELETE"])
+@authentication_classes(
+    [SessionAuthentication, BasicAuthentication, StaffMobileTokenAuthentication]
+)
 @permission_classes([IsAuthenticated])
 def social_account_disconnect(request, platform):
     platform = str(platform or "").strip().lower()
     try:
-        role = normalize_owner_role(request.data.get("role") or request.query_params.get("role") or "vendor")
+        role = _publishing_role(
+            request,
+            request.data.get("role") or request.query_params.get("role"),
+        )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    if not _role_available(request.user, role):
-        return Response({"detail": "This role is not available for your account."}, status=status.HTTP_403_FORBIDDEN)
     if platform == SocialPlatform.YOUTUBE:
         return Response({"detail": "Arolana YouTube hosting cannot be disconnected here."}, status=status.HTTP_400_BAD_REQUEST)
     deleted, _ = SocialAccount.objects.filter(user=request.user, owner_role=role, platform=platform).delete()

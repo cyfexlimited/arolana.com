@@ -65,6 +65,17 @@ def _content_identity(content_object):
     )
 
 
+def _content_is_approved_for_distribution(content_type, content_object):
+    """Keep external distribution behind existing Arolana video moderation."""
+
+    label = f"{content_type.app_label}.{content_type.model}"
+    if label == "products.productvideo":
+        return getattr(content_object, "moderation_status", "") == "approved"
+    if label == "installers.serviceprojectmedia":
+        return getattr(content_object, "approval_status", "") == "approved"
+    return True
+
+
 def _connected_instagram_account(user, owner_role):
     try:
         account = SocialAccount.objects.get(
@@ -180,6 +191,12 @@ def publish_uploaded_video_to_instagram(
 
     lease = None
     try:
+        if not _content_is_approved_for_distribution(content_type, content_object):
+            raise InstagramPublicationError(
+                "This video is awaiting Arolana approval before external publishing.",
+                code="content_awaiting_moderation",
+                publication=publication,
+            )
         lease = stage_video_for_social(
             owner_user=user,
             owner_role=owner_role,

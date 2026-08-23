@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 from datetime import timedelta
+from types import SimpleNamespace
 
 from social_publishing.instagram import (
     InstagramPublishingError,
@@ -26,7 +27,11 @@ from .models import (
     SocialPlatform,
     SocialPublication,
 )
-from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
+from .publisher import (
+    InstagramPublicationError,
+    _content_is_approved_for_distribution,
+    publish_uploaded_video_to_instagram,
+)
 from .oauth import (
     INSTAGRAM_LONG_LIVED_TOKEN_KIND,
     INSTAGRAM_TOKEN_ISSUED_AT_KEY,
@@ -47,7 +52,47 @@ class SocialPublishingRoleTests(SimpleTestCase):
     def test_staff_alias_is_admin(self):
         self.assertEqual(normalize_owner_role("staff"), "admin")
 
-from types import SimpleNamespace
+    def test_video_moderation_blocks_external_distribution_until_approved(self):
+        product_video_type = SimpleNamespace(app_label="products", model="productvideo")
+        provider_media_type = SimpleNamespace(app_label="installers", model="serviceprojectmedia")
+
+        self.assertFalse(
+            _content_is_approved_for_distribution(
+                product_video_type,
+                SimpleNamespace(moderation_status="pending"),
+            )
+        )
+        self.assertTrue(
+            _content_is_approved_for_distribution(
+                product_video_type,
+                SimpleNamespace(moderation_status="approved"),
+            )
+        )
+        self.assertFalse(
+            _content_is_approved_for_distribution(
+                provider_media_type,
+                SimpleNamespace(approval_status="requires_changes"),
+            )
+        )
+        self.assertTrue(
+            _content_is_approved_for_distribution(
+                provider_media_type,
+                SimpleNamespace(approval_status="approved"),
+            )
+        )
+
+    def test_admin_surfaces_hide_tokens_and_attach_publication_history(self):
+        from django.contrib import admin
+        from installers.models import ServiceProjectMedia
+        from products.models import ProductVideo
+
+        from .admin_inlines import SocialPublicationInline
+
+        account_admin = admin.site._registry[SocialAccount]
+        self.assertIn("access_token_encrypted", account_admin.exclude)
+        self.assertIn("refresh_token_encrypted", account_admin.exclude)
+        self.assertIn(SocialPublicationInline, admin.site._registry[ProductVideo].inlines)
+        self.assertIn(SocialPublicationInline, admin.site._registry[ServiceProjectMedia].inlines)
 
 from django.test import override_settings
 
@@ -579,6 +624,24 @@ class InstagramPublicationOrchestrationTests(TestCase):
         self.assertFalse(SocialPublication.objects.exists())
 
     @patch("social_publishing.publisher.stage_video_for_social")
+    @patch("social_publishing.publisher._content_is_approved_for_distribution", return_value=False)
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_pending_moderation_records_request_without_external_publish(
+        self, mock_access, _mock_approval, mock_stage
+    ):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        self._account()
+
+        with self.assertRaises(InstagramPublicationError) as caught:
+            self._publish()
+
+        self.assertEqual(caught.exception.code, "content_awaiting_moderation")
+        publication = SocialPublication.objects.get()
+        self.assertEqual(publication.status, PublicationStatus.FAILED)
+        self.assertEqual(publication.attempt_count, 1)
+        mock_stage.assert_not_called()
+
+    @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher.social_publishing_access")
     def test_already_published_content_is_not_published_again(self, mock_access, mock_stage):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
@@ -875,3 +938,99 @@ class InstagramVideoPublicationAPITests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         mock_publish.assert_not_called()
+
+    def test_mobile_bearer_can_load_account_status_for_issued_role(self):
+        self.client.force_authenticate(user=None)
+        session = StaffMobileToken.issue(role="provider", user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {session.token}")
+
+        with patch("social_publishing.api_views._role_available", return_value=True), patch(
+            "social_publishing.api_views.social_publishing_access",
+            return_value=SimpleNamespace(allowed=True, tier="professional", reason=""),
+        ):
+            response = self.client.get(
+                reverse("social_publishing:accounts_status"),
+                {"role": "provider"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["role"], "provider")
+
+    def test_vendor_and_provider_connection_states_are_role_bound(self):
+        status_url = reverse("social_publishing:accounts_status")
+        states = (
+            (SocialConnectionStatus.CONNECTED, True),
+            (SocialConnectionStatus.EXPIRED, False),
+            (None, False),
+        )
+        with patch("social_publishing.api_views._role_available", return_value=True), patch(
+            "social_publishing.api_views.social_publishing_access",
+            return_value=SimpleNamespace(allowed=True, tier="professional", reason=""),
+        ):
+            for role in ("vendor", "provider"):
+                for account_status, expected_connected in states:
+                    with self.subTest(role=role, account_status=account_status):
+                        SocialAccount.objects.filter(user=self.user).delete()
+                        if account_status:
+                            SocialAccount.objects.create(
+                                user=self.user,
+                                owner_role=role,
+                                platform=SocialPlatform.INSTAGRAM,
+                                status=account_status,
+                                account_username=f"{role}-instagram",
+                            )
+                        response = self.client.get(status_url, {"role": role})
+                        instagram = next(
+                            item for item in response.data["platforms"]
+                            if item["platform"] == SocialPlatform.INSTAGRAM
+                        )
+                        self.assertEqual(response.status_code, 200)
+                        self.assertEqual(instagram["connected"], expected_connected)
+                        self.assertEqual(
+                            instagram["account_username"],
+                            f"{role}-instagram" if account_status else "",
+                        )
+
+    def test_mobile_account_status_role_cannot_be_changed(self):
+        self.client.force_authenticate(user=None)
+        session = StaffMobileToken.issue(role="provider", user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {session.token}")
+
+        with patch("social_publishing.api_views._role_available", return_value=True):
+            response = self.client.get(
+                reverse("social_publishing:accounts_status"),
+                {"role": "vendor"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_mobile_connect_role_cannot_be_changed(self):
+        self.client.force_authenticate(user=None)
+        session = StaffMobileToken.issue(role="provider", user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {session.token}")
+
+        with patch("social_publishing.api_views._role_available", return_value=True):
+            response = self.client.post(
+                reverse(
+                    "social_publishing:account_connect_launch",
+                    kwargs={"platform": "instagram"},
+                ),
+                {"role": "vendor"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_session_connect_requires_csrf(self):
+        csrf_client = APIClient(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+        with patch("social_publishing.api_views._role_available", return_value=True):
+            response = csrf_client.post(
+                reverse(
+                    "social_publishing:account_connect_launch",
+                    kwargs={"platform": "instagram"},
+                ),
+                {"role": "vendor"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 403)

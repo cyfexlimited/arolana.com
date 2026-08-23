@@ -17,6 +17,7 @@ from .models import (
 
 from django.utils.timezone import now
 from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
+from social_publishing.admin_inlines import SocialPublicationInline
 from .review_stats import refresh_product_review_stats
 
 # NOTE FOR VARIANT IMAGES:
@@ -1630,11 +1631,13 @@ class ProductCatalogRequestAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVideo)
 class ProductVideoAdmin(admin.ModelAdmin):
+    inlines = (SocialPublicationInline,)
     list_display = [
         'product_name',
         'title',
         'source',
         'youtube_visibility',
+        'moderation_status',
         'is_main',
         'display_order',
     ]
@@ -1642,6 +1645,7 @@ class ProductVideoAdmin(admin.ModelAdmin):
     list_filter = [
         'source',
         'youtube_visibility',
+        'moderation_status',
         'is_main',
         'created_at',
     ]
@@ -1710,6 +1714,22 @@ class ProductVideoAdmin(admin.ModelAdmin):
                 ),
                 'classes': ('collapse',),
             }
+        ),
+        (
+            'Arolana Moderation',
+            {
+                'fields': (
+                    'vendor',
+                    'moderation_status',
+                    'moderation_note',
+                    'approved_by',
+                    'approved_at',
+                ),
+                'description': (
+                    'Arolana approval is separate from the destination publication '
+                    'history shown below.'
+                ),
+            },
         ),
     )
 

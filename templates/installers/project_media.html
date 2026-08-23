@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded",function(){
     setStatus("Publishing Reel to Instagram...","info");
     const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":cookie("csrftoken"),"Accept":"application/json"},body,credentials:"same-origin"});
     const data=await response.json();
-    if(!response.ok)throw new Error("Instagram publishing failed.");
+    if(!response.ok){const error=new Error("Instagram publishing failed.");error.code=data.error_code||"instagram_publish_failed";throw error;}
     const permalink=data.instagram_permalink||"";
     showPermalink(permalink);
   }
@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded",function(){
   checkbox.addEventListener("change",refreshOptions);
   connectButton&&connectButton.addEventListener("click",connectInstagram);
   caption&&caption.addEventListener("input",()=>{captionCount.textContent=`${caption.value.length} / 2200`;});
-  fileInput.addEventListener("change",()=>{uploadedProjectMediaId=null;});
+  fileInput.addEventListener("change",()=>{uploadedProjectMediaId=null;setStatus("","info");});
   loadInstagram();
 
   form.addEventListener("submit",async function(event){
@@ -255,7 +255,7 @@ document.addEventListener("DOMContentLoaded",function(){
       await publishInstagram(videoFile,mediaId);
       uploadedProjectMediaId=null;
     }catch(error){
-      setStatus(uploadedProjectMediaId?"Instagram publishing failed. Your project video remains uploaded; retry will not upload it again.":(error.message||"Video publishing failed."),"error");
+      setStatus(error.code==="content_awaiting_moderation"?"YouTube: Published. Instagram: Waiting for Arolana approval — retry after approval.":uploadedProjectMediaId?"YouTube: Published. Instagram: Failed — retry will not upload YouTube again.":(error.message||"Video publishing failed."),"error");
     }finally{
       submitButton&&submitButton.removeAttribute("disabled");
     }

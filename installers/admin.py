@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from core.media_optimization import get_optimized_image_url
+from social_publishing.admin_inlines import SocialPublicationInline
 
 from .models import (
     ProviderKYCDocument,
@@ -578,6 +579,7 @@ ServicePortfolioAdmin.inlines = (
 
 @admin.register(ServiceProjectMedia)
 class ServiceProjectMediaAdmin(admin.ModelAdmin):
+    inlines = (SocialPublicationInline,)
     list_display = (
         "media_preview",
         "project",
