@@ -639,13 +639,9 @@ class ServiceProjectMediaAdmin(admin.ModelAdmin):
 
     @admin.action(description="Approve selected project media")
     def approve_media(self, request, queryset):
-        queryset.update(
-            approval_status=ServiceProjectMedia.STATUS_APPROVED,
-            moderation_note="",
-            approved_by=request.user,
-            approved_at=timezone.now(),
-            is_active=True,
-        )
+        from social_publishing.moderation import approve_project_media
+        for media in queryset:
+            approve_project_media(media, request.user)
 
     @admin.action(description="Request changes for selected project media")
     def request_media_changes(self, request, queryset):

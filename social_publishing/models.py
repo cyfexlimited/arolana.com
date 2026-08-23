@@ -133,6 +133,14 @@ class SocialPublication(BaseModel):
     error_message = models.TextField(blank=True)
     request_metadata = models.JSONField(default=dict, blank=True)
     response_metadata = models.JSONField(default=dict, blank=True)
+    deferred_video_lease = models.ForeignKey(
+        "TemporaryVideoLease",
+        on_delete=models.SET_NULL,
+        related_name="deferred_publications",
+        blank=True,
+        null=True,
+        help_text="Temporary source retained only while moderation/publication is pending.",
+    )
 
     class Meta:
         constraints = [

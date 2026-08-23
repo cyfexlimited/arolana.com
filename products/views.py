@@ -12384,9 +12384,14 @@ def admin_product_video_action_api(request, video_id, action):
         return JsonResponse({"success": False, "message": "Invalid moderation action."}, status=400)
     try: payload = json.loads(request.body or "{}")
     except Exception: payload = {}
-    video.moderation_status = "approved" if action == "approve" else "rejected"
-    video.moderation_note = str(payload.get("note", ""))[:2000]
-    video.approved_by = request.user if action == "approve" else None
-    video.approved_at = timezone.now() if action == "approve" else None
-    video.save(update_fields=["moderation_status", "moderation_note", "approved_by", "approved_at", "updated_at"])
+    note = str(payload.get("note", ""))[:2000]
+    if action == "approve":
+        from social_publishing.moderation import approve_product_video
+        approve_product_video(video, request.user, note)
+    else:
+        video.moderation_status = "rejected"
+        video.moderation_note = note
+        video.approved_by = None
+        video.approved_at = None
+        video.save(update_fields=["moderation_status", "moderation_note", "approved_by", "approved_at", "updated_at"])
     return JsonResponse({"success": True, "video": _product_video_payload(video)})

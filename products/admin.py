@@ -1070,8 +1070,11 @@ class ProductAdmin(admin.ModelAdmin):
 
     # ========== APPROVAL ACTIONS ==========
     def approve_products(self, request, queryset):
-        from django.utils import timezone
-        updated = queryset.update(approval_status='approved', approved_by=request.user, approved_at=timezone.now(), is_active=True)
+        from social_publishing.moderation import approve_product_package
+        updated = 0
+        for product in queryset:
+            approve_product_package(product, request.user)
+            updated += 1
         self.message_user(request, f"✅ {updated} product(s) approved and are now live on the site.")
     approve_products.short_description = "✅ Approve selected products"
 

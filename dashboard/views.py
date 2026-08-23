@@ -2362,11 +2362,8 @@ def admin_product_approvals(request):
             product = Product.objects.get(id=product_id)
             
             if action == 'approve':
-                product.approval_status = 'approved'
-                product.approved_by = request.user
-                product.approved_at = timezone.now()
-                product.is_active = True
-                product.save()
+                from social_publishing.moderation import approve_product_package
+                approve_product_package(product, request.user)
                 
                 # Send email notification to vendor
                 if product.vendor and product.vendor.email:

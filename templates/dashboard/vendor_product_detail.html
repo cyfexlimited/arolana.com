@@ -1623,7 +1623,13 @@
             );
 
             if (instagramCheckbox && instagramCheckbox.checked) {
-                await publishToInstagram(file, productVideoId);
+                const publication = await publishToInstagram(file, productVideoId);
+                if (publication && publication.status === "pending") {
+                    showStatus("YouTube: Published. Instagram: Pending Arolana approval.", "info");
+                    videoInput.value = "";
+                    uploadedProductVideoId = null;
+                    return;
+                }
                 showStatus(
                     "Video uploaded to YouTube and published to Instagram.",
                     "success"
@@ -1640,9 +1646,7 @@
         } catch (error) {
 
             showStatus(
-                error.code === "content_awaiting_moderation"
-                    ? "YouTube: Published. Instagram: Waiting for Arolana approval — retry Instagram after approval."
-                    : uploadedProductVideoId
+                uploadedProductVideoId
                         ? "YouTube: Published. Instagram: Failed — retry will not upload YouTube again."
                         : (error.message || "Video publishing failed."),
                 "error"

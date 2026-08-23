@@ -1,6 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -11,7 +12,7 @@ from rest_framework.response import Response
 from staff_mobile.models import StaffMobileToken
 
 from .authentication import StaffMobileTokenAuthentication
-from .models import SocialAccount, SocialPlatform
+from .models import PublicationStatus, SocialAccount, SocialPlatform, SocialPublication
 from .oauth import platform_config
 from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
 from .serializers import InstagramVideoPublicationSerializer
@@ -83,6 +84,10 @@ def _publication_payload(publication):
         "status": publication.status,
         "instagram_media_id": publication.external_id or "",
         "instagram_permalink": publication.external_url or "",
+        "awaiting_moderation": bool(
+            publication.status == "pending"
+            and (publication.request_metadata or {}).get("awaiting_moderation")
+        ),
     }
 
 
@@ -268,11 +273,32 @@ def publish_instagram_video(request):
             content_reference=data["content_type"],
             object_id=data["object_id"],
         )
+        uploaded_video = data.get("video")
+        if uploaded_video is None:
+            content_type = ContentType.objects.get_for_model(
+                content_object, for_concrete_model=False
+            )
+            reusable = SocialPublication.objects.filter(
+                owner_user=request.user,
+                owner_role=owner_role,
+                platform=SocialPlatform.INSTAGRAM,
+                content_type=content_type,
+                object_id=content_object.pk,
+                status=PublicationStatus.FAILED,
+                deferred_video_lease__isnull=False,
+                deferred_video_lease__cleanup_completed_at__isnull=True,
+                deferred_video_lease__expires_at__gt=timezone.now(),
+            ).exists()
+            if not reusable:
+                return Response(
+                    {"video": ["A video upload is required."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         publication = publish_uploaded_video_to_instagram(
             user=request.user,
             owner_role=owner_role,
             content_object=content_object,
-            uploaded_file=data["video"],
+            uploaded_file=uploaded_video,
             caption=data["caption"],
             share_to_feed=data["share_to_feed"],
         )
@@ -286,4 +312,7 @@ def publish_instagram_video(request):
             payload.update(_publication_payload(exc.publication))
         return Response(payload, status=response_status)
 
-    return Response(_publication_payload(publication), status=status.HTTP_201_CREATED)
+    response_status = (
+        status.HTTP_202_ACCEPTED if publication.status == "pending" else status.HTTP_201_CREATED
+    )
+    return Response(_publication_payload(publication), status=response_status)

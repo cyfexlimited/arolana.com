@@ -807,6 +807,9 @@ def moderate_project(project, new_status, actor=None, notes=""):
     elif new_status in {ServicePortfolio.STATUS_REJECTED, ServicePortfolio.STATUS_SUSPENDED}:
         project.is_active = False
     project.save()
+    if new_status == ServicePortfolio.STATUS_APPROVED:
+        from social_publishing.moderation import approve_project_media_package
+        approve_project_media_package(project, actor)
     ServiceProjectModerationLog.objects.create(
         project=project,
         actor=actor,

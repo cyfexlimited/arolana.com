@@ -28,11 +28,14 @@ from .models import (
     SocialConnectionStatus,
     SocialPlatform,
     SocialPublication,
+    TemporaryVideoLease,
 )
 from .publisher import (
     InstagramPublicationError,
     _content_is_approved_for_distribution,
     _prepare_publication,
+    continue_deferred_instagram_publication,
+    release_pending_instagram_publications,
     publish_uploaded_video_to_instagram,
 )
 from .oauth import (
@@ -103,7 +106,7 @@ class SocialPublishingRoleTests(SimpleTestCase):
         self.assertIn('connectButton.style.display=canConnect?"inline-flex":"none"', template)
         self.assertIn('instagramAccountState==="connected"', template)
         self.assertIn('instagramAccountState=needsReconnect?"expired":"disconnected"', template)
-        self.assertIn("Retry Instagram after approval", template)
+        self.assertIn("Pending Arolana approval", template)
         self.assertIn("Retry Instagram", template)
         self.assertIn("uploadedProjectMediaId", template)
 
@@ -601,15 +604,25 @@ class InstagramPublicationOrchestrationTests(TestCase):
             share_to_feed=True,
         )
 
+    def _lease(self, role="vendor"):
+        return TemporaryVideoLease.objects.create(
+            owner_user=self.user,
+            owner_role=role,
+            storage_key=f"social-publishing/test/{role}.mp4",
+            original_filename="reel.mp4",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+
     @patch("social_publishing.publisher.cleanup_video_lease")
     @patch("social_publishing.publisher.publish_reel")
     @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/reel.mp4")
-    @patch("social_publishing.publisher.stage_video_for_social", return_value=SimpleNamespace())
+    @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher.social_publishing_access")
     def test_vendor_provider_and_admin_roles_use_exact_role_account(
         self, mock_access, _mock_stage, _mock_url, mock_publish, _mock_cleanup
     ):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        _mock_stage.side_effect = lambda **kwargs: self._lease(kwargs["owner_role"])
         mock_publish.return_value = {
             "container_id": "container-1",
             "media_id": "media-1",
@@ -669,15 +682,135 @@ class InstagramPublicationOrchestrationTests(TestCase):
     ):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
         self._account()
-
-        with self.assertRaises(InstagramPublicationError) as caught:
-            self._publish()
-
-        self.assertEqual(caught.exception.code, "content_awaiting_moderation")
-        publication = SocialPublication.objects.get()
+        mock_stage.return_value = self._lease()
+        publication = self._publish()
         self.assertEqual(publication.status, PublicationStatus.PENDING)
         self.assertEqual(publication.attempt_count, 1)
-        mock_stage.assert_not_called()
+        self.assertTrue(publication.request_metadata["awaiting_moderation"])
+        self.assertEqual(publication.deferred_video_lease, mock_stage.return_value)
+        mock_stage.assert_called_once()
+
+    @patch("social_publishing.publisher.cleanup_video_lease")
+    @patch("social_publishing.publisher.publish_reel")
+    @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/reel.mp4")
+    @patch("social_publishing.publisher._content_is_approved_for_distribution", return_value=True)
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_approval_continues_pending_publication_without_new_upload(
+        self, mock_access, _mock_approved, _mock_url, mock_publish, mock_cleanup
+    ):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        account = self._account()
+        publication = SocialPublication.objects.create(
+            owner_user=self.user,
+            owner_role="vendor",
+            social_account=account,
+            platform=SocialPlatform.INSTAGRAM,
+            content_object=self.user,
+            status=PublicationStatus.PENDING,
+            attempt_count=1,
+            deferred_video_lease=self._lease(),
+            request_metadata={"caption": "Deferred", "share_to_feed": True, "awaiting_moderation": True},
+        )
+        mock_publish.return_value = {"media_id": "released-1", "permalink": "https://www.instagram.com/reel/released/"}
+
+        result = continue_deferred_instagram_publication(publication)
+
+        self.assertEqual(result.status, PublicationStatus.PUBLISHED)
+        self.assertEqual(result.attempt_count, 2)
+        mock_publish.assert_called_once()
+        mock_cleanup.assert_called_once()
+
+    @patch("social_publishing.publisher.continue_deferred_instagram_publication")
+    def test_automatic_failure_is_recorded_without_raising_into_approval(self, mock_continue):
+        account = self._account()
+        publication = SocialPublication.objects.create(
+            owner_user=self.user,
+            owner_role="vendor",
+            social_account=account,
+            platform=SocialPlatform.INSTAGRAM,
+            content_object=self.user,
+            status=PublicationStatus.PENDING,
+            deferred_video_lease=self._lease(),
+        )
+        mock_continue.side_effect = InstagramPublicationError("safe failure", publication=publication)
+
+        results = release_pending_instagram_publications([self.user])
+
+        self.assertEqual([item.pk for item in results], [publication.pk])
+
+
+    @patch("social_publishing.publisher.release_pending_instagram_publications")
+    def test_vendor_product_approval_approves_video_and_schedules_release(self, mock_release):
+        from products.models import Category, Product, ProductVideo
+        from social_publishing.moderation import approve_product_package
+
+        vendor = get_user_model().objects.create_user(
+            username="approval-vendor", email="approval-vendor@example.com"
+        )
+        reviewer = get_user_model().objects.create_user(
+            username="approval-reviewer", email="approval-reviewer@example.com", is_staff=True
+        )
+        category = Category.objects.create(name="Approval Test", slug="approval-test", is_active=True)
+        product = Product.objects.create(
+            vendor=vendor, category=category, sku="APPROVAL-1", name="Approval product",
+            slug="approval-product", description="Pending", price="100.00", stock_quantity=1,
+            approval_status="pending", is_active=False,
+        )
+        video = ProductVideo.objects.create(
+            product=product, title="Hosted video", source="youtube",
+            youtube_video_id="approval-video", moderation_status="pending", is_active=True,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            approve_product_package(product, reviewer)
+
+        product.refresh_from_db()
+        video.refresh_from_db()
+        self.assertEqual(product.approval_status, "approved")
+        self.assertEqual(video.moderation_status, "approved")
+        mock_release.assert_called_once()
+
+    @patch("social_publishing.publisher.release_pending_instagram_publications")
+    def test_provider_project_approval_approves_media_and_schedules_release(self, mock_release):
+        from datetime import date
+        from installers.models import ServiceCategory, ServicePortfolio, ServiceProjectMedia, ServiceProviderProfile
+        from installers.project_services import moderate_project
+
+        provider_user = get_user_model().objects.create_user(
+            username="approval-provider", email="approval-provider@example.com"
+        )
+        reviewer = get_user_model().objects.create_user(
+            username="project-reviewer", email="project-reviewer@example.com", is_staff=True
+        )
+        provider = ServiceProviderProfile.objects.create(
+            user=provider_user, business_name="Approval Provider", contact_person="Owner",
+            provider_type="installer", phone_number="+2348000000099",
+            email="approval-provider@example.com", country="Nigeria", state="Lagos",
+            city="Ikeja", address="1 Approval Road", description="Provider",
+            verification_status=ServiceProviderProfile.STATUS_APPROVED,
+            subscription_status="active", subscription_plan="Plus", is_active=True,
+        )
+        category = ServiceCategory.objects.create(name="Approval Service")
+        project = ServicePortfolio.objects.create(
+            provider=provider, title="Approval project", short_summary="Summary",
+            description="Description", service_category=category, city="Ikeja", state="Lagos",
+            country="Nigeria", completed_at=date.today(), project_result="Complete",
+            approval_status=ServicePortfolio.STATUS_PENDING,
+        )
+        media = ServiceProjectMedia.objects.create(
+            project=project, media_type=ServiceProjectMedia.TYPE_VIDEO,
+            external_video_url="https://youtu.be/dQw4w9WgXcQ",
+            approval_status=ServiceProjectMedia.STATUS_PENDING,
+        )
+
+        with patch("installers.project_services.Notification.send"), patch(
+            "installers.project_services.safe_project_email"
+        ), self.captureOnCommitCallbacks(execute=True):
+            moderate_project(project, ServicePortfolio.STATUS_APPROVED, reviewer)
+
+        media.refresh_from_db()
+        self.assertEqual(media.approval_status, ServiceProjectMedia.STATUS_APPROVED)
+        mock_release.assert_called_once()
 
     @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher.social_publishing_access")
@@ -704,12 +837,13 @@ class InstagramPublicationOrchestrationTests(TestCase):
     @patch("social_publishing.publisher.cleanup_video_lease")
     @patch("social_publishing.publisher.publish_reel")
     @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/reel.mp4")
-    @patch("social_publishing.publisher.stage_video_for_social", return_value=SimpleNamespace())
+    @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher.social_publishing_access")
     def test_successful_publish_is_persisted(
         self, mock_access, _mock_stage, _mock_url, mock_publish, mock_cleanup
     ):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        _mock_stage.return_value = self._lease()
         self._account()
         def publish_result(*_args, **_kwargs):
             in_flight = SocialPublication.objects.get()
@@ -738,12 +872,13 @@ class InstagramPublicationOrchestrationTests(TestCase):
     @patch("social_publishing.publisher.cleanup_video_lease")
     @patch("social_publishing.publisher.publish_reel")
     @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/reel.mp4")
-    @patch("social_publishing.publisher.stage_video_for_social", return_value=SimpleNamespace())
+    @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher.social_publishing_access")
     def test_failed_publish_is_safe_and_still_cleans_up(
         self, mock_access, _mock_stage, _mock_url, mock_publish, mock_cleanup
     ):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        _mock_stage.return_value = self._lease()
         self._account()
         mock_publish.side_effect = InstagramPublishingError(
             "Provider failed access_token=top-secret",
@@ -759,17 +894,18 @@ class InstagramPublicationOrchestrationTests(TestCase):
         self.assertEqual(publication.error_code, "OAuthException")
         self.assertNotIn("top-secret", publication.error_message)
         self.assertNotIn("top-secret", str(caught.exception))
-        mock_cleanup.assert_called_once()
+        mock_cleanup.assert_not_called()
 
     @patch("social_publishing.publisher.cleanup_video_lease")
     @patch("social_publishing.publisher.publish_reel")
     @patch("social_publishing.publisher.get_video_delivery_url", return_value="http://media.example/reel.mp4")
-    @patch("social_publishing.publisher.stage_video_for_social", return_value=SimpleNamespace())
+    @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher.social_publishing_access")
     def test_temporary_delivery_url_must_be_https(
         self, mock_access, _mock_stage, _mock_url, mock_publish, mock_cleanup
     ):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        _mock_stage.return_value = self._lease()
         self._account()
 
         with self.assertRaises(InstagramPublicationError) as caught:
@@ -779,7 +915,7 @@ class InstagramPublicationOrchestrationTests(TestCase):
         publication = SocialPublication.objects.get()
         self.assertEqual(publication.status, PublicationStatus.FAILED)
         mock_publish.assert_not_called()
-        mock_cleanup.assert_called_once()
+        mock_cleanup.assert_not_called()
 
     @patch("social_publishing.publisher.cleanup_video_lease")
     @patch("social_publishing.publisher.publish_reel")
@@ -789,13 +925,14 @@ class InstagramPublicationOrchestrationTests(TestCase):
     )
     @patch(
         "social_publishing.publisher.stage_video_for_social",
-        return_value=SimpleNamespace(),
+        autospec=True,
     )
     @patch("social_publishing.publisher.social_publishing_access")
     def test_meta_oauth_code_190_marks_account_expired(
         self, mock_access, _mock_stage, _mock_url, mock_publish, mock_cleanup
     ):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        _mock_stage.return_value = self._lease()
         account = self._account()
         mock_publish.side_effect = InstagramPublishingError(
             "The access token has expired.",
@@ -810,7 +947,7 @@ class InstagramPublicationOrchestrationTests(TestCase):
         self.assertEqual(account.status, SocialConnectionStatus.EXPIRED)
         self.assertEqual(caught.exception.code, "190")
         self.assertNotIn("encrypted-test-token", str(caught.exception))
-        mock_cleanup.assert_called_once()
+        mock_cleanup.assert_not_called()
 
 
 @override_settings(
@@ -875,6 +1012,54 @@ class InstagramVideoPublicationAPITests(TestCase):
         self.user.is_staff = True
         self.user.save(update_fields=["is_staff"])
         self._successful_role_request("admin")
+
+    def test_pending_moderation_response_is_safe_and_actionable(self):
+        publication = self._publication(
+            status=PublicationStatus.PENDING,
+            external_id="",
+            external_url="",
+            request_metadata={"awaiting_moderation": True},
+        )
+        with patch("social_publishing.api_views._role_available", return_value=True), patch(
+            "social_publishing.api_views._resolve_publication_content", return_value=self.user
+        ), patch(
+            "social_publishing.api_views.publish_uploaded_video_to_instagram",
+            return_value=publication,
+        ):
+            response = self.client.post(self.url, self._payload("vendor"), format="multipart")
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.data["status"], PublicationStatus.PENDING)
+        self.assertTrue(response.data["awaiting_moderation"])
+        self.assertEqual(response.data["instagram_permalink"], "")
+
+    def test_failed_post_approval_retry_reuses_retained_source_without_upload(self):
+        account = SocialAccount.objects.create(
+            user=self.user, owner_role="vendor", platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED, external_account_id="retry-account",
+            access_token_encrypted="encrypted",
+        )
+        SocialPublication.objects.create(
+            owner_user=self.user, owner_role="vendor", social_account=account,
+            platform=SocialPlatform.INSTAGRAM, content_object=self.user,
+            status=PublicationStatus.FAILED, deferred_video_lease=TemporaryVideoLease.objects.create(
+                owner_user=self.user, owner_role="vendor", storage_key="retry/source.mp4",
+                original_filename="source.mp4", expires_at=timezone.now() + timedelta(days=1),
+            ),
+        )
+        payload = self._payload("vendor")
+        payload.pop("video")
+        payload["retry"] = "true"
+        with patch("social_publishing.api_views._role_available", return_value=True), patch(
+            "social_publishing.api_views._resolve_publication_content", return_value=self.user
+        ), patch(
+            "social_publishing.api_views.publish_uploaded_video_to_instagram",
+            return_value=self._publication(),
+        ) as mock_publish:
+            response = self.client.post(self.url, payload, format="multipart")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNone(mock_publish.call_args.kwargs["uploaded_file"])
 
     def test_unauthorized_role_is_rejected(self):
         with patch("social_publishing.api_views.publish_uploaded_video_to_instagram") as mock_publish:
@@ -963,6 +1148,7 @@ class InstagramVideoPublicationAPITests(TestCase):
                 "status",
                 "instagram_media_id",
                 "instagram_permalink",
+                "awaiting_moderation",
             },
         )
         self.assertEqual(response.data["instagram_media_id"], "instagram-media-91")

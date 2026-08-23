@@ -231,8 +231,10 @@ document.addEventListener("DOMContentLoaded",function(){
     const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":cookie("csrftoken"),"Accept":"application/json"},body,credentials:"same-origin"});
     const data=await response.json();
     if(!response.ok){const error=new Error("Instagram publishing failed.");error.code=data.error_code||"instagram_publish_failed";throw error;}
+    if(data.status==="pending"){setStatus("YouTube: Published. Instagram: Pending Arolana approval.","info");return data;}
     const permalink=data.instagram_permalink||"";
     showPermalink(permalink);
+    return data;
   }
 
   checkbox.addEventListener("change",refreshOptions);
@@ -263,12 +265,12 @@ document.addEventListener("DOMContentLoaded",function(){
         uploadedProjectMediaId=mediaId;
       }
       setStatus("Project video uploaded. Publishing to Instagram...","info");
-      await publishInstagram(videoFile,mediaId);
+      const publication=await publishInstagram(videoFile,mediaId);
       uploadedProjectMediaId=null;
-      if(submitButton)submitButton.innerHTML='<i class="fas fa-check mr-2"></i>Published';
+      if(submitButton)submitButton.innerHTML=publication.status==="pending"?'<i class="fas fa-clock mr-2"></i>Pending approval':'<i class="fas fa-check mr-2"></i>Published';
     }catch(error){
-      setStatus(error.code==="content_awaiting_moderation"?"YouTube: Published. Instagram: Waiting for Arolana approval — retry after approval.":uploadedProjectMediaId?"YouTube: Published. Instagram: Failed — retry will not upload YouTube again.":(error.message||"Video publishing failed."),"error");
-      if(uploadedProjectMediaId&&submitButton)submitButton.innerHTML=error.code==="content_awaiting_moderation"?'<i class="fab fa-instagram mr-2"></i>Retry Instagram after approval':'<i class="fab fa-instagram mr-2"></i>Retry Instagram';
+      setStatus(uploadedProjectMediaId?"YouTube: Published. Instagram: Failed — retry will not upload YouTube again.":(error.message||"Video publishing failed."),"error");
+      if(uploadedProjectMediaId&&submitButton)submitButton.innerHTML='<i class="fab fa-instagram mr-2"></i>Retry Instagram';
     }finally{
       submitButton&&submitButton.removeAttribute("disabled");
     }

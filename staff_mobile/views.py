@@ -3102,11 +3102,8 @@ def admin_product_video_action_api(request, video_id, action):
     note = _clean_text(data.get("moderation_note") or data.get("note"))
 
     if action == "approve":
-        video.moderation_status = "approved"
-        video.moderation_note = note
-        video.approved_by = session.user
-        video.approved_at = timezone.now()
-        video.is_active = True
+        from social_publishing.moderation import approve_product_video
+        approve_product_video(video, session.user, note)
         message = "Product video approved."
     elif action == "reject":
         video.moderation_status = "rejected"
@@ -3117,14 +3114,11 @@ def admin_product_video_action_api(request, video_id, action):
     else:
         return _error("Action must be approve or reject.")
 
-    video.save(update_fields=[
-        "moderation_status",
-        "moderation_note",
-        "approved_by",
-        "approved_at",
-        "is_active",
-        "updated_at",
-    ])
+    if action != "approve":
+        video.save(update_fields=[
+            "moderation_status", "moderation_note", "approved_by", "approved_at",
+            "is_active", "updated_at",
+        ])
 
     if video.vendor and video.vendor.user:
         _send_expo_push_to_user(
@@ -4965,16 +4959,15 @@ def admin_product_action_api(request, product_id, action):
     if not product:
         return _error("Product not found.", status=404)
     if action == "approve":
-        product.approval_status = "approved"
-        product.is_active = True
-        product.approved_by = session.user
-        product.approved_at = timezone.now()
+        from social_publishing.moderation import approve_product_package
+        approve_product_package(product, session.user)
     elif action == "reject":
         product.approval_status = "rejected"
         product.is_active = False
     else:
         return _error("Invalid product action.")
-    product.save()
+    if action != "approve":
+        product.save()
     _notify(product.vendor, "Product review update", f"{product.name} is now {product.approval_status}.", "product", {"product_id": product.id})
     return JsonResponse({"success": True, "product": _product_payload(product)})
 
