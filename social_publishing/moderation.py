@@ -31,11 +31,18 @@ def approve_product_package(product, actor):
     product.save(
         update_fields=["approval_status", "approved_by", "approved_at", "is_active", "updated_at"]
     )
-    video_ids = list(
+    pending_video_ids = list(
         product.additional_videos.filter(moderation_status="pending").values_list("pk", flat=True)
     )
-    ProductVideo.objects.filter(pk__in=video_ids).update(
+    ProductVideo.objects.filter(pk__in=pending_video_ids).update(
         moderation_status="approved", approved_by=actor, approved_at=now, is_active=True
+    )
+    # Include videos that an admin approved through an inline in the same form
+    # submission. Their status is already approved by the time save_related
+    # invokes this service, but their deferred publication still needs release.
+    video_ids = list(
+        product.additional_videos.filter(moderation_status="approved")
+        .values_list("pk", flat=True)
     )
     _release_after_commit(ProductVideo, video_ids)
     return product

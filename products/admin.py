@@ -881,6 +881,13 @@ class ProductAdmin(admin.ModelAdmin):
                     set_protected_image_uploader(instance, field_name, request.user)
                     _message_image_duplicate_review(self, request, instance, field_name)
 
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        if form.instance.approval_status == "approved":
+            from social_publishing.moderation import approve_product_package
+
+            approve_product_package(form.instance, request.user)
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('sku', 'manufacturer_sku', 'name', 'slug', 'condition', 'category', 'brand', 'vendor')
@@ -1672,6 +1679,13 @@ class ProductVideoAdmin(admin.ModelAdmin):
         'youtube_video_id',
         'youtube_url',
     ]
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.moderation_status == "approved":
+            from social_publishing.moderation import approve_product_video
+
+            approve_product_video(obj, request.user, obj.moderation_note)
 
     fieldsets = (
         (

@@ -35,6 +35,7 @@ from .publisher import (
     _content_is_approved_for_distribution,
     _prepare_publication,
     continue_deferred_instagram_publication,
+    cleanup_orphaned_pending_instagram_publications,
     release_pending_instagram_publications,
     publish_uploaded_video_to_instagram,
 )
@@ -613,6 +614,42 @@ class InstagramPublicationOrchestrationTests(TestCase):
             expires_at=timezone.now() + timedelta(days=1),
         )
 
+    def _pending_product_publication(self, suffix):
+        from products.models import Category, Product, ProductVideo
+
+        vendor = get_user_model().objects.create_user(
+            username=f"release-vendor-{suffix}", email=f"release-{suffix}@example.com"
+        )
+        category = Category.objects.create(
+            name=f"Release {suffix}", slug=f"release-{suffix}", is_active=True
+        )
+        product = Product.objects.create(
+            vendor=vendor, category=category, sku=f"RELEASE-{suffix}",
+            name=f"Release product {suffix}", slug=f"release-product-{suffix}",
+            description="Pending", price="100.00", stock_quantity=1,
+            approval_status="pending", is_active=False,
+        )
+        video = ProductVideo.objects.create(
+            product=product, title="Hosted video", source="youtube",
+            youtube_video_id=f"release-{suffix}", moderation_status="pending", is_active=True,
+        )
+        account = SocialAccount.objects.create(
+            user=vendor, owner_role="vendor", platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id=f"instagram-{suffix}", access_token_encrypted="encrypted",
+        )
+        lease = TemporaryVideoLease.objects.create(
+            owner_user=vendor, owner_role="vendor", storage_key=f"release/{suffix}.mp4",
+            original_filename="source.mp4", expires_at=timezone.now() + timedelta(days=1),
+        )
+        publication = SocialPublication.objects.create(
+            owner_user=vendor, owner_role="vendor", social_account=account,
+            platform=SocialPlatform.INSTAGRAM, content_object=video,
+            status=PublicationStatus.PENDING, deferred_video_lease=lease,
+            request_metadata={"caption": "Deferred", "share_to_feed": True},
+        )
+        return product, video, publication, account
+
     @patch("social_publishing.publisher.cleanup_video_lease")
     @patch("social_publishing.publisher.publish_reel")
     @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/reel.mp4")
@@ -769,6 +806,119 @@ class InstagramPublicationOrchestrationTests(TestCase):
         self.assertEqual(product.approval_status, "approved")
         self.assertEqual(video.moderation_status, "approved")
         mock_release.assert_called_once()
+
+    @patch("social_publishing.publisher.cleanup_video_lease")
+    @patch("social_publishing.publisher.publish_reel")
+    @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/source.mp4")
+    @patch("social_publishing.publisher._connected_instagram_account")
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_product_approval_releases_exact_pending_video_publication(
+        self, mock_access, mock_account, _mock_url, mock_publish, _mock_cleanup
+    ):
+        from social_publishing.moderation import approve_product_package
+
+        product, video, publication, account = self._pending_product_publication("package")
+        reviewer = get_user_model().objects.create_user(
+            username="package-reviewer", email="package-reviewer@example.com", is_staff=True
+        )
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_account.return_value = account
+        mock_publish.return_value = {
+            "media_id": "released-package",
+            "permalink": "https://www.instagram.com/reel/released-package/",
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            approve_product_package(product, reviewer)
+
+        video.refresh_from_db()
+        publication.refresh_from_db()
+        self.assertEqual(video.moderation_status, "approved")
+        self.assertEqual(publication.status, PublicationStatus.PUBLISHED)
+        self.assertEqual(publication.external_id, "released-package")
+
+    @patch("social_publishing.publisher.cleanup_video_lease")
+    @patch("social_publishing.publisher.publish_reel")
+    @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/source.mp4")
+    @patch("social_publishing.publisher._connected_instagram_account")
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_direct_video_approval_releases_exact_pending_publication(
+        self, mock_access, mock_account, _mock_url, mock_publish, _mock_cleanup
+    ):
+        from social_publishing.moderation import approve_product_video
+
+        _product, video, publication, account = self._pending_product_publication("direct")
+        reviewer = get_user_model().objects.create_user(
+            username="direct-reviewer", email="direct-reviewer@example.com", is_staff=True
+        )
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_account.return_value = account
+        mock_publish.return_value = {
+            "media_id": "released-direct",
+            "permalink": "https://www.instagram.com/reel/released-direct/",
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            approve_product_video(video, reviewer)
+
+        publication.refresh_from_db()
+        self.assertEqual(publication.status, PublicationStatus.PUBLISHED)
+        self.assertEqual(publication.external_id, "released-direct")
+
+    @patch("social_publishing.publisher.cleanup_video_lease")
+    def test_orphaned_pending_publication_is_failed_and_cleaned(self, mock_cleanup):
+        _product, video, publication, _account = self._pending_product_publication("orphan")
+        video.delete()
+
+        cleaned = cleanup_orphaned_pending_instagram_publications()
+
+        publication.refresh_from_db()
+        self.assertEqual(cleaned, 1)
+        self.assertEqual(publication.status, PublicationStatus.FAILED)
+        self.assertEqual(publication.error_code, "content_deleted")
+        mock_cleanup.assert_called_once()
+
+    @patch("social_publishing.moderation.approve_product_package")
+    def test_product_admin_change_form_routes_approval_through_release_service(
+        self, mock_approve
+    ):
+        from django.contrib import admin
+        from products.models import Product
+
+        product, video, _publication, _account = self._pending_product_publication("admin-form")
+        product.approval_status = "approved"
+        product.save(update_fields=["approval_status", "updated_at"])
+        video.moderation_status = "approved"
+        video.save(update_fields=["moderation_status", "updated_at"])
+        reviewer = get_user_model().objects.create_user(
+            username="admin-form-reviewer", email="admin-form@example.com", is_staff=True
+        )
+        form = SimpleNamespace(instance=product, save_m2m=Mock())
+
+        admin.site._registry[Product].save_related(
+            SimpleNamespace(user=reviewer), form, [], True
+        )
+
+        mock_approve.assert_called_once_with(product, reviewer)
+
+    @patch("social_publishing.moderation.approve_product_video")
+    def test_product_video_admin_change_form_routes_approval_through_release_service(
+        self, mock_approve
+    ):
+        from django.contrib import admin
+        from products.models import ProductVideo
+
+        _product, video, _publication, _account = self._pending_product_publication("video-form")
+        video.moderation_status = "approved"
+        reviewer = get_user_model().objects.create_user(
+            username="video-form-reviewer", email="video-form@example.com", is_staff=True
+        )
+
+        admin.site._registry[ProductVideo].save_model(
+            SimpleNamespace(user=reviewer), video, SimpleNamespace(), True
+        )
+
+        mock_approve.assert_called_once_with(video, reviewer, video.moderation_note)
 
     @patch("social_publishing.publisher.release_pending_instagram_publications")
     def test_provider_project_approval_approves_media_and_schedules_release(self, mock_release):

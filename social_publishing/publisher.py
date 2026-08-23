@@ -416,3 +416,27 @@ def release_pending_instagram_publications(content_objects):
             except InstagramPublicationError:
                 released.append(SocialPublication.objects.get(pk=publication.pk))
     return released
+
+
+def cleanup_orphaned_pending_instagram_publications():
+    """Fail closed and clean temporary sources whose content was deleted."""
+
+    cleaned = 0
+    publications = SocialPublication.objects.filter(
+        platform=SocialPlatform.INSTAGRAM,
+        status=PublicationStatus.PENDING,
+        deferred_video_lease__isnull=False,
+    ).select_related("deferred_video_lease")
+    for publication in publications:
+        if publication.content_object is not None:
+            continue
+        lease = publication.deferred_video_lease
+        cleanup_video_lease(lease)
+        publication.status = PublicationStatus.FAILED
+        publication.error_code = "content_deleted"
+        publication.error_message = "The content for this publication is no longer available."
+        publication.save(
+            update_fields=["status", "error_code", "error_message", "updated_at"]
+        )
+        cleaned += 1
+    return cleaned

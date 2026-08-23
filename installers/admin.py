@@ -451,6 +451,13 @@ class ServicePortfolioAdmin(admin.ModelAdmin):
             return "No image"
         return format_html('<img src="{}" style="width:80px;height:54px;object-fit:cover;border-radius:10px">', get_optimized_image_url(obj.image, "category_card"))
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.approval_status == ServicePortfolio.STATUS_APPROVED:
+            from social_publishing.moderation import approve_project_media_package
+
+            approve_project_media_package(obj, request.user)
+
     @admin.display(description="Location")
     def location(self, obj):
         return obj.location_display
@@ -632,6 +639,13 @@ class ServiceProjectMediaAdmin(admin.ModelAdmin):
     @admin.display(description="Preview")
     def media_preview(self, obj):
         return _service_project_media_preview(obj)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.approval_status == ServiceProjectMedia.STATUS_APPROVED:
+            from social_publishing.moderation import approve_project_media
+
+            approve_project_media(obj, request.user)
 
     @admin.display(description="Provider", ordering="project__provider__business_name")
     def provider_name(self, obj):
