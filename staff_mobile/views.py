@@ -3242,6 +3242,19 @@ def vendor_product_media_api(request, product_id):
         product.video_type = "youtube"
         product.video_url = yt["url"]
 
+        video = ProductVideo.objects.create(
+            product=product,
+            vendor=profile,
+            title=title,
+            description=description,
+            source="youtube",
+            youtube_url=yt["url"],
+            youtube_video_id=yt["id"],
+            youtube_visibility=visibility,
+            moderation_status="pending",
+            is_active=True,
+        )
+
         # Explicitly ensure an old locally stored video isn't retained.
         if product.local_video:
             product.local_video.delete(save=False)
@@ -3261,7 +3274,10 @@ def vendor_product_media_api(request, product_id):
     product.is_active = False
     product.resubmitted_at = timezone.now()
     product.save()
-    return JsonResponse({"success": True, "product": _product_payload(product), "message": "Media uploaded and product sent for admin review."})
+    payload = {"success": True, "product": _product_payload(product), "message": "Media uploaded and product sent for admin review."}
+    if media_type == "local_video":
+        payload["video"] = _staff_product_video_payload(video, request, include_comments=True)
+    return JsonResponse(payload)
 
 
 @csrf_exempt

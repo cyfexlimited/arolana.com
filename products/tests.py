@@ -1,5 +1,6 @@
 from decimal import Decimal
 from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -10,6 +11,7 @@ from currency.models import Currency
 from orders.models import Cart, CartItem
 from products import views
 from products.models import Brand, Category, Product, ProductVideo
+from products.video_commerce import _product_card
 
 User = get_user_model()
 
@@ -191,7 +193,7 @@ class ProductVideoEmbedTests(TestCase):
         self.assertEqual(
             video.get_embed_url(),
             "https://www.youtube.com/embed/dQw4w9WgXcQ"
-            "?rel=0&modestbranding=1&playsinline=1",
+            "?rel=0&modestbranding=1&playsinline=1&enablejsapi=1",
         )
 
     def test_youtu_be_url_returns_embed_url(self):
@@ -206,8 +208,27 @@ class ProductVideoEmbedTests(TestCase):
         self.assertEqual(
             video.get_embed_url(),
             "https://www.youtube.com/embed/dQw4w9WgXcQ"
-            "?rel=0&modestbranding=1&playsinline=1",
+            "?rel=0&modestbranding=1&playsinline=1&enablejsapi=1",
         )
+
+    def test_video_commerce_gallery_uses_product_video_canonical_embed(self):
+        video = ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            moderation_status="approved",
+            is_active=True,
+        )
+        canonical_url = (
+            "https://www.youtube.com/embed/dQw4w9WgXcQ"
+            "?rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+        )
+
+        with patch.object(video, "get_embed_url", return_value=canonical_url) as builder:
+            card = _product_card(None, video)
+
+        builder.assert_called_once_with()
+        self.assertEqual(card["embed_url"], canonical_url)
 
     def test_blank_or_invalid_youtube_url_fails_safely(self):
         blank_video = ProductVideo.objects.create(

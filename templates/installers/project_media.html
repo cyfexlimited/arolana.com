@@ -36,8 +36,8 @@
     </div>
   </div>
 
-  <form method="post" enctype="multipart/form-data" class="provider-form mt-6">
-    {% csrf_token %}<input type="hidden" name="action" value="upload">
+  <form method="post" enctype="multipart/form-data" class="provider-form mt-6" id="providerProjectMediaForm">
+    {% csrf_token %}<input type="hidden" name="action" value="upload"><input type="hidden" name="publish_youtube" value="true">
     {% if form.non_field_errors %}<div class="mb-4 rounded-2xl bg-red-50 p-4 font-bold text-red-700">{{ form.non_field_errors }}</div>{% endif %}
     <div class="media-drop">
       <label for="{{ form.files.id_for_label }}">Choose multiple project files</label>
@@ -47,10 +47,31 @@
     </div>
     <div class="mt-5 grid gap-4 md:grid-cols-2">
       <label><span>Project stage</span>{{ form.stage }}{% if form.stage.errors %}<small class="text-red-600">{{ form.stage.errors|striptags }}</small>{% endif %}</label>
-      <label><span>External video URL</span>{{ form.external_video_url }}<small class="mt-1 block text-slate-500">{% if entitlements.external_video_allowed %}Use a supported YouTube or Vimeo URL when direct upload is unavailable.{% else %}{{ entitlements.external_video_message }}{% endif %}</small>{% if form.external_video_url.errors %}<small class="text-red-600">{{ form.external_video_url.errors|striptags }}</small>{% endif %}</label>
+      <label><span>Video source — external URL</span>{{ form.external_video_url }}<small class="mt-1 block text-slate-500">{% if entitlements.external_video_allowed %}Use a supported YouTube or Vimeo URL when direct upload is unavailable.{% else %}{{ entitlements.external_video_message }}{% endif %}</small>{% if form.external_video_url.errors %}<small class="text-red-600">{{ form.external_video_url.errors|striptags }}</small>{% endif %}</label>
       <label><span>Shared caption</span>{{ form.caption }}</label>
       <label><span>Accessible image description</span>{{ form.alt_text }}</label>
       <label><span>Optional video thumbnail</span>{{ form.thumbnail }}</label>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+        <h3 class="text-base font-black text-slate-900">Publishing Destinations</h3>
+        <p class="mt-1 text-xs font-bold text-slate-500">YouTube is the permanent host for direct video uploads. Instagram is optional distribution.</p>
+        <div class="mt-3 flex items-center justify-between gap-3 rounded-xl border border-red-100 bg-white p-3">
+          <div class="flex items-center gap-3"><i class="fab fa-youtube text-xl text-red-600"></i><div><strong class="block">YouTube</strong><span class="text-xs font-bold text-slate-500">Selected permanent hosting destination</span></div></div>
+          <span class="rounded-full bg-green-100 px-2 py-1 text-[10px] font-black uppercase text-green-700">Selected</span>
+        </div>
+        <label class="flex items-center gap-3 normal-case">
+          <input type="checkbox" id="publishProviderVideoToInstagram" class="w-auto">
+          <strong>Instagram <small class="block text-xs text-slate-500">Optional Reel destination for one selected video file</small></strong>
+        </label>
+        <p id="providerInstagramConnectionStatus" class="mt-2 text-xs font-bold text-slate-500">Checking Instagram connection...</p>
+        <div id="providerInstagramOptions" class="mt-3 hidden">
+          <label><span>Instagram caption</span><textarea id="providerInstagramCaption" rows="4" maxlength="2200" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" placeholder="Write an Instagram caption for this Reel..."></textarea></label>
+          <div class="mt-1 flex justify-between gap-3 text-xs font-bold text-slate-500"><span>Maximum 2,200 characters.</span><span id="providerInstagramCaptionCount">0 / 2200</span></div>
+          <label class="mt-3 flex items-center gap-3 normal-case"><input type="checkbox" id="providerInstagramShareToFeed" class="w-auto" checked><strong>Share Reel to Instagram feed</strong></label>
+        </div>
+        <button type="button" id="connectProviderInstagram" class="provider-button soft mt-3 hidden"><i class="fab fa-instagram mr-2"></i>Connect Instagram</button>
+        <p id="providerInstagramPublishStatus" class="mt-3 hidden text-sm font-bold"></p>
+        <div class="mt-3 grid gap-2 sm:grid-cols-3"><div class="flex justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>Facebook</strong><small>Coming soon</small></div><div class="flex justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>TikTok</strong><small>Coming soon</small></div><div class="flex justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>LinkedIn</strong><small>Coming soon</small></div></div>
+      </div>
       <label class="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 normal-case"><span class="w-auto">{{ form.make_first_image_cover }}</span><strong>Make the first uploaded image the project cover</strong></label>
       <label class="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 normal-case"><span class="w-auto">{{ form.mark_featured }}</span><strong>{{ form.mark_featured.label }}</strong></label>
       <label><span>{{ form.display_order_start.label }}</span>{{ form.display_order_start }}<small class="mt-1 block text-slate-500">{{ form.display_order_start.help_text }}</small></label>
@@ -118,6 +139,127 @@ document.addEventListener("DOMContentLoaded",function(){
   ["dragleave","drop"].forEach(name=>drop.addEventListener(name,event=>{event.preventDefault();drop.classList.remove("is-dragging");}));
   const render=()=>{list.innerHTML="";Array.from(input.files||[]).forEach(file=>{const row=document.createElement("span");row.textContent=`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;list.appendChild(row);});};
   input.addEventListener("change",render);
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  const form=document.getElementById("providerProjectMediaForm");
+  const fileInput=document.getElementById("{{ form.files.id_for_label }}");
+  const checkbox=document.getElementById("publishProviderVideoToInstagram");
+  const connection=document.getElementById("providerInstagramConnectionStatus");
+  const options=document.getElementById("providerInstagramOptions");
+  const connectButton=document.getElementById("connectProviderInstagram");
+  const caption=document.getElementById("providerInstagramCaption");
+  const captionCount=document.getElementById("providerInstagramCaptionCount");
+  const shareToFeed=document.getElementById("providerInstagramShareToFeed");
+  const status=document.getElementById("providerInstagramPublishStatus");
+  let instagramConnected=false;
+  let uploadedProjectMediaId=null;
+  if(!form||!fileInput||!checkbox)return;
+
+  function cookie(name){const value=`; ${document.cookie}`;const parts=value.split(`; ${name}=`);return parts.length===2?parts.pop().split(";").shift():"";}
+  function setStatus(message,type){if(!status)return;status.classList.toggle("hidden",!message);status.textContent=message||"";status.style.color=type==="error"?"#b91c1c":type==="success"?"#15803d":"#475569";}
+  function selectedVideoFile(){return Array.from(fileInput.files||[]).find(file=>(file.type||"").startsWith("video/")||/\.(mp4|webm|mov|m4v)$/i.test(file.name||""))||null;}
+  function refreshOptions(){const enabled=checkbox.checked;options&&options.classList.toggle("hidden",!(enabled&&instagramConnected));connectButton&&connectButton.classList.toggle("hidden",!(enabled&&!instagramConnected));}
+
+  async function loadInstagram(){
+    try{
+      const response=await fetch("/api/social-publishing/accounts/status/?role=provider",{headers:{"Accept":"application/json"},credentials:"same-origin"});
+      const data=await response.json();
+      const instagram=(data.platforms||[]).find(item=>item.platform==="instagram");
+      instagramConnected=Boolean(instagram&&instagram.connected);
+      if(instagramConnected){
+        connection.textContent="Instagram connected"+(instagram.account_username||instagram.account_name?`: ${instagram.account_username||instagram.account_name}`:".");
+        connection.style.color="#15803d";
+      }else{
+        const needsReconnect=instagram&&["expired","error"].includes(instagram.status);
+        connection.textContent=needsReconnect?"Expired — reconnect Instagram before publishing.":"Disconnected — connect Instagram to publish Reels.";
+        if(connectButton)connectButton.innerHTML=`<i class="fab fa-instagram mr-2"></i>${needsReconnect?"Reconnect Instagram":"Connect Instagram"}`;
+        connection.style.color="#b91c1c";
+      }
+    }catch(_error){
+      instagramConnected=false;
+      connection.textContent="Could not check Instagram connection right now.";
+      connection.style.color="#b91c1c";
+    }
+    refreshOptions();
+  }
+
+  async function connectInstagram(){
+    connectButton.disabled=true;
+    try{
+      const response=await fetch("/api/social-publishing/accounts/instagram/connect/",{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":cookie("csrftoken"),"Accept":"application/json"},body:JSON.stringify({role:"provider",return_url:window.location.href}),credentials:"same-origin"});
+      const data=await response.json();
+      if(!response.ok||!data.authorization_url)throw new Error();
+      window.location.assign(data.authorization_url);
+    }catch(_error){
+      setStatus("Could not start Instagram connection.","error");
+      connectButton.disabled=false;
+    }
+  }
+
+  function showPermalink(permalink){
+    setStatus("Published to Instagram.","success");
+    if(!status||!permalink)return;
+    try{
+      const url=new URL(permalink);
+      if(url.protocol!=="https:"||!/(^|\.)instagram\.com$/i.test(url.hostname))return;
+      status.appendChild(document.createTextNode(" "));
+      const link=document.createElement("a");link.href=url.href;link.target="_blank";link.rel="noopener";link.textContent="View on Instagram";status.appendChild(link);
+    }catch(_error){}
+  }
+
+  async function publishInstagram(file,mediaId){
+    const body=new FormData();
+    body.append("role","provider");
+    body.append("content_type","installers.serviceprojectmedia");
+    body.append("object_id",String(mediaId));
+    body.append("video",file);
+    body.append("caption",caption?caption.value:"");
+    body.append("share_to_feed",shareToFeed&&shareToFeed.checked?"true":"false");
+    setStatus("Publishing Reel to Instagram...","info");
+    const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":cookie("csrftoken"),"Accept":"application/json"},body,credentials:"same-origin"});
+    const data=await response.json();
+    if(!response.ok)throw new Error("Instagram publishing failed.");
+    const permalink=data.instagram_permalink||"";
+    showPermalink(permalink);
+  }
+
+  checkbox.addEventListener("change",refreshOptions);
+  connectButton&&connectButton.addEventListener("click",connectInstagram);
+  caption&&caption.addEventListener("input",()=>{captionCount.textContent=`${caption.value.length} / 2200`;});
+  fileInput.addEventListener("change",()=>{uploadedProjectMediaId=null;});
+  loadInstagram();
+
+  form.addEventListener("submit",async function(event){
+    if(!checkbox.checked)return;
+    event.preventDefault();
+    const videoFile=selectedVideoFile();
+    if(!instagramConnected){setStatus("Connect or reconnect Instagram before publishing this video.","error");refreshOptions();return;}
+    if(!videoFile){setStatus("Choose a video file before selecting Instagram publishing.","error");return;}
+    const submitButton=form.querySelector("button[type=submit]");
+    submitButton&&submitButton.setAttribute("disabled","disabled");
+    setStatus("Uploading project video to Arolana...","info");
+    try{
+      let mediaId=uploadedProjectMediaId;
+      if(!mediaId){
+        const response=await fetch(window.location.href,{method:"POST",headers:{"X-CSRFToken":cookie("csrftoken"),"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData(form),credentials:"same-origin"});
+        const data=await response.json();
+        if(!response.ok||data.success===false)throw new Error(data.message||"Project media upload failed.");
+        const videoMedia=(data.media||[]).find(item=>item.media_type==="video");
+        if(!videoMedia||!videoMedia.id)throw new Error("Project video upload could not be completed.");
+        mediaId=videoMedia.id;
+        uploadedProjectMediaId=mediaId;
+      }
+      setStatus("Project video uploaded. Publishing to Instagram...","info");
+      await publishInstagram(videoFile,mediaId);
+      uploadedProjectMediaId=null;
+    }catch(error){
+      setStatus(uploadedProjectMediaId?"Instagram publishing failed. Your project video remains uploaded; retry will not upload it again.":(error.message||"Video publishing failed."),"error");
+    }finally{
+      submitButton&&submitButton.removeAttribute("disabled");
+    }
+  });
 });
 </script>
 {% endblock %}

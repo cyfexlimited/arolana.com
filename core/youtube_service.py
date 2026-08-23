@@ -5,6 +5,7 @@ with requests so Arolana does not need the Google client SDK.
 """
 
 import json
+import logging
 import re
 import secrets
 from html import unescape
@@ -19,8 +20,16 @@ from django.utils.html import strip_tags
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
+VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 
-SCOPE = "https://www.googleapis.com/auth/youtube.upload"
+logger = logging.getLogger(__name__)
+
+SCOPE = " ".join(
+    (
+        "https://www.googleapis.com/auth/youtube.upload",
+        "https://www.googleapis.com/auth/youtube.readonly",
+    )
+)
 
 def _youtube_safe_description(value):
     """
@@ -303,6 +312,7 @@ def upload_video(
         },
         "status": {
             "privacyStatus": privacy_status,
+            "embeddable": True,
             "selfDeclaredMadeForKids": False,
         },
     }
@@ -402,6 +412,17 @@ def upload_video(
             "a video ID."
         )
 
+    returned_status = payload.get("status") or {}
+    returned_embeddable = returned_status.get("embeddable")
+    if returned_embeddable is False:
+        logger.error(
+            "Arolana YouTube upload returned non-embeddable status video_id=%s",
+            video_id,
+        )
+        raise RuntimeError(
+            "YouTube uploaded the video but reported an embedding configuration problem."
+        )
+
     # ---------------------------------------------------------
     # 8. Return normalized Arolana result
     # ---------------------------------------------------------
@@ -412,7 +433,7 @@ def upload_video(
             f"https://www.youtube.com/watch?v={video_id}"
         ),
         "embed_url": (
-            f"https://www.youtube.com/embed/{video_id}"
+            f"https://www.youtube.com/embed/{video_id}?rel=0&playsinline=1&enablejsapi=1"
         ),
         "thumbnail_url": (
             f"https://img.youtube.com/vi/"
@@ -420,4 +441,70 @@ def upload_video(
         ),
         "privacy_status": privacy_status,
         "category_id": category_id,
+        "embeddable": returned_embeddable,
+        "ownership": "arolana",
+    }
+
+
+def get_video_embeddability(video_id, *, access_token=None):
+    """Return a sanitized, read-only YouTube status for one existing video."""
+    video_id = str(video_id or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{6,32}", video_id):
+        return {"video_id": video_id, "state": "invalid", "embeddable": None}
+
+    if not access_token:
+        refresh_token = str(
+            getattr(settings, "YOUTUBE_REFRESH_TOKEN", "") or ""
+        ).strip()
+        if not configured() or not refresh_token:
+            return {"video_id": video_id, "state": "unavailable", "embeddable": None}
+        access_token = refresh_access_token(refresh_token)
+
+    response = requests.get(
+        VIDEOS_URL,
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={"part": "status,snippet,processingDetails", "id": video_id},
+        timeout=30,
+    )
+    if not response.ok:
+        reason = "youtube_status_check_failed"
+        try:
+            reason = (
+                response.json().get("error", {}).get("errors", [{}])[0].get("reason")
+                or reason
+            )
+        except (ValueError, TypeError, IndexError):
+            pass
+        logger.warning(
+            "YouTube embeddability check failed video_id=%s http_status=%s reason=%s",
+            video_id,
+            response.status_code,
+            reason,
+        )
+        return {
+            "video_id": video_id,
+            "state": "unavailable",
+            "embeddable": None,
+            "http_status": response.status_code,
+            "reason": reason,
+        }
+
+    items = response.json().get("items") or []
+    if not items:
+        return {"video_id": video_id, "state": "missing", "embeddable": False}
+
+    item = items[0]
+    status = item.get("status") or {}
+    snippet = item.get("snippet") or {}
+    processing = item.get("processingDetails") or {}
+    embeddable = status.get("embeddable")
+    return {
+        "video_id": video_id,
+        "state": "embeddable" if embeddable is True else "non_embeddable",
+        "embeddable": embeddable,
+        "privacy_status": status.get("privacyStatus"),
+        "upload_status": status.get("uploadStatus"),
+        "processing_status": processing.get("processingStatus"),
+        "channel_id": snippet.get("channelId"),
+        "channel_title": snippet.get("channelTitle"),
     }

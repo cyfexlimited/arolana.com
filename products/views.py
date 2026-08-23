@@ -5552,7 +5552,7 @@ def _mobile_home_video_payload(request):
     elif video.video_source == "youtube":
         video_url = video.youtube_url
         if video.youtube_id:
-            embed_url = f"https://www.youtube.com/embed/{video.youtube_id}"
+            embed_url = f"https://www.youtube.com/embed/{video.youtube_id}?rel=0&playsinline=1&enablejsapi=1"
     elif video.video_source == "vimeo":
         video_url = video.vimeo_url
         if video.vimeo_id:

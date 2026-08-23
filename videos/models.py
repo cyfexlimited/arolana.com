@@ -136,6 +136,7 @@ class Video(BaseModel):
                 params.append('controls=0')
             if self.start_time:
                 params.append(f'start={self.start_time}')
+            params.extend(['rel=0', 'playsinline=1', 'enablejsapi=1'])
             param_str = '&'.join(params) if params else ''
             return f"https://www.youtube.com/embed/{self.youtube_id}?{param_str}"
         

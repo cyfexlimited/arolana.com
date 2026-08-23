@@ -1,0 +1,21 @@
+{% extends "base/base.html" %}
+
+{% block title %}{{ video.title }} - Arolana{% endblock %}
+
+{% block content %}
+<main class="mx-auto w-full max-w-6xl px-4 py-8">
+    {% include "videos/player.html" with video=video %}
+    {% if related_videos %}
+    <section class="mt-8" aria-labelledby="related-video-heading">
+        <h2 id="related-video-heading" class="text-2xl font-black text-[#071A44]">More Arolana videos</h2>
+        <div class="mt-4 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {% for related_video in related_videos %}
+            <a href="{% url 'videos:watch' related_video.id %}" class="rounded-xl border border-slate-200 bg-white p-4 font-bold text-[#071A44] shadow-sm">
+                {{ related_video.title }}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}

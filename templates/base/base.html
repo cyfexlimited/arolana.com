@@ -5552,6 +5552,21 @@ body.product-detail-full-width .arolana-ad-placeholder {
 
     {% include "partials/arolana_smart_chat_widget.html" %}
     <script defer src="{% static 'js/arolana-web-push.js' %}"></script>
+    <script defer src="{% static 'js/arolana-youtube-player.js' %}"></script>
+    <style>
+        .arolana-youtube-player { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
+        .arolana-youtube-player > iframe { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+        .arolana-youtube-end-screen { position: absolute; inset: 0; z-index: 4; box-sizing: border-box; padding: clamp(1rem, 4vw, 2.5rem); background: linear-gradient(135deg, rgba(7, 26, 68, .98), rgba(15, 23, 42, .96)); color: #fff; text-align: center; align-content: center; overflow: auto; }
+        .arolana-youtube-end-screen[hidden] { display: none !important; }
+        .arolana-youtube-end-screen > strong { display: block; margin-bottom: 1rem; font-size: clamp(1rem, 3vw, 1.5rem); }
+        .arolana-youtube-end-screen__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .65rem; }
+        .arolana-youtube-end-screen__actions a, .arolana-youtube-end-screen__actions button { border: 1px solid rgba(255,255,255,.55); border-radius: 999px; padding: .65rem 1rem; color: #fff; background: transparent; font: inherit; font-weight: 700; line-height: 1.2; cursor: pointer; text-decoration: none; }
+        .arolana-youtube-end-screen__actions .arolana-youtube-end-screen__primary { border-color: #f58220; background: #f58220; }
+        .arolana-youtube-fallback { position: absolute; inset: 0; z-index: 5; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .8rem; padding: 1.5rem; background: rgba(7, 26, 68, .97); color: #fff; text-align: center; }
+        .arolana-youtube-fallback[hidden] { display: none !important; }
+        .arolana-youtube-fallback a { border-radius: 999px; padding: .7rem 1.1rem; background: #f58220; color: #fff; font-weight: 800; text-decoration: none; }
+        @media (max-width: 480px) { .arolana-youtube-end-screen__recommendation { display: none; } }
+    </style>
 
     <script>
         (function () {

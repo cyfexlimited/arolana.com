@@ -117,6 +117,8 @@ def _product_card(request, video, context_product_id=None, context_category_id=N
         video.youtube_url or video.vimeo_url or _file_url(video.local_video),
         _file_url(video.thumbnail) or _file_url(product.main_image),
     )
+    if video.source == "youtube":
+        media["embed_url"] = video.get_embed_url() or ""
     compare_price = getattr(product, "compare_price", None) or getattr(product, "old_price", None)
     rating = getattr(product, "rating_avg", None) or getattr(product, "average_rating", None) or 0
     category_id = getattr(product, "category_id", None)

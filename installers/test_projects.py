@@ -45,6 +45,14 @@ def tiny_gif(name="project.gif"):
     )
 
 
+def tiny_mp4(name="project.mp4"):
+    return SimpleUploadedFile(
+        name,
+        b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom",
+        content_type="video/mp4",
+    )
+
+
 def distinct_test_image(name="distinct-project.png"):
     """Return proof media that is not a duplicate of the default fixture."""
     output = BytesIO()
@@ -369,6 +377,118 @@ class ProjectNetworkTests(TestCase):
             self.project.media_items.order_by("display_order", "id").values_list("id", flat=True)
         )
         self.assertEqual(ordered_ids, [third.id, first.id, second.id])
+
+    def test_provider_media_api_returns_created_video_id_for_instagram_ui(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse(
+                "provider_api:provider_project_media",
+                args=[self.project.id],
+            ),
+            {
+                "media_type": ServiceProjectMedia.TYPE_VIDEO,
+                "caption": "Instagram-ready proof video",
+                "video": tiny_mp4(),
+            },
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertEqual(payload["media"][0]["media_type"], ServiceProjectMedia.TYPE_VIDEO)
+        self.assertTrue(payload["media"][0]["id"])
+
+    @patch("installers.project_api.youtube_upload_video")
+    def test_provider_mobile_video_uses_youtube_primary_host_when_selected(self, youtube_upload):
+        youtube_upload.return_value = {
+            "id": "provider-youtube-id",
+            "url": "https://www.youtube.com/watch?v=provider-youtube-id",
+        }
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("provider_api:provider_project_media", args=[self.project.id]),
+            {
+                "media_type": ServiceProjectMedia.TYPE_VIDEO,
+                "caption": "Permanent YouTube project video",
+                "publish_youtube": "true",
+                "video": tiny_mp4("youtube-project.mp4"),
+            },
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        media = ServiceProjectMedia.objects.get(pk=response.json()["media"][0]["id"])
+        self.assertEqual(media.external_video_url, youtube_upload.return_value["url"])
+        self.assertFalse(media.video)
+
+    @patch("installers.views.youtube_upload_video")
+    def test_provider_web_video_uses_youtube_primary_host_when_selected(self, youtube_upload):
+        youtube_upload.return_value = {
+            "id": "provider-web-youtube-id",
+            "url": "https://www.youtube.com/watch?v=provider-web-youtube-id",
+        }
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("provider_workspace:project_media", args=[self.project.id]),
+            {
+                "action": "upload",
+                "stage": ServiceProjectMedia.STAGE_GENERAL,
+                "caption": "Web permanent YouTube project video",
+                "publish_youtube": "true",
+                "files": tiny_mp4("web-youtube-project.mp4"),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        media = ServiceProjectMedia.objects.get(pk=response.json()["media"][0]["id"])
+        self.assertEqual(media.external_video_url, youtube_upload.return_value["url"])
+        self.assertFalse(media.video)
+
+    def test_provider_workspace_ajax_upload_returns_created_video_id_for_instagram_ui(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse(
+                "provider_workspace:project_media",
+                args=[self.project.id],
+            ),
+            {
+                "action": "upload",
+                "stage": ServiceProjectMedia.STAGE_GENERAL,
+                "caption": "Instagram-ready workspace video",
+                "files": tiny_mp4("workspace-project.mp4"),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["media"][0]["media_type"], ServiceProjectMedia.TYPE_VIDEO)
+        self.assertTrue(payload["media"][0]["id"])
+
+    def test_provider_media_page_separates_video_source_from_destinations(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse(
+                "provider_workspace:project_media",
+                args=[self.project.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Video source — external URL")
+        self.assertContains(response, "Publishing Destinations")
+        self.assertContains(response, "YouTube")
+        self.assertContains(response, "Instagram")
+        self.assertContains(response, "Connect Instagram")
 
     def test_public_project_page_renders_video_only_gallery_without_empty_stages(self):
         self.project.image = None

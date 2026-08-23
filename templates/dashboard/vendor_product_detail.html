@@ -809,6 +809,105 @@
                         </div>
 
                         <div class="vendor-edit-field full">
+                            <div
+                                id="instagramPublishPanel"
+                                class="vendor-plan-card"
+                                style="border-color:#cbd5e1;background:#f8fafc;">
+
+                                <div style="margin-bottom:14px;">
+                                    <strong class="vendor-edit-label" style="font-size:1rem;">
+                                        Publishing Destinations
+                                    </strong>
+                                    <p class="vendor-edit-help" style="margin-top:4px;">
+                                        One upload is permanently hosted on YouTube. Instagram is optional.
+                                    </p>
+                                </div>
+
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px;border:1px solid #fecaca;border-radius:14px;background:#fff;">
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <i class="fab fa-youtube" style="color:#dc2626;font-size:1.35rem;"></i>
+                                        <div>
+                                            <strong style="display:block;">YouTube</strong>
+                                            <span class="vendor-edit-help">Required permanent hosting destination</span>
+                                        </div>
+                                    </div>
+                                    <span style="border-radius:999px;background:#dcfce7;color:#15803d;padding:5px 9px;font-size:.72rem;font-weight:900;">Selected</span>
+                                </div>
+
+                                <label
+                                    class="vendor-edit-label"
+                                    style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:12px;border:1px solid #f9a8d4;border-radius:14px;background:#fff;">
+                                    <input
+                                        type="checkbox"
+                                        id="publishProductVideoToInstagram"
+                                        style="width:auto;">
+                                    <span>
+                                        Instagram <small style="display:block;color:#64748b;font-weight:700;">Optional Reel destination</small>
+                                    </span>
+                                </label>
+
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px;">
+                                    <div style="display:flex;justify-content:space-between;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;color:#94a3b8;"><strong>Facebook</strong><small>Coming soon</small></div>
+                                    <div style="display:flex;justify-content:space-between;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;color:#94a3b8;"><strong>TikTok</strong><small>Coming soon</small></div>
+                                    <div style="display:flex;justify-content:space-between;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;color:#94a3b8;"><strong>LinkedIn</strong><small>Coming soon</small></div>
+                                </div>
+
+                                <div
+                                    id="instagramConnectionStatus"
+                                    class="vendor-edit-help">
+                                    Checking Instagram connection...
+                                </div>
+
+                                <div
+                                    id="instagramOptions"
+                                    style="display:none;margin-top:12px;">
+                                    <label
+                                        class="vendor-edit-label"
+                                        for="instagramCaption">
+                                        Instagram caption
+                                    </label>
+                                    <textarea
+                                        id="instagramCaption"
+                                        rows="4"
+                                        maxlength="2200"
+                                        class="vendor-edit-textarea"
+                                        placeholder="Write an Instagram caption for this Reel..."></textarea>
+                                    <div
+                                        class="vendor-edit-help"
+                                        style="display:flex;justify-content:space-between;gap:12px;">
+                                        <span>Maximum 2,200 characters.</span>
+                                        <span id="instagramCaptionCount">0 / 2200</span>
+                                    </div>
+                                    <label
+                                        class="vendor-edit-help"
+                                        style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+                                        <input
+                                            type="checkbox"
+                                            id="instagramShareToFeed"
+                                            checked
+                                            style="width:auto;">
+                                        <span>Share Reel to Instagram feed</span>
+                                    </label>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    id="connectInstagramForProductVideo"
+                                    class="vendor-edit-btn vendor-edit-btn-secondary"
+                                    style="display:none;margin-top:12px;">
+                                    <i class="fab fa-instagram"></i>
+                                    <span>Connect Instagram</span>
+                                </button>
+
+                                <div
+                                    id="instagramPublishStatus"
+                                    style="display:none;margin-top:12px;"
+                                    class="vendor-edit-help">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vendor-edit-field full">
 
                             <button
                                 type="button"
@@ -1190,7 +1289,7 @@
         const videoId = extractYouTubeId(youtubeUrlInput.value);
 
         if (videoId) {
-            videoPreview.src = "https://www.youtube.com/embed/" + videoId + "?rel=0&modestbranding=1&playsinline=1";
+            videoPreview.src = "https://www.youtube.com/embed/" + videoId + "?rel=0&modestbranding=1&playsinline=1&enablejsapi=1";
         }
     }
 
@@ -1214,6 +1313,16 @@
     const visibilityInput = document.getElementById("youtubeVisibility");
     const statusBox = document.getElementById("youtubeUploadStatus");
     const buttonText = document.getElementById("youtubeUploadButtonText");
+    const instagramCheckbox = document.getElementById("publishProductVideoToInstagram");
+    const instagramConnectionStatus = document.getElementById("instagramConnectionStatus");
+    const instagramOptions = document.getElementById("instagramOptions");
+    const instagramCaption = document.getElementById("instagramCaption");
+    const instagramCaptionCount = document.getElementById("instagramCaptionCount");
+    const instagramShareToFeed = document.getElementById("instagramShareToFeed");
+    const instagramStatus = document.getElementById("instagramPublishStatus");
+    const connectInstagramButton = document.getElementById("connectInstagramForProductVideo");
+    let instagramAccountConnected = false;
+    let uploadedProductVideoId = null;
 
     if (!uploadButton || !videoInput) {
         return;
@@ -1228,6 +1337,18 @@
         return "";
     }
 
+    function setInstagramStatus(message, type) {
+        if (!instagramStatus) return;
+        instagramStatus.style.display = message ? "block" : "none";
+        instagramStatus.textContent = message || "";
+        instagramStatus.style.color =
+            type === "error"
+                ? "#b91c1c"
+                : type === "success"
+                    ? "#15803d"
+                    : "#475569";
+    }
+
     function showStatus(message, type) {
         statusBox.style.display = "block";
         statusBox.textContent = message;
@@ -1240,12 +1361,177 @@
                     : "#475569";
     }
 
+    function updateInstagramOptions() {
+        const enabled = Boolean(instagramCheckbox && instagramCheckbox.checked);
+        if (instagramOptions) {
+            instagramOptions.style.display = enabled && instagramAccountConnected ? "block" : "none";
+        }
+        if (connectInstagramButton) {
+            connectInstagramButton.style.display = enabled && !instagramAccountConnected ? "inline-flex" : "none";
+        }
+    }
+
+    async function loadInstagramStatus() {
+        if (!instagramConnectionStatus) return;
+        try {
+            const response = await fetch(
+                "/api/social-publishing/accounts/status/?role=vendor",
+                {
+                    headers: {
+                        "Accept": "application/json"
+                    },
+                    credentials: "same-origin"
+                }
+            );
+            const data = await response.json();
+            const instagram = (data.platforms || []).find(function (item) {
+                return item.platform === "instagram";
+            });
+            instagramAccountConnected = Boolean(instagram && instagram.connected);
+            const connectLabel = connectInstagramButton && connectInstagramButton.querySelector("span");
+            if (instagramAccountConnected) {
+                instagramConnectionStatus.textContent =
+                    "Instagram connected" +
+                    (instagram.account_username || instagram.account_name
+                        ? ": " + (instagram.account_username || instagram.account_name)
+                        : ".");
+                instagramConnectionStatus.style.color = "#15803d";
+            } else {
+                const status = instagram && instagram.status;
+                const needsReconnect = status === "expired" || status === "error";
+                instagramConnectionStatus.textContent =
+                    needsReconnect
+                        ? "Expired — reconnect Instagram before publishing."
+                        : "Disconnected — connect Instagram to publish Reels.";
+                if (connectLabel) connectLabel.textContent = needsReconnect ? "Reconnect Instagram" : "Connect Instagram";
+                instagramConnectionStatus.style.color = "#b91c1c";
+            }
+        } catch (_error) {
+            instagramAccountConnected = false;
+            instagramConnectionStatus.textContent =
+                "Could not check Instagram connection right now.";
+            instagramConnectionStatus.style.color = "#b91c1c";
+        }
+        updateInstagramOptions();
+    }
+
+    async function connectInstagram() {
+        if (!connectInstagramButton) return;
+        connectInstagramButton.disabled = true;
+        try {
+            const response = await fetch(
+                "/api/social-publishing/accounts/instagram/connect/",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({
+                        role: "vendor",
+                        return_url: window.location.href
+                    }),
+                    credentials: "same-origin"
+                }
+            );
+            const data = await response.json();
+            if (!response.ok || !data.authorization_url) throw new Error();
+            window.location.assign(data.authorization_url);
+        } catch (_error) {
+            setInstagramStatus("Could not start Instagram connection.", "error");
+            connectInstagramButton.disabled = false;
+        }
+    }
+
+    function showInstagramPermalink(permalink) {
+        setInstagramStatus("Published to Instagram.", "success");
+        if (!instagramStatus || !permalink) return;
+        try {
+            const url = new URL(permalink);
+            if (url.protocol !== "https:" || !/(^|\.)instagram\.com$/i.test(url.hostname)) return;
+            instagramStatus.appendChild(document.createTextNode(" "));
+            const link = document.createElement("a");
+            link.href = url.href;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = "View on Instagram";
+            instagramStatus.appendChild(link);
+        } catch (_error) {}
+    }
+
+    async function publishToInstagram(file, productVideoId) {
+        const formData = new FormData();
+        formData.append("role", "vendor");
+        formData.append("content_type", "products.productvideo");
+        formData.append("object_id", String(productVideoId));
+        formData.append("video", file);
+        formData.append("caption", instagramCaption ? instagramCaption.value : "");
+        formData.append(
+            "share_to_feed",
+            instagramShareToFeed && instagramShareToFeed.checked ? "true" : "false"
+        );
+
+        setInstagramStatus("Publishing Reel to Instagram...", "info");
+        const response = await fetch(
+            "/api/social-publishing/instagram/videos/publish/",
+            {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Accept": "application/json"
+                },
+                body: formData,
+                credentials: "same-origin"
+            }
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error("Instagram publishing failed.");
+        const permalink = data.instagram_permalink || "";
+        showInstagramPermalink(permalink);
+        return data;
+    }
+
+    if (instagramCheckbox) {
+        instagramCheckbox.addEventListener("change", updateInstagramOptions);
+    }
+
+    if (instagramCaption && instagramCaptionCount) {
+        instagramCaption.addEventListener("input", function () {
+            instagramCaptionCount.textContent =
+                String(instagramCaption.value.length) + " / 2200";
+        });
+    }
+
+    if (connectInstagramButton) {
+        connectInstagramButton.addEventListener("click", connectInstagram);
+    }
+
+    videoInput.addEventListener("change", function () {
+        uploadedProductVideoId = null;
+    });
+
+    loadInstagramStatus();
+
     uploadButton.addEventListener("click", async function () {
 
         const file = videoInput.files && videoInput.files[0];
 
         if (!file) {
             showStatus("Choose a video file first.", "error");
+            return;
+        }
+
+        if (
+            instagramCheckbox
+            && instagramCheckbox.checked
+            && !instagramAccountConnected
+        ) {
+            setInstagramStatus(
+                "Connect or reconnect Instagram before publishing this video.",
+                "error"
+            );
+            updateInstagramOptions();
             return;
         }
 
@@ -1292,65 +1578,77 @@
 
         uploadButton.disabled = true;
 
-        if (buttonText) {
-            buttonText.textContent = "Uploading to YouTube...";
-        }
+        if (buttonText) buttonText.textContent = uploadedProductVideoId
+            ? "Publishing to Instagram..."
+            : "Uploading to YouTube...";
 
         showStatus(
-            "Uploading video to YouTube. Please keep this page open...",
+            uploadedProductVideoId
+                ? "Retrying Instagram publishing. Your YouTube upload is already safe."
+                : "Uploading video to YouTube. Please keep this page open...",
             "info"
         );
 
         try {
 
-            const response = await fetch(
-                "{% url 'products:vendor_product_videos_api' %}",
-                {
-                    method: "POST",
-                    headers: {
-                        "X-CSRFToken": getCookie("csrftoken")
-                    },
-                    body: formData,
-                    credentials: "same-origin"
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(
-                    data.message || "YouTube upload failed."
+            let productVideoId = uploadedProductVideoId;
+            if (!productVideoId) {
+                const response = await fetch(
+                    "{% url 'products:vendor_product_videos_api' %}",
+                    {
+                        method: "POST",
+                        headers: {"X-CSRFToken": getCookie("csrftoken")},
+                        body: formData,
+                        credentials: "same-origin"
+                    }
                 );
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || "YouTube upload failed.");
+                }
+                productVideoId = data.video && data.video.id;
+                if (!productVideoId) throw new Error("Video upload could not be completed.");
+                uploadedProductVideoId = productVideoId;
             }
 
             showStatus(
-                "Video uploaded to YouTube successfully and submitted for Arolana review.",
+                instagramCheckbox && instagramCheckbox.checked
+                    ? "Video uploaded to YouTube. Publishing to Instagram..."
+                    : "Video uploaded to YouTube successfully and submitted for Arolana review.",
                 "success"
             );
+
+            if (instagramCheckbox && instagramCheckbox.checked) {
+                await publishToInstagram(file, productVideoId);
+                showStatus(
+                    "Video uploaded to YouTube and published to Instagram.",
+                    "success"
+                );
+            }
 
             if (buttonText) {
                 buttonText.textContent = "Video Uploaded";
             }
 
             videoInput.value = "";
+            uploadedProductVideoId = null;
 
         } catch (error) {
 
-            console.error(
-                "Arolana YouTube upload error:",
-                error
-            );
-
             showStatus(
-                error.message || "YouTube upload failed.",
+                uploadedProductVideoId
+                    ? "Instagram publishing failed. Your YouTube upload remains saved; retry will not upload it again."
+                    : (error.message || "Video publishing failed."),
                 "error"
             );
 
-            uploadButton.disabled = false;
-
             if (buttonText) {
-                buttonText.textContent = "Upload Video to YouTube";
+                buttonText.textContent = uploadedProductVideoId
+                    ? "Retry Instagram Publishing"
+                    : "Upload Video to YouTube";
             }
+        } finally {
+            uploadButton.disabled = false;
         }
     });
 })();

@@ -322,6 +322,25 @@
                     </label>
                 </div>
             </div>
+            <div id="addProductDestinations" class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <h3 class="text-base font-black text-slate-900">Publishing Destinations</h3>
+                <p class="mt-1 text-xs font-semibold text-slate-500">YouTube is the permanent host. Choose optional social distribution for this same upload.</p>
+                <div class="mt-3 grid gap-3 md:grid-cols-2">
+                    <div class="flex items-center justify-between rounded-xl border border-red-100 bg-white p-3"><span><i class="fab fa-youtube mr-2 text-red-600"></i><strong>YouTube</strong><small class="block text-slate-500">Permanent hosting</small></span><span class="rounded-full bg-green-100 px-2 py-1 text-xs font-black text-green-700">Selected</span></div>
+                    <label class="flex items-center gap-3 rounded-xl border border-pink-100 bg-white p-3"><input id="addProductInstagram" type="checkbox" class="h-4 w-4"><span><strong>Instagram</strong><small class="block text-slate-500">Optional Reel distribution</small></span></label>
+                    <div class="flex items-center justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>Facebook</strong><span class="text-xs font-black">Coming soon</span></div>
+                    <div class="flex items-center justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>TikTok</strong><span class="text-xs font-black">Coming soon</span></div>
+                    <div class="flex items-center justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>LinkedIn</strong><span class="text-xs font-black">Coming soon</span></div>
+                </div>
+                <p id="addProductInstagramConnection" class="mt-3 text-xs font-bold text-slate-500">Checking Instagram connection...</p>
+                <button id="addProductInstagramConnect" type="button" class="mt-3 hidden rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-black text-blue-700">Connect Instagram</button>
+                <div id="addProductInstagramOptions" class="mt-3 hidden">
+                    <label class="block text-sm font-bold">Instagram caption<textarea id="addProductInstagramCaption" maxlength="2200" rows="4" class="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3" placeholder="Write an Instagram caption..."></textarea></label>
+                    <div class="mt-1 flex justify-between text-xs font-bold text-slate-500"><span>Maximum 2,200 characters</span><span id="addProductInstagramCount">0 / 2200</span></div>
+                    <label class="mt-3 flex items-center gap-2 text-sm font-bold"><input id="addProductInstagramFeed" type="checkbox" checked>Share Reel to Instagram feed</label>
+                </div>
+                <p id="addProductPublishStatus" class="mt-3 hidden text-sm font-bold"></p>
+            </div>
         </div>
 
 	        <!-- Product Images -->
@@ -777,5 +796,46 @@ document.getElementById('videoType').addEventListener('change', function() {
 
         setMode(modeInput.value || 'new_product');
     })();
+</script>
+<script>
+(function(){
+  const form=document.getElementById("productForm");
+  const instagramToggle=document.getElementById("addProductInstagram");
+  const connection=document.getElementById("addProductInstagramConnection");
+  const connectButton=document.getElementById("addProductInstagramConnect");
+  const options=document.getElementById("addProductInstagramOptions");
+  const caption=document.getElementById("addProductInstagramCaption");
+  const count=document.getElementById("addProductInstagramCount");
+  const feed=document.getElementById("addProductInstagramFeed");
+  const status=document.getElementById("addProductPublishStatus");
+  const fileInput=form&&form.querySelector('input[name="local_video"]');
+  let connected=false;
+  let retainedVideoId=null;
+  let redirectUrl="";
+  if(!form||!instagramToggle)return;
+  const csrf=()=>form.querySelector('input[name="csrfmiddlewaretoken"]')?.value||"";
+  const show=(message,type)=>{status.textContent=message||"";status.classList.toggle("hidden",!message);status.className=`mt-3 text-sm font-bold ${type==="error"?"text-red-700":type==="success"?"text-green-700":"text-slate-600"}`;};
+  const refresh=()=>{options.classList.toggle("hidden",!(instagramToggle.checked&&connected));connectButton.classList.toggle("hidden",!(instagramToggle.checked&&!connected));};
+  const safeLink=(value)=>{try{const url=new URL(String(value||""));return url.protocol==="https:"&&/(^|\.)instagram\.com$/i.test(url.hostname)?url.href:"";}catch(_error){return "";}};
+  async function loadAccount(){
+    try{const response=await fetch("/api/social-publishing/accounts/status/?role=vendor",{headers:{Accept:"application/json"},credentials:"same-origin"});const data=await response.json();const account=(data.platforms||[]).find(item=>item.platform==="instagram");connected=Boolean(account&&account.connected);if(connected){connection.textContent=`Instagram · Connected${account.account_username||account.account_name?` — ${account.account_username||account.account_name}`:""}`;connection.className="mt-3 text-xs font-bold text-green-700";}else{const expired=account&&["expired","error"].includes(account.status);connection.textContent=expired?"Instagram · Expired":"Instagram · Disconnected";connectButton.textContent=expired?"Reconnect Instagram":"Connect Instagram";connection.className="mt-3 text-xs font-bold text-red-700";}}catch(_error){connected=false;connection.textContent="Instagram status is temporarily unavailable.";}refresh();
+  }
+  connectButton.addEventListener("click",async()=>{connectButton.disabled=true;try{const response=await fetch("/api/social-publishing/accounts/instagram/connect/",{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrf(),Accept:"application/json"},body:JSON.stringify({role:"vendor",return_url:window.location.href}),credentials:"same-origin"});const data=await response.json();if(!response.ok||!data.authorization_url)throw new Error();window.location.assign(data.authorization_url);}catch(_error){show("Could not start Instagram connection.","error");connectButton.disabled=false;}});
+  instagramToggle.addEventListener("change",refresh);
+  caption.addEventListener("input",()=>{count.textContent=`${caption.value.length} / 2200`;});
+  fileInput&&fileInput.addEventListener("change",()=>{retainedVideoId=null;redirectUrl="";show("","");});
+  form.addEventListener("submit",async event=>{
+    if(!instagramToggle.checked)return;
+    event.preventDefault();
+    if(!connected){show("Connect or reconnect Instagram before publishing.","error");refresh();return;}
+    if(form.querySelector('#videoType')?.value!=="local"||!fileInput?.files?.[0]){show("Choose a local video so the same source can publish to YouTube and Instagram.","error");return;}
+    const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
+    try{
+      if(!retainedVideoId){show("Uploading primary video to YouTube...","info");const response=await fetch(form.action||window.location.href,{method:"POST",headers:{"X-CSRFToken":csrf(),"X-Requested-With":"XMLHttpRequest",Accept:"application/json"},body:new FormData(form),credentials:"same-origin"});const data=await response.json();if(!response.ok||!data.success||!data.product_video_id)throw new Error("primary");retainedVideoId=data.product_video_id;redirectUrl=data.redirect_url||"";}
+      show("YouTube upload saved. Publishing to Instagram...","info");const body=new FormData();body.append("role","vendor");body.append("content_type","products.productvideo");body.append("object_id",String(retainedVideoId));body.append("video",fileInput.files[0]);body.append("caption",caption.value.slice(0,2200));body.append("share_to_feed",feed.checked?"true":"false");const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":csrf(),Accept:"application/json"},body,credentials:"same-origin"});const data=await response.json();if(!response.ok)throw new Error("instagram");show("Published to YouTube and Instagram.","success");const permalink=safeLink(data.instagram_permalink);if(permalink){status.appendChild(document.createTextNode(" "));const link=document.createElement("a");link.href=permalink;link.target="_blank";link.rel="noopener";link.textContent="View on Instagram";status.appendChild(link);}retainedVideoId=null;if(redirectUrl)setTimeout(()=>window.location.assign(redirectUrl),1200);
+    }catch(error){show(retainedVideoId?"Instagram publishing failed. Your YouTube upload is saved; retry will not upload it again.":"Primary YouTube upload could not be completed.","error");}finally{submit.disabled=false;}
+  });
+  loadAccount();
+})();
 </script>
 {% endblock %}

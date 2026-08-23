@@ -1079,6 +1079,7 @@ def vendor_add_product(request):
     current_featured_count = Product.objects.filter(vendor=request.user, is_featured=True).exclude(approval_status='rejected').count()
     
     if request.method == 'POST':
+        wants_json = request.headers.get('x-requested-with') == 'XMLHttpRequest'
         try:
             product_mode = request.POST.get('product_mode', 'new_product')
             max_products = subscription_limits['max_products']
@@ -1234,6 +1235,7 @@ def vendor_add_product(request):
                 messages.warning(request, 'Featured product limit reached for your current plan. The product was saved without featured placement.')
             
             with transaction.atomic():
+                created_product_video = None
                 product = Product.objects.create(
                     name=name,
                     description=description,
@@ -1287,6 +1289,18 @@ def vendor_add_product(request):
                         product.video_type = 'youtube'
                         product.video_url = yt['url']
                         product.save(update_fields=['video_type', 'video_url'])
+                        created_product_video = ProductVideo.objects.create(
+                            product=product,
+                            vendor=request.user.vendor_profile,
+                            title=name[:200],
+                            description=description or '',
+                            source='youtube',
+                            youtube_url=yt['url'],
+                            youtube_video_id=yt['id'],
+                            youtube_visibility=visibility,
+                            moderation_status='pending',
+                            is_active=True,
+                        )
 
                         messages.success(
                             request,
@@ -1399,12 +1413,28 @@ def vendor_add_product(request):
                     f'{max_products} product(s), and you have used {current_product_count}/{max_products}. '
                     'Upgrade your plan before publishing this product.',
                 )
+                if wants_json:
+                    return JsonResponse({
+                        'success': True,
+                        'product_id': product.id,
+                        'product_video_id': getattr(created_product_video, 'id', None),
+                        'redirect_url': reverse('dashboard:vendor_product_detail', args=[product.id]),
+                    }, status=201)
                 return redirect('dashboard:vendor_product_detail', product_id=product.id)
             messages.success(request, f'Product "{product.name}" was saved and submitted for approval.')
+            if wants_json:
+                return JsonResponse({
+                    'success': True,
+                    'product_id': product.id,
+                    'product_video_id': getattr(created_product_video, 'id', None),
+                    'redirect_url': reverse('dashboard:vendor_products'),
+                }, status=201)
             return redirect('dashboard:vendor_products')
             
         except Exception as e:
             messages.error(request, f'Error adding product: {str(e)}')
+            if wants_json:
+                return JsonResponse({'success': False, 'message': 'Product could not be created.'}, status=400)
             return redirect('dashboard:vendor_add_product')
     
     categories = vendor_selectable_categories()

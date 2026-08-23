@@ -357,7 +357,7 @@ class BlogPost(BaseModel):
         for pattern in youtube_patterns:
             match = re.search(pattern, self.video_url)
             if match:
-                return f"https://www.youtube.com/embed/{match.group(1)}?rel=0&modestbranding=1&playsinline=1"
+                return f"https://www.youtube.com/embed/{match.group(1)}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
 
         vimeo_match = re.search(r"vimeo\.com/(?:video/)?(\d+)", self.video_url)
         if vimeo_match:

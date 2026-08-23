@@ -3,7 +3,7 @@
     {% if video.video_type == 'youtube' and video.youtube_id %}
         <iframe 
             class="w-full h-full"
-            src="https://www.youtube.com/embed/{{ video.youtube_id }}?autoplay=1&rel=0&modestbranding=1&playsinline=1"
+            src="https://www.youtube.com/embed/{{ video.youtube_id }}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
             title="{{ video.title }}"
             frameborder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

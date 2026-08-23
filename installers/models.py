@@ -84,7 +84,7 @@ def project_external_video_embed_url(value):
         elif path_parts and path_parts[0] in {"embed", "shorts", "live"} and len(path_parts) > 1:
             video_id = path_parts[1]
         if video_id and all(character.isalnum() or character in {"-", "_"} for character in video_id):
-            return f"https://www.youtube.com/embed/{video_id}?playsinline=1&rel=0&modestbranding=1"
+            return f"https://www.youtube.com/embed/{video_id}?playsinline=1&rel=0&modestbranding=1&enablejsapi=1"
         return ""
 
     video_id = path_parts[-1] if path_parts else ""

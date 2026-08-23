@@ -2178,7 +2178,7 @@ class Product(BaseModel):
                 return (
                     "https://www.youtube.com/embed/"
                     f"{video_id}"
-                    "?rel=0&modestbranding=1&playsinline=1"
+                    "?rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
                 )
 
         if re.match(
@@ -2189,7 +2189,7 @@ class Product(BaseModel):
             return (
                 "https://www.youtube.com/embed/"
                 f"{url}"
-                "?rel=0&modestbranding=1&playsinline=1"
+                "?rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
             )
 
         return None
@@ -5116,7 +5116,7 @@ class ProductVideo(BaseModel):
             if video_id:
                 return (
                     f'https://www.youtube.com/embed/{video_id}'
-                    '?rel=0&modestbranding=1&playsinline=1'
+                    '?rel=0&modestbranding=1&playsinline=1&enablejsapi=1'
                 )
 
         # Vimeo

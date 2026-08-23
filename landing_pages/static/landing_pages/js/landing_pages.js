@@ -17,7 +17,7 @@
     const navLinks = Array.from(page.querySelectorAll("[data-lp-nav]"));
     const backToTop = page.querySelector(".lp-back-to-top");
     const videoModal = page.querySelector(".lp-video-modal");
-    const videoFrame = videoModal ? videoModal.querySelector("iframe") : null;
+    let videoFrame = videoModal ? videoModal.querySelector("iframe") : null;
     const videoClose = videoModal ? videoModal.querySelector(".lp-video-modal-close") : null;
 
     function prefersReducedMotion() {
@@ -200,7 +200,7 @@
 
             videoId = videoId.split("?")[0].split("&")[0].split("/")[0];
 
-            return "https://www.youtube.com/embed/" + encodeURIComponent(videoId) + "?autoplay=1&rel=0&modestbranding=1&playsinline=1";
+            return "https://www.youtube.com/embed/" + encodeURIComponent(videoId) + "?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1";
         } catch (error) {
             return "";
         }
@@ -275,7 +275,14 @@
 
         videoModal.classList.remove("is-open");
         videoModal.setAttribute("aria-hidden", "true");
-        videoFrame.src = "about:blank";
+        const replacement = videoFrame.cloneNode(false);
+        replacement.src = "about:blank";
+        if (window.ArolanaYouTubePlayer) {
+            window.ArolanaYouTubePlayer.destroy(videoFrame);
+        }
+        if (videoFrame.isConnected) videoFrame.remove();
+        videoModal.querySelector(".lp-video-modal-card").appendChild(replacement);
+        videoFrame = replacement;
 
         document.documentElement.classList.remove("lp-video-open");
         document.body.classList.remove("lp-video-open");

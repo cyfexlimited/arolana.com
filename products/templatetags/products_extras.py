@@ -54,7 +54,7 @@ def get_embed_url(url):
     """Convert YouTube/Vimeo URL to embed URL"""
     video_id = parse_youtube_id(url)
     if video_id:
-        return f"https://www.youtube.com/embed/{video_id}"
+        return f"https://www.youtube.com/embed/{video_id}?rel=0&playsinline=1&enablejsapi=1"
     
     video_id = parse_vimeo_id(url)
     if video_id:

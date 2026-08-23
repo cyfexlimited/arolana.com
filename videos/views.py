@@ -92,7 +92,7 @@ def video_gallery(request, slug):
     gallery = get_object_or_404(VideoGallery, slug=slug, is_active=True)
     videos = gallery.videos.filter(is_active=True)
 
-    return render(request, 'videos/gallery.html', {
+    return render(request, 'videos/gallery_page.html', {
         'gallery': gallery,
         'videos': videos,
     })
@@ -120,7 +120,7 @@ def video_embed(request, video_id):
             <div class="relative w-full h-full bg-black">
                 <iframe
                     class="w-full h-full"
-                    src="https://www.youtube.com/embed/{escape(yt_id)}?autoplay=1&rel=0&modestbranding=1"
+                    src="https://www.youtube.com/embed/{escape(yt_id)}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
                     title="{escape(video.title)}"
                     frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

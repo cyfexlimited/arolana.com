@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from products.models import Product
+from core.youtube_service import upload_video as youtube_upload_video
 from core.private_upload_validation import (
     validate_project_document_upload,
     validate_project_video_upload,
@@ -514,6 +515,7 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
             order_start = current_max + 1
 
         created = []
+        publish_youtube = str(request.data.get("publish_youtube") or "").lower() in {"1", "true", "on", "yes"}
         try:
             with transaction.atomic():
                 for index, (upload, media_type) in enumerate(classified):
@@ -549,7 +551,19 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
                     if media_type == ServiceProjectMedia.TYPE_IMAGE:
                         media.image = upload
                     elif media_type == ServiceProjectMedia.TYPE_VIDEO:
-                        media.video = upload
+                        if publish_youtube:
+                            try:
+                                youtube_result = youtube_upload_video(
+                                    upload,
+                                    title=(caption or project.title)[:100],
+                                    description=project.description or project.short_summary or "",
+                                    privacy_status="unlisted",
+                                )
+                            except Exception:
+                                raise DjangoValidationError("YouTube video upload could not be completed.")
+                            media.external_video_url = youtube_result["url"]
+                        else:
+                            media.video = upload
                         if thumbnail:
                             media.thumbnail = thumbnail
                             thumbnail = None

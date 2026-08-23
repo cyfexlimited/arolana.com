@@ -481,7 +481,7 @@ class LandingPageVideoGuide(BaseModel):
     @property
     def embed_url(self):
         if self.platform == self.PLATFORM_YOUTUBE and self.youtube_id:
-            return f"https://www.youtube.com/embed/{self.youtube_id}?rel=0&modestbranding=1&playsinline=1"
+            return f"https://www.youtube.com/embed/{self.youtube_id}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
         if self.platform == self.PLATFORM_VIMEO:
             match = re.search(r"vimeo\.com/(?:video/)?(\d+)", self.video_url or "")
             if match:

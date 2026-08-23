@@ -870,11 +870,6 @@ urlpatterns = [
         TemplateView.as_view(template_name="support/shipping.html"),
         name="shipping",
     ),
-    path(
-        "youtube-embed-test/",
-        TemplateView.as_view(template_name="youtube_embed_test.html"),
-        name="youtube_embed_test",
-    ),
     path("support/", contact_page, name="support"),
     path("contact/", contact_page, name="contact"),
     path("about/", page_by_slug, {"slug": "about"}, name="about"),

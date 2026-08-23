@@ -3,6 +3,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from accounts.models import User, UserOTP
@@ -419,6 +420,32 @@ class StaffProductVideoApiTests(TestCase):
         self.assertEqual(video.moderation_status, "approved")
         self.assertEqual(video.approved_by, self.admin_user)
         self.assertIsNotNone(video.approved_at)
+
+    @patch("staff_mobile.views.youtube_upload_video")
+    def test_product_creation_media_upload_returns_owned_product_video_id(self, youtube_upload):
+        youtube_upload.return_value = {
+            "id": "creation-video-id",
+            "url": "https://www.youtube.com/watch?v=creation-video-id",
+        }
+        response = self.client.post(
+            f"/api/staff/vendor/products/{self.product.id}/media/",
+            data={
+                "media_type": "local_video",
+                "title": "Creation flow video",
+                "file": SimpleUploadedFile(
+                    "creation.mp4",
+                    b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom",
+                    content_type="video/mp4",
+                ),
+            },
+            HTTP_AUTHORIZATION=f"Bearer {self.vendor_session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        video = ProductVideo.objects.get(pk=response.json()["video"]["id"])
+        self.assertEqual(video.vendor, self.vendor)
+        self.assertEqual(video.product, self.product)
+        self.assertEqual(video.youtube_video_id, "creation-video-id")
 
     def test_admin_can_hide_video_comment(self):
         video = ProductVideo.objects.create(

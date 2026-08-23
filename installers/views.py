@@ -3,6 +3,7 @@ from pathlib import Path
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
@@ -14,6 +15,7 @@ from arolana_payments.services import gateway_is_available, init_paystack_checko
 
 from notifications.models import Notification
 from products.models import Product
+from core.youtube_service import upload_video as youtube_upload_video
 
 from core.private_upload_validation import (
     validate_project_document_upload,
@@ -2438,6 +2440,11 @@ def provider_project_media(
             }
         )
 
+    wants_json = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("accept", "")
+    )
+
     if request.method == "POST":
         action = (
             request.POST.get("action")
@@ -2764,6 +2771,8 @@ def provider_project_media(
                     )
                     first_image = True
                     thumbnail_used = False
+                    created = []
+                    publish_youtube = str(request.POST.get("publish_youtube") or "").lower() in {"1", "true", "on", "yes"}
 
                     with transaction.atomic():
                         for upload, media_type in classified_files:
@@ -2797,13 +2806,26 @@ def provider_project_media(
                                 media.image = upload
                                 first_image = False
                             elif media_type == ServiceProjectMedia.TYPE_VIDEO:
-                                media.video = upload
+                                if publish_youtube:
+                                    try:
+                                        youtube_result = youtube_upload_video(
+                                            upload,
+                                            title=(caption or project.title)[:100],
+                                            description=project.description or project.short_summary or "",
+                                            privacy_status="unlisted",
+                                        )
+                                    except Exception:
+                                        raise ValidationError("YouTube video upload could not be completed.")
+                                    media.external_video_url = youtube_result["url"]
+                                else:
+                                    media.video = upload
                                 if thumbnail and not thumbnail_used:
                                     media.thumbnail = thumbnail
                                     thumbnail_used = True
                             else:
                                 media.document = upload
                             media.save()
+                            created.append(media)
                             next_order += 1
 
                         if external_video_url:
@@ -2821,6 +2843,7 @@ def provider_project_media(
                             if thumbnail and not thumbnail_used:
                                 external_media.thumbnail = thumbnail
                             external_media.save()
+                            created.append(external_media)
 
                 except ValidationError as exc:
                     _show_validation_errors(
@@ -2841,10 +2864,51 @@ def provider_project_media(
                             "uploaded for Arolana review."
                         ),
                     )
+                    if wants_json:
+                        return JsonResponse(
+                            {
+                                "success": True,
+                                "message": (
+                                    f"{requested_count} media item"
+                                    f"{'s' if requested_count != 1 else ''} "
+                                    "uploaded for Arolana review."
+                                ),
+                                "media": [
+                                    {
+                                        "id": item.id,
+                                        "media_type": item.media_type,
+                                        "caption": item.caption,
+                                    }
+                                    for item in created
+                                ],
+                            },
+                            status=201,
+                        )
                     return redirect(
                         "provider_workspace:project_media",
                         project_id=project.id,
                     )
+        elif wants_json:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": (
+                        form.non_field_errors().as_text()
+                        or "Project media upload could not be completed."
+                    ),
+                    "errors": form.errors.get_json_data(),
+                },
+                status=400,
+            )
+
+        if wants_json:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Project media upload could not be completed.",
+                },
+                status=400,
+            )
 
     media_items = list(
         project.media_items.all()
