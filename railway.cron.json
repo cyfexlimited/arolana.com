@@ -5,6 +5,7 @@
     "buildCommand": "python -m compileall -q social_publishing arolana_config"
   },
   "deploy": {
+    "preDeployCommand": [],
     "startCommand": "python manage.py cleanup_expired_video_leases",
     "restartPolicyType": "NEVER",
     "cronSchedule": "0 3 * * *"
