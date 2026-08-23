@@ -68,7 +68,7 @@
           <div class="mt-1 flex justify-between gap-3 text-xs font-bold text-slate-500"><span>Maximum 2,200 characters.</span><span id="providerInstagramCaptionCount">0 / 2200</span></div>
           <label class="mt-3 flex items-center gap-3 normal-case"><input type="checkbox" id="providerInstagramShareToFeed" class="w-auto" checked><strong>Share Reel to Instagram feed</strong></label>
         </div>
-        <button type="button" id="connectProviderInstagram" class="provider-button soft mt-3 hidden"><i class="fab fa-instagram mr-2"></i>Connect Instagram</button>
+        <button type="button" id="connectProviderInstagram" class="provider-button soft mt-3" style="display:none"><i class="fab fa-instagram mr-2"></i>Connect Instagram</button>
         <p id="providerInstagramPublishStatus" class="mt-3 hidden text-sm font-bold"></p>
         <div class="mt-3 grid gap-2 sm:grid-cols-3"><div class="flex justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>Facebook</strong><small>Coming soon</small></div><div class="flex justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>TikTok</strong><small>Coming soon</small></div><div class="flex justify-between rounded-xl border bg-white p-3 text-slate-400"><strong>LinkedIn</strong><small>Coming soon</small></div></div>
       </div>
@@ -153,32 +153,42 @@ document.addEventListener("DOMContentLoaded",function(){
   const captionCount=document.getElementById("providerInstagramCaptionCount");
   const shareToFeed=document.getElementById("providerInstagramShareToFeed");
   const status=document.getElementById("providerInstagramPublishStatus");
-  let instagramConnected=false;
+  let instagramAccountState="loading";
   let uploadedProjectMediaId=null;
   if(!form||!fileInput||!checkbox)return;
 
   function cookie(name){const value=`; ${document.cookie}`;const parts=value.split(`; ${name}=`);return parts.length===2?parts.pop().split(";").shift():"";}
   function setStatus(message,type){if(!status)return;status.classList.toggle("hidden",!message);status.textContent=message||"";status.style.color=type==="error"?"#b91c1c":type==="success"?"#15803d":"#475569";}
   function selectedVideoFile(){return Array.from(fileInput.files||[]).find(file=>(file.type||"").startsWith("video/")||/\.(mp4|webm|mov|m4v)$/i.test(file.name||""))||null;}
-  function refreshOptions(){const enabled=checkbox.checked;options&&options.classList.toggle("hidden",!(enabled&&instagramConnected));connectButton&&connectButton.classList.toggle("hidden",!(enabled&&!instagramConnected));}
+  function refreshOptions(){
+    const enabled=checkbox.checked;
+    const connected=instagramAccountState==="connected";
+    options&&options.classList.toggle("hidden",!(enabled&&connected));
+    if(connectButton){
+      const canConnect=instagramAccountState==="disconnected"||instagramAccountState==="expired";
+      connectButton.style.display=canConnect?"inline-flex":"none";
+      connectButton.disabled=false;
+    }
+  }
 
   async function loadInstagram(){
     try{
       const response=await fetch("/api/social-publishing/accounts/status/?role=provider",{headers:{"Accept":"application/json"},credentials:"same-origin"});
       const data=await response.json();
       const instagram=(data.platforms||[]).find(item=>item.platform==="instagram");
-      instagramConnected=Boolean(instagram&&instagram.connected);
-      if(instagramConnected){
+      if(instagram&&instagram.connected){
+        instagramAccountState="connected";
         connection.textContent="Instagram connected"+(instagram.account_username||instagram.account_name?`: ${instagram.account_username||instagram.account_name}`:".");
         connection.style.color="#15803d";
       }else{
         const needsReconnect=instagram&&["expired","error"].includes(instagram.status);
+        instagramAccountState=needsReconnect?"expired":"disconnected";
         connection.textContent=needsReconnect?"Expired — reconnect Instagram before publishing.":"Disconnected — connect Instagram to publish Reels.";
         if(connectButton)connectButton.innerHTML=`<i class="fab fa-instagram mr-2"></i>${needsReconnect?"Reconnect Instagram":"Connect Instagram"}`;
         connection.style.color="#b91c1c";
       }
     }catch(_error){
-      instagramConnected=false;
+      instagramAccountState="unavailable";
       connection.textContent="Could not check Instagram connection right now.";
       connection.style.color="#b91c1c";
     }
@@ -228,14 +238,15 @@ document.addEventListener("DOMContentLoaded",function(){
   checkbox.addEventListener("change",refreshOptions);
   connectButton&&connectButton.addEventListener("click",connectInstagram);
   caption&&caption.addEventListener("input",()=>{captionCount.textContent=`${caption.value.length} / 2200`;});
-  fileInput.addEventListener("change",()=>{uploadedProjectMediaId=null;setStatus("","info");});
+  fileInput.addEventListener("change",()=>{uploadedProjectMediaId=null;setStatus("","info");const button=form.querySelector("button[type=submit]");if(button)button.innerHTML='<i class="fas fa-cloud-arrow-up mr-2"></i>Upload project media';});
   loadInstagram();
 
   form.addEventListener("submit",async function(event){
+    if(!checkbox.checked&&uploadedProjectMediaId){event.preventDefault();setStatus("YouTube: Published. Select Instagram to retry the retained publication without another upload.","error");return;}
     if(!checkbox.checked)return;
     event.preventDefault();
     const videoFile=selectedVideoFile();
-    if(!instagramConnected){setStatus("Connect or reconnect Instagram before publishing this video.","error");refreshOptions();return;}
+    if(instagramAccountState!=="connected"){setStatus(instagramAccountState==="expired"?"Reconnect Instagram before publishing this video.":"Connect Instagram before publishing this video.","error");refreshOptions();return;}
     if(!videoFile){setStatus("Choose a video file before selecting Instagram publishing.","error");return;}
     const submitButton=form.querySelector("button[type=submit]");
     submitButton&&submitButton.setAttribute("disabled","disabled");
@@ -254,8 +265,10 @@ document.addEventListener("DOMContentLoaded",function(){
       setStatus("Project video uploaded. Publishing to Instagram...","info");
       await publishInstagram(videoFile,mediaId);
       uploadedProjectMediaId=null;
+      if(submitButton)submitButton.innerHTML='<i class="fas fa-check mr-2"></i>Published';
     }catch(error){
       setStatus(error.code==="content_awaiting_moderation"?"YouTube: Published. Instagram: Waiting for Arolana approval — retry after approval.":uploadedProjectMediaId?"YouTube: Published. Instagram: Failed — retry will not upload YouTube again.":(error.message||"Video publishing failed."),"error");
+      if(uploadedProjectMediaId&&submitButton)submitButton.innerHTML=error.code==="content_awaiting_moderation"?'<i class="fab fa-instagram mr-2"></i>Retry Instagram after approval':'<i class="fab fa-instagram mr-2"></i>Retry Instagram';
     }finally{
       submitButton&&submitButton.removeAttribute("disabled");
     }

@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 from datetime import timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 from social_publishing.instagram import (
@@ -13,6 +14,7 @@ from social_publishing.instagram import (
 )
 
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -30,6 +32,7 @@ from .models import (
 from .publisher import (
     InstagramPublicationError,
     _content_is_approved_for_distribution,
+    _prepare_publication,
     publish_uploaded_video_to_instagram,
 )
 from .oauth import (
@@ -93,6 +96,16 @@ class SocialPublishingRoleTests(SimpleTestCase):
         self.assertIn("refresh_token_encrypted", account_admin.exclude)
         self.assertIn(SocialPublicationInline, admin.site._registry[ProductVideo].inlines)
         self.assertIn(SocialPublicationInline, admin.site._registry[ServiceProjectMedia].inlines)
+
+    def test_provider_web_connection_and_retry_states_are_explicit(self):
+        template = Path(settings.BASE_DIR, "templates/installers/project_media.html").read_text()
+        self.assertIn('let instagramAccountState="loading"', template)
+        self.assertIn('connectButton.style.display=canConnect?"inline-flex":"none"', template)
+        self.assertIn('instagramAccountState==="connected"', template)
+        self.assertIn('instagramAccountState=needsReconnect?"expired":"disconnected"', template)
+        self.assertIn("Retry Instagram after approval", template)
+        self.assertIn("Retry Instagram", template)
+        self.assertIn("uploadedProjectMediaId", template)
 
 from django.test import override_settings
 
@@ -621,7 +634,32 @@ class InstagramPublicationOrchestrationTests(TestCase):
             self._publish()
 
         self.assertEqual(caught.exception.code, "instagram_not_connected")
-        self.assertFalse(SocialPublication.objects.exists())
+        publication = SocialPublication.objects.get()
+        self.assertEqual(publication.status, PublicationStatus.FAILED)
+        self.assertEqual(publication.error_code, "instagram_not_connected")
+        self.assertEqual(publication.attempt_count, 1)
+
+    def test_audit_records_support_vendor_product_video_and_provider_project_media(self):
+        from django.contrib.contenttypes.models import ContentType
+        from installers.models import ServiceProjectMedia
+        from products.models import ProductVideo
+
+        for role, model, object_id in (
+            ("vendor", ProductVideo, 7001),
+            ("provider", ServiceProjectMedia, 7002),
+        ):
+            with self.subTest(role=role, model=model.__name__):
+                publication = _prepare_publication(
+                    user=self.user,
+                    owner_role=role,
+                    account=None,
+                    content_type=ContentType.objects.get_for_model(model),
+                    object_id=object_id,
+                    share_to_feed=True,
+                )
+                self.assertEqual(publication.owner_role, role)
+                self.assertEqual(publication.status, PublicationStatus.UPLOADING)
+                self.assertEqual(publication.attempt_count, 1)
 
     @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher._content_is_approved_for_distribution", return_value=False)
@@ -637,7 +675,7 @@ class InstagramPublicationOrchestrationTests(TestCase):
 
         self.assertEqual(caught.exception.code, "content_awaiting_moderation")
         publication = SocialPublication.objects.get()
-        self.assertEqual(publication.status, PublicationStatus.FAILED)
+        self.assertEqual(publication.status, PublicationStatus.PENDING)
         self.assertEqual(publication.attempt_count, 1)
         mock_stage.assert_not_called()
 
@@ -673,11 +711,15 @@ class InstagramPublicationOrchestrationTests(TestCase):
     ):
         mock_access.return_value = SimpleNamespace(allowed=True, reason="")
         self._account()
-        mock_publish.return_value = {
-            "container_id": "container-123",
-            "media_id": "media-999",
-            "permalink": "https://www.instagram.com/reel/example/",
-        }
+        def publish_result(*_args, **_kwargs):
+            in_flight = SocialPublication.objects.get()
+            self.assertEqual(in_flight.status, PublicationStatus.PROCESSING)
+            return {
+                "container_id": "container-123",
+                "media_id": "media-999",
+                "permalink": "https://www.instagram.com/reel/example/",
+            }
+        mock_publish.side_effect = publish_result
 
         publication = self._publish()
 

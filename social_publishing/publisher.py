@@ -132,7 +132,8 @@ def _prepare_publication(*, user, owner_role, account, content_type, object_id, 
                 publication=publication,
             )
 
-        publication.social_account = account
+        if account is not None:
+            publication.social_account = account
         publication.status = PublicationStatus.UPLOADING
         publication.attempt_count += 1
         publication.last_attempt_at = timezone.now()
@@ -140,9 +141,7 @@ def _prepare_publication(*, user, owner_role, account, content_type, object_id, 
         publication.error_message = ""
         publication.request_metadata = {"share_to_feed": bool(share_to_feed)}
         publication.response_metadata = {}
-        publication.save(
-            update_fields=[
-                "social_account",
+        update_fields = [
                 "status",
                 "attempt_count",
                 "last_attempt_at",
@@ -151,8 +150,10 @@ def _prepare_publication(*, user, owner_role, account, content_type, object_id, 
                 "request_metadata",
                 "response_metadata",
                 "updated_at",
-            ]
-        )
+        ]
+        if account is not None:
+            update_fields.insert(0, "social_account")
+        publication.save(update_fields=update_fields)
     return publication
 
 
@@ -166,31 +167,37 @@ def publish_uploaded_video_to_instagram(
     """
 
     owner_role = normalize_owner_role(owner_role)
-    access = social_publishing_access(user, owner_role)
-    if not access.allowed:
-        raise InstagramPublicationError(
-            access.reason or "Social publishing is not available.",
-            code="social_publishing_access_denied",
-        )
-    if not platform_enabled(SocialPlatform.INSTAGRAM):
-        raise InstagramPublicationError(
-            "Instagram publishing is not enabled.",
-            code="instagram_publishing_disabled",
-        )
-
     content_type, object_id = _content_identity(content_object)
-    account = _connected_instagram_account(user, owner_role)
     publication = _prepare_publication(
         user=user,
         owner_role=owner_role,
-        account=account,
+        account=None,
         content_type=content_type,
         object_id=object_id,
         share_to_feed=share_to_feed,
     )
 
+    account = None
     lease = None
     try:
+        access = social_publishing_access(user, owner_role)
+        if not access.allowed:
+            raise InstagramPublicationError(
+                access.reason or "Social publishing is not available.",
+                code="social_publishing_access_denied",
+                publication=publication,
+            )
+        if not platform_enabled(SocialPlatform.INSTAGRAM):
+            raise InstagramPublicationError(
+                "Instagram publishing is not enabled.",
+                code="instagram_publishing_disabled",
+                publication=publication,
+            )
+
+        account = _connected_instagram_account(user, owner_role)
+        publication.social_account = account
+        publication.save(update_fields=["social_account", "updated_at"])
+
         if not _content_is_approved_for_distribution(content_type, content_object):
             raise InstagramPublicationError(
                 "This video is awaiting Arolana approval before external publishing.",
@@ -251,13 +258,17 @@ def publish_uploaded_video_to_instagram(
         )
         return publication
     except Exception as exc:
-        if str(getattr(exc, "error_code", "")) == "190":
+        if account is not None and str(getattr(exc, "error_code", "")) == "190":
             account.status = SocialConnectionStatus.EXPIRED
             account.last_error = "Instagram authorization expired. Reauthorization is required."
             account.save(update_fields=["status", "last_error", "updated_at"])
         safe_code = exc.code if isinstance(exc, InstagramPublicationError) else _safe_error_code(exc)
         safe_message = _safe_error_message(exc)
-        publication.status = PublicationStatus.FAILED
+        publication.status = (
+            PublicationStatus.PENDING
+            if safe_code == "content_awaiting_moderation"
+            else PublicationStatus.FAILED
+        )
         publication.error_code = safe_code
         publication.error_message = safe_message
         publication.save(
