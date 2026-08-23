@@ -1,7 +1,8 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "python -m compileall -q social_publishing arolana_config"
   },
   "deploy": {
     "startCommand": "python manage.py cleanup_expired_video_leases",
