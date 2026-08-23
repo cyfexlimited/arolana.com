@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "python manage.py collectstatic --noinput"
+  },
+  "deploy": {
+    "startCommand": "python manage.py cleanup_expired_video_leases",
+    "restartPolicyType": "NEVER"
+  }
+}
