@@ -52,6 +52,8 @@ def _safe_return_url(value):
     value = str(value or "").strip()
     if value.startswith("arolanastaffmobile://"):
         return value
+    if value.startswith("/") and not value.startswith("//"):
+        return value
     return ""
 
 

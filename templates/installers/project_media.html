@@ -157,7 +157,7 @@ document.addEventListener("DOMContentLoaded",function(){
   let uploadedProjectMediaId=null;
   if(!form||!fileInput||!checkbox)return;
 
-  function cookie(name){const value=`; ${document.cookie}`;const parts=value.split(`; ${name}=`);return parts.length===2?parts.pop().split(";").shift():"";}
+  const csrf=()=>form.querySelector('input[name="csrfmiddlewaretoken"]')?.value||"";
   function setStatus(message,type){if(!status)return;status.classList.toggle("hidden",!message);status.textContent=message||"";status.style.color=type==="error"?"#b91c1c":type==="success"?"#15803d":"#475569";}
   function selectedVideoFile(){return Array.from(fileInput.files||[]).find(file=>(file.type||"").startsWith("video/")||/\.(mp4|webm|mov|m4v)$/i.test(file.name||""))||null;}
   function refreshOptions(){
@@ -198,7 +198,7 @@ document.addEventListener("DOMContentLoaded",function(){
   async function connectInstagram(){
     connectButton.disabled=true;
     try{
-      const response=await fetch("/api/social-publishing/accounts/instagram/connect/",{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":cookie("csrftoken"),"Accept":"application/json"},body:JSON.stringify({role:"provider",return_url:window.location.href}),credentials:"same-origin"});
+      const response=await fetch("/api/social-publishing/accounts/instagram/connect/",{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrf(),"Accept":"application/json"},body:JSON.stringify({role:"provider",return_url:window.location.pathname}),credentials:"same-origin"});
       const data=await response.json();
       if(!response.ok||!data.authorization_url)throw new Error();
       window.location.assign(data.authorization_url);
@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded",function(){
     body.append("caption",caption?caption.value:"");
     body.append("share_to_feed",shareToFeed&&shareToFeed.checked?"true":"false");
     setStatus("Publishing Reel to Instagram...","info");
-    const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":cookie("csrftoken"),"Accept":"application/json"},body,credentials:"same-origin"});
+    const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":csrf(),"Accept":"application/json"},body,credentials:"same-origin"});
     const data=await response.json();
     if(!response.ok){const error=new Error("Instagram publishing failed.");error.code=data.error_code||"instagram_publish_failed";throw error;}
     if(data.status==="pending"){setStatus("YouTube: Published. Instagram: Pending Arolana approval.","info");return data;}
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded",function(){
     try{
       let mediaId=uploadedProjectMediaId;
       if(!mediaId){
-        const response=await fetch(window.location.href,{method:"POST",headers:{"X-CSRFToken":cookie("csrftoken"),"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData(form),credentials:"same-origin"});
+        const response=await fetch(window.location.href,{method:"POST",headers:{"X-CSRFToken":csrf(),"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData(form),credentials:"same-origin"});
         const data=await response.json();
         if(!response.ok||data.success===false)throw new Error(data.message||"Project media upload failed.");
         const videoMedia=(data.media||[]).find(item=>item.media_type==="video");

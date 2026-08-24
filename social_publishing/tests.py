@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlparse
 
 from social_publishing.instagram import (
     InstagramPublishingError,
@@ -15,6 +16,7 @@ from social_publishing.instagram import (
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
@@ -110,6 +112,10 @@ class SocialPublishingRoleTests(SimpleTestCase):
         self.assertIn("Pending Arolana approval", template)
         self.assertIn("Retry Instagram", template)
         self.assertIn("uploadedProjectMediaId", template)
+        self.assertIn("form.querySelector('input[name=\"csrfmiddlewaretoken\"]')", template)
+        self.assertNotIn('cookie("csrftoken")', template)
+        self.assertIn('role:"provider"', template)
+        self.assertIn('credentials:"same-origin"', template)
 
 from django.test import override_settings
 
@@ -234,6 +240,185 @@ class InstagramOAuthTokenLifecycleTests(TestCase):
             INSTAGRAM_LONG_LIVED_TOKEN_KIND,
         )
         mock_long_lived.assert_called_once_with("short-lived-token")
+
+
+@override_settings(
+    SOCIAL_PUBLISHING_ENABLED=True,
+    SOCIAL_PUBLISHING_INSTAGRAM_ENABLED=True,
+    SOCIAL_PUBLISHING_INSTAGRAM_APP_ID="provider-instagram-app",
+    SOCIAL_PUBLISHING_INSTAGRAM_APP_SECRET="provider-instagram-secret",
+    SOCIAL_PUBLISHING_INSTAGRAM_SCOPES="instagram_business_basic,instagram_business_content_publish",
+)
+class ProviderInstagramReconnectTests(TestCase):
+    def setUp(self):
+        from installers.models import ServiceProviderProfile
+
+        self.user = get_user_model().objects.create_user(
+            username="expired-instagram-provider",
+            email="expired-provider@example.com",
+            password="test-password",
+        )
+        ServiceProviderProfile.objects.create(
+            user=self.user,
+            business_name="Expired Instagram Provider",
+            contact_person="Provider Owner",
+            provider_type="installer",
+            phone_number="+2348000000299",
+            email="expired-provider@example.com",
+            country="Nigeria",
+            state="Lagos",
+            city="Ikeja",
+            address="1 Reconnect Road",
+            description="Provider reconnect fixture.",
+            verification_status=ServiceProviderProfile.STATUS_APPROVED,
+            subscription_status="active",
+            subscription_plan="enterprise",
+            is_active=True,
+        )
+        self.account = SocialAccount.objects.create(
+            user=self.user,
+            owner_role="provider",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.EXPIRED,
+            external_account_id="27349604818046482",
+            access_token_encrypted="expired-encrypted-token",
+            last_error="Instagram authorization expired. Reauthorization is required.",
+        )
+        self.connect_url = reverse(
+            "social_publishing:account_connect_launch",
+            kwargs={"platform": "instagram"},
+        )
+
+    @patch("social_publishing.api_views.social_publishing_access")
+    def test_expired_provider_web_account_can_launch_reauthorization(self, mock_access):
+        mock_access.return_value = SimpleNamespace(
+            allowed=True, tier="enterprise", reason=""
+        )
+        client = APIClient()
+        client.force_authenticate(self.user)
+
+        response = client.post(
+            self.connect_url,
+            {
+                "role": "provider",
+                "return_url": "/dashboard/provider/projects/1/media/",
+            },
+            format="json",
+            secure=True,
+            HTTP_HOST="arolana.com",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["role"], "provider")
+        authorization_url = response.data["authorization_url"]
+        launch = parse_qs(urlparse(authorization_url).query)["launch"][0]
+        payload = signing.loads(
+            launch,
+            salt="arolana.social-publishing.launch.v1",
+            max_age=600,
+        )
+        self.assertEqual(payload["user_id"], self.user.pk)
+        self.assertEqual(payload["role"], "provider")
+        self.assertEqual(payload["return_url"], "/dashboard/provider/projects/1/media/")
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.status, SocialConnectionStatus.EXPIRED)
+
+    @patch("social_publishing.api_views.social_publishing_access")
+    def test_expired_provider_staff_mobile_account_uses_role_bound_launch(self, mock_access):
+        mock_access.return_value = SimpleNamespace(
+            allowed=True, tier="enterprise", reason=""
+        )
+        mobile_session = StaffMobileToken.issue("provider", user=self.user)
+        client = APIClient()
+
+        response = client.post(
+            self.connect_url,
+            {
+                "role": "provider",
+                "return_url": "arolanastaffmobile://social-accounts",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {mobile_session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        launch = parse_qs(urlparse(response.data["authorization_url"]).query)["launch"][0]
+        payload = signing.loads(
+            launch,
+            salt="arolana.social-publishing.launch.v1",
+            max_age=600,
+        )
+        self.assertEqual(payload["role"], "provider")
+        self.assertEqual(payload["return_url"], "arolanastaffmobile://social-accounts")
+
+    @patch("social_publishing.web_views.resolve_identity")
+    @patch("social_publishing.web_views.exchange_instagram_long_lived_token")
+    @patch("social_publishing.web_views.exchange_code")
+    def test_provider_callback_reconnects_existing_expired_account_only(
+        self, mock_exchange_code, mock_long_lived, mock_identity
+    ):
+        mock_exchange_code.return_value = {
+            "access_token": "new-short-lived-token",
+            "user_id": self.account.external_account_id,
+        }
+        mock_long_lived.return_value = {
+            "access_token": "new-long-lived-token",
+            "expires_in": 5184000,
+            "token_type": "bearer",
+        }
+        mock_identity.return_value = {
+            "external_account_id": self.account.external_account_id,
+            "account_name": "Provider Instagram",
+            "account_username": "provider_instagram",
+            "platform_metadata": {},
+        }
+        client = APIClient()
+        session = client.session
+        session["social_oauth"] = {
+            "state": "provider-safe-state",
+            "user_id": self.user.pk,
+            "role": "provider",
+            "platform": "instagram",
+            "return_url": "/dashboard/provider/projects/1/media/",
+        }
+        session.save()
+
+        response = client.get(
+            reverse(
+                "social_publishing_web:oauth_callback",
+                kwargs={"platform": "instagram"},
+            ),
+            {"state": "provider-safe-state", "code": "authorization-code"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/dashboard/provider/projects/1/media/?status=connected&platform=instagram")
+        account = SocialAccount.objects.get(pk=self.account.pk)
+        self.assertEqual(account.status, SocialConnectionStatus.CONNECTED)
+        self.assertEqual(account.owner_role, "provider")
+        self.assertEqual(account.user_id, self.user.pk)
+        self.assertEqual(
+            SocialAccount.objects.filter(
+                user=self.user, platform="instagram", owner_role="provider"
+            ).count(),
+            1,
+        )
+        self.assertFalse(
+            SocialAccount.objects.filter(
+                user=self.user, platform="instagram", owner_role="vendor"
+            ).exists()
+        )
+        mock_long_lived.assert_called_once_with("new-short-lived-token")
+
+
+class InstagramOAuthTokenRefreshLifecycleTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="instagram-refresh-admin",
+            email="instagram-refresh-admin@example.com",
+            password="test-password",
+            is_staff=True,
+        )
 
     @patch("social_publishing.oauth.refresh_instagram_long_lived_token")
     def test_approaching_expiry_refreshes_and_persists_token(self, mock_refresh):
