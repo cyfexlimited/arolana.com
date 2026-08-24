@@ -50,6 +50,7 @@ from .models import (
 from subscriptions.lifecycle import get_effective_subscription, official_plans
 from .project_services import (
     ProjectEntitlementService,
+    create_provider_instagram_publication_intent,
     group_project_gallery_media,
     notify_project_submitted,
     record_project_event,
@@ -2772,7 +2773,9 @@ def provider_project_media(
                     first_image = True
                     thumbnail_used = False
                     created = []
+                    instagram_source = None
                     publish_youtube = str(request.POST.get("publish_youtube") or "").lower() in {"1", "true", "on", "yes"}
+                    publish_instagram = str(request.POST.get("publish_instagram") or "").lower() in {"1", "true", "on", "yes"}
 
                     with transaction.atomic():
                         for upload, media_type in classified_files:
@@ -2826,6 +2829,12 @@ def provider_project_media(
                                 media.document = upload
                             media.save()
                             created.append(media)
+                            if (
+                                publish_instagram
+                                and media_type == ServiceProjectMedia.TYPE_VIDEO
+                                and instagram_source is None
+                            ):
+                                instagram_source = (media, upload)
                             next_order += 1
 
                         if external_video_url:
@@ -2844,6 +2853,19 @@ def provider_project_media(
                                 external_media.thumbnail = thumbnail
                             external_media.save()
                             created.append(external_media)
+
+                    instagram_publication = None
+                    if instagram_source is not None:
+                        instagram_media, instagram_upload = instagram_source
+                        instagram_publication = create_provider_instagram_publication_intent(
+                            user=request.user,
+                            media=instagram_media,
+                            uploaded_file=instagram_upload,
+                            caption=request.POST.get("instagram_caption", ""),
+                            share_to_feed=str(
+                                request.POST.get("instagram_share_to_feed") or ""
+                            ).lower() in {"1", "true", "on", "yes"},
+                        )
 
                 except ValidationError as exc:
                     _show_validation_errors(
@@ -2881,6 +2903,7 @@ def provider_project_media(
                                     }
                                     for item in created
                                 ],
+                                "instagram_publication": instagram_publication,
                             },
                             status=201,
                         )

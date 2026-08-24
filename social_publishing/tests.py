@@ -1006,6 +1006,86 @@ class InstagramPublicationOrchestrationTests(TestCase):
         self.assertEqual(media.approval_status, ServiceProjectMedia.STATUS_APPROVED)
         mock_release.assert_called_once()
 
+    @patch("social_publishing.publisher.cleanup_video_lease")
+    @patch("social_publishing.publisher.publish_reel")
+    @patch(
+        "social_publishing.publisher.get_video_delivery_url",
+        return_value="https://media.example/provider-source.mp4",
+    )
+    @patch("social_publishing.publisher._connected_instagram_account")
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_provider_approval_releases_existing_pending_media_publication(
+        self, mock_access, mock_account, _mock_url, mock_publish, _mock_cleanup
+    ):
+        from datetime import date
+        from installers.models import (
+            ServiceCategory,
+            ServicePortfolio,
+            ServiceProjectMedia,
+            ServiceProviderProfile,
+        )
+        from installers.project_services import moderate_project
+
+        provider_user = get_user_model().objects.create_user(
+            username="intent-release-provider", email="intent-release@example.com"
+        )
+        reviewer = get_user_model().objects.create_user(
+            username="intent-release-reviewer", email="intent-reviewer@example.com", is_staff=True
+        )
+        provider = ServiceProviderProfile.objects.create(
+            user=provider_user, business_name="Intent Release Provider", contact_person="Owner",
+            provider_type="installer", phone_number="+2348000000199",
+            email="intent-release@example.com", country="Nigeria", state="Lagos",
+            city="Ikeja", address="1 Intent Road", description="Provider",
+            verification_status=ServiceProviderProfile.STATUS_APPROVED,
+            subscription_status="active", subscription_plan="Plus", is_active=True,
+        )
+        category = ServiceCategory.objects.create(name="Intent Release Service")
+        project = ServicePortfolio.objects.create(
+            provider=provider, title="Intent release project", short_summary="Summary",
+            description="Description", service_category=category, city="Ikeja", state="Lagos",
+            country="Nigeria", completed_at=date.today(), project_result="Complete",
+            approval_status=ServicePortfolio.STATUS_PENDING,
+        )
+        media = ServiceProjectMedia.objects.create(
+            project=project, media_type=ServiceProjectMedia.TYPE_VIDEO,
+            external_video_url="https://youtu.be/provider-release",
+            approval_status=ServiceProjectMedia.STATUS_PENDING,
+        )
+        account = SocialAccount.objects.create(
+            user=provider_user, owner_role="provider", platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="provider-release", access_token_encrypted="encrypted",
+        )
+        publication = SocialPublication.objects.create(
+            owner_user=provider_user, owner_role="provider", social_account=account,
+            platform=SocialPlatform.INSTAGRAM, content_object=media,
+            status=PublicationStatus.PENDING,
+            deferred_video_lease=TemporaryVideoLease.objects.create(
+                owner_user=provider_user, owner_role="provider",
+                storage_key="provider-release/source.mp4", original_filename="source.mp4",
+                expires_at=timezone.now() + timedelta(days=1),
+            ),
+            request_metadata={"caption": "Provider proof", "share_to_feed": True},
+        )
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_account.return_value = account
+        mock_publish.return_value = {
+            "media_id": "released-provider-media",
+            "permalink": "https://www.instagram.com/reel/released-provider-media/",
+        }
+
+        with patch("installers.project_services.Notification.send"), patch(
+            "installers.project_services.safe_project_email"
+        ), self.captureOnCommitCallbacks(execute=True):
+            moderate_project(project, ServicePortfolio.STATUS_APPROVED, reviewer)
+
+        media.refresh_from_db()
+        publication.refresh_from_db()
+        self.assertEqual(media.approval_status, ServiceProjectMedia.STATUS_APPROVED)
+        self.assertEqual(publication.status, PublicationStatus.PUBLISHED)
+        self.assertEqual(publication.external_id, "released-provider-media")
+
     @patch("social_publishing.publisher.stage_video_for_social")
     @patch("social_publishing.publisher.social_publishing_access")
     def test_already_published_content_is_not_published_again(self, mock_access, mock_stage):

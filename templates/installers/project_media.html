@@ -59,14 +59,14 @@
           <span class="rounded-full bg-green-100 px-2 py-1 text-[10px] font-black uppercase text-green-700">Selected</span>
         </div>
         <label class="flex items-center gap-3 normal-case">
-          <input type="checkbox" id="publishProviderVideoToInstagram" class="w-auto">
+          <input type="checkbox" id="publishProviderVideoToInstagram" name="publish_instagram" value="true" class="w-auto">
           <strong>Instagram <small class="block text-xs text-slate-500">Optional Reel destination for one selected video file</small></strong>
         </label>
         <p id="providerInstagramConnectionStatus" class="mt-2 text-xs font-bold text-slate-500">Checking Instagram connection...</p>
         <div id="providerInstagramOptions" class="mt-3 hidden">
-          <label><span>Instagram caption</span><textarea id="providerInstagramCaption" rows="4" maxlength="2200" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" placeholder="Write an Instagram caption for this Reel..."></textarea></label>
+          <label><span>Instagram caption</span><textarea id="providerInstagramCaption" name="instagram_caption" rows="4" maxlength="2200" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" placeholder="Write an Instagram caption for this Reel..."></textarea></label>
           <div class="mt-1 flex justify-between gap-3 text-xs font-bold text-slate-500"><span>Maximum 2,200 characters.</span><span id="providerInstagramCaptionCount">0 / 2200</span></div>
-          <label class="mt-3 flex items-center gap-3 normal-case"><input type="checkbox" id="providerInstagramShareToFeed" class="w-auto" checked><strong>Share Reel to Instagram feed</strong></label>
+          <label class="mt-3 flex items-center gap-3 normal-case"><input type="checkbox" id="providerInstagramShareToFeed" name="instagram_share_to_feed" value="true" class="w-auto" checked><strong>Share Reel to Instagram feed</strong></label>
         </div>
         <button type="button" id="connectProviderInstagram" class="provider-button soft mt-3" style="display:none"><i class="fab fa-instagram mr-2"></i>Connect Instagram</button>
         <p id="providerInstagramPublishStatus" class="mt-3 hidden text-sm font-bold"></p>
@@ -263,6 +263,15 @@ document.addEventListener("DOMContentLoaded",function(){
         if(!videoMedia||!videoMedia.id)throw new Error("Project video upload could not be completed.");
         mediaId=videoMedia.id;
         uploadedProjectMediaId=mediaId;
+        if(data.instagram_publication){
+          const publication=data.instagram_publication;
+          if(publication.status==="failed")throw new Error("Instagram publishing failed.");
+          uploadedProjectMediaId=null;
+          if(publication.status==="pending"){setStatus("YouTube: Published. Instagram: Pending Arolana approval.","info");if(submitButton)submitButton.innerHTML='<i class="fas fa-clock mr-2"></i>Pending approval';return;}
+          showPermalink(publication.instagram_permalink||"");
+          if(submitButton)submitButton.innerHTML='<i class="fas fa-check mr-2"></i>Published';
+          return;
+        }
       }
       setStatus("Project video uploaded. Publishing to Instagram...","info");
       const publication=await publishInstagram(videoFile,mediaId);

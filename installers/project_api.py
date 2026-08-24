@@ -29,6 +29,7 @@ from .models import (
 )
 from .project_services import (
     ProjectEntitlementService,
+    create_provider_instagram_publication_intent,
     moderate_project,
     notify_project_submitted,
     record_project_event,
@@ -516,6 +517,8 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
 
         created = []
         publish_youtube = str(request.data.get("publish_youtube") or "").lower() in {"1", "true", "on", "yes"}
+        publish_instagram = _truthy(request.data.get("publish_instagram"))
+        instagram_source = None
         try:
             with transaction.atomic():
                 for index, (upload, media_type) in enumerate(classified):
@@ -571,6 +574,12 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
                         media.document = upload
                     media.save()
                     created.append(media)
+                    if (
+                        publish_instagram
+                        and media_type == ServiceProjectMedia.TYPE_VIDEO
+                        and instagram_source is None
+                    ):
+                        instagram_source = (media, upload)
 
                 if external_video_url:
                     media = ServiceProjectMedia(
@@ -592,9 +601,21 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
             detail = getattr(exc, "message_dict", None) or getattr(exc, "messages", None) or str(exc)
             return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
 
+        instagram_publication = None
+        if instagram_source is not None:
+            instagram_media, instagram_upload = instagram_source
+            instagram_publication = create_provider_instagram_publication_intent(
+                user=provider.user,
+                media=instagram_media,
+                uploaded_file=instagram_upload,
+                caption=request.data.get("instagram_caption", ""),
+                share_to_feed=_truthy(request.data.get("instagram_share_to_feed")),
+            )
+
         return Response({
             "message": f"{len(created)} project media item{'s' if len(created) != 1 else ''} uploaded for review.",
             "media": ServiceProjectMediaSerializer(created, many=True, context={"request": request}).data,
+            "instagram_publication": instagram_publication,
             "entitlements": service.payload(),
         }, status=status.HTTP_201_CREATED)
 

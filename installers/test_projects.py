@@ -1,4 +1,5 @@
 from datetime import date
+from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
 import shutil
@@ -6,12 +7,14 @@ import subprocess
 import tempfile
 from unittest import skipUnless
 from unittest.mock import patch
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from .models import (
@@ -31,6 +34,14 @@ from .project_video_processing import (
     ensure_legacy_project_video_media,
     process_project_video,
 )
+from social_publishing.models import (
+    SocialAccount,
+    SocialConnectionStatus,
+    SocialPlatform,
+    SocialPublication,
+    TemporaryVideoLease,
+)
+from staff_mobile.models import StaffMobileToken
 
 
 User = get_user_model()
@@ -472,6 +483,113 @@ class ProjectNetworkTests(TestCase):
         self.assertTrue(payload["success"])
         self.assertEqual(payload["media"][0]["media_type"], ServiceProjectMedia.TYPE_VIDEO)
         self.assertTrue(payload["media"][0]["id"])
+
+    def _instagram_account_and_lease(self, suffix):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="provider",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id=f"provider-instagram-{suffix}",
+            access_token_encrypted="encrypted-test-token",
+        )
+        return TemporaryVideoLease.objects.create(
+            owner_user=self.user,
+            owner_role="provider",
+            storage_key=f"provider-intents/{suffix}.mp4",
+            original_filename=f"{suffix}.mp4",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+
+    @override_settings(
+        SOCIAL_PUBLISHING_ENABLED=True,
+        SOCIAL_PUBLISHING_INSTAGRAM_ENABLED=True,
+    )
+    @patch("social_publishing.publisher.stage_video_for_social")
+    @patch("social_publishing.publisher.social_publishing_access")
+    @patch("installers.views.youtube_upload_video")
+    def test_provider_web_primary_upload_creates_instagram_intent(
+        self, youtube_upload, publishing_access, stage_video
+    ):
+        lease = self._instagram_account_and_lease("web")
+        publishing_access.return_value = SimpleNamespace(allowed=True, reason="")
+
+        def consume_youtube(upload, **_kwargs):
+            upload.read()
+            return {"id": "provider-web", "url": "https://youtu.be/provider-web"}
+
+        youtube_upload.side_effect = consume_youtube
+        stage_video.side_effect = lambda **kwargs: (
+            self.assertEqual(kwargs["uploaded_file"].tell(), 0) or lease
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("provider_workspace:project_media", args=[self.project.id]),
+            {
+                "action": "upload",
+                "stage": ServiceProjectMedia.STAGE_GENERAL,
+                "publish_youtube": "true",
+                "publish_instagram": "true",
+                "instagram_caption": "Provider web Reel",
+                "instagram_share_to_feed": "true",
+                "files": tiny_mp4("provider-web-intent.mp4"),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        media_id = response.json()["media"][0]["id"]
+        publication = SocialPublication.objects.get(
+            owner_role="provider", content_type__app_label="installers",
+            content_type__model="serviceprojectmedia", object_id=media_id,
+        )
+        self.assertEqual(publication.status, "pending")
+        self.assertEqual(publication.deferred_video_lease, lease)
+        self.assertEqual(response.json()["instagram_publication"]["publication_id"], publication.id)
+
+    @override_settings(
+        SOCIAL_PUBLISHING_ENABLED=True,
+        SOCIAL_PUBLISHING_INSTAGRAM_ENABLED=True,
+    )
+    @patch("social_publishing.publisher.stage_video_for_social")
+    @patch("social_publishing.publisher.social_publishing_access")
+    @patch("installers.project_api.youtube_upload_video")
+    def test_provider_staff_mobile_primary_upload_creates_same_instagram_intent(
+        self, youtube_upload, publishing_access, stage_video
+    ):
+        lease = self._instagram_account_and_lease("mobile")
+        publishing_access.return_value = SimpleNamespace(allowed=True, reason="")
+        youtube_upload.side_effect = lambda upload, **_kwargs: (
+            upload.read() and {"id": "provider-mobile", "url": "https://youtu.be/provider-mobile"}
+        )
+        stage_video.return_value = lease
+        session = StaffMobileToken.issue("provider", user=self.user)
+
+        response = self.client.post(
+            reverse("provider_api:provider_project_media", args=[self.project.id]),
+            {
+                "media_type": ServiceProjectMedia.TYPE_VIDEO,
+                "publish_youtube": "true",
+                "publish_instagram": "true",
+                "instagram_caption": "Provider app Reel",
+                "instagram_share_to_feed": "false",
+                "video": tiny_mp4("provider-mobile-intent.mp4"),
+            },
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        media_id = response.json()["media"][0]["id"]
+        publication = SocialPublication.objects.get(
+            owner_role="provider", content_type__app_label="installers",
+            content_type__model="serviceprojectmedia", object_id=media_id,
+        )
+        self.assertEqual(publication.status, "pending")
+        self.assertFalse(publication.request_metadata["share_to_feed"])
+        self.assertEqual(response.json()["instagram_publication"]["publication_id"], publication.id)
 
     def test_provider_media_page_separates_video_source_from_destinations(self):
         self.client.force_login(self.user)

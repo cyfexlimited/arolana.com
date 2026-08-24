@@ -839,3 +839,58 @@ def moderate_project(project, new_status, actor=None, notes=""):
         [project.provider.email, project.provider.user.email],
     )
     return project
+
+def create_provider_instagram_publication_intent(
+    *, user, media, uploaded_file, caption="", share_to_feed=True
+):
+    """Create the provider's Instagram intent while upload bytes still exist.
+
+    The primary ServiceProjectMedia row is already durable when this is called.
+    A failed Instagram handoff is therefore reported separately and can never
+    undo the successful YouTube upload.
+    """
+    from social_publishing.publisher import (
+        InstagramPublicationError,
+        publish_uploaded_video_to_instagram,
+    )
+
+    try:
+        if hasattr(uploaded_file, "seek"):
+            uploaded_file.seek(0)
+        publication = publish_uploaded_video_to_instagram(
+            user=user,
+            owner_role="provider",
+            content_object=media,
+            uploaded_file=uploaded_file,
+            caption=str(caption or "")[:2200],
+            share_to_feed=bool(share_to_feed),
+        )
+    except InstagramPublicationError as exc:
+        publication = exc.publication
+        return {
+            "publication_id": publication.pk if publication else None,
+            "status": publication.status if publication else "failed",
+            "instagram_media_id": publication.external_id if publication else "",
+            "instagram_permalink": publication.external_url if publication else "",
+            "error_code": exc.code or "instagram_publish_failed",
+        }
+    except Exception as exc:
+        logger.error(
+            "Provider Instagram intent handoff failed media_id=%s exception_class=%s",
+            media.pk,
+            exc.__class__.__name__,
+        )
+        return {
+            "publication_id": None,
+            "status": "failed",
+            "instagram_media_id": "",
+            "instagram_permalink": "",
+            "error_code": "instagram_publish_failed",
+        }
+    return {
+        "publication_id": publication.pk,
+        "status": publication.status,
+        "instagram_media_id": publication.external_id or "",
+        "instagram_permalink": publication.external_url or "",
+        "error_code": "",
+    }
