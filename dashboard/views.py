@@ -1568,12 +1568,16 @@ def vendor_product_detail(request, product_id):
                 else:
                     messages.warning(request, 'Your current subscription does not allow PDF brochure/manual upload. Upgrade your plan to add PDF files.')
 
-            video_type = request.POST.get('video_type')
-            if video_type and video_type != 'none' and not subscription_limits.get('can_upload_video'):
+            # Video replacement is an explicit, separate action in the edit
+            # UI. Metadata-only edits must not clear or republish the current
+            # video merely because no video fields were submitted.
+            video_type_submitted = 'video_type' in request.POST
+            video_type = request.POST.get('video_type') if video_type_submitted else None
+            if video_type_submitted and video_type and video_type != 'none' and not subscription_limits.get('can_upload_video'):
                 messages.warning(request, 'Your current subscription does not allow product video upload. Upgrade your plan to add videos.')
                 product.video_type = ''
                 product.video_url = ''
-            else:
+            elif video_type_submitted:
                 if video_type == 'youtube':
                     product.video_type = 'youtube'
                     product.video_url = request.POST.get('youtube_url', '').strip()
@@ -1670,6 +1674,36 @@ def vendor_product_detail(request, product_id):
     product_images = product.images.all()
     variants = product.variants.filter(is_active=True)
     reviews = product.reviews.filter(is_active=True)
+    from django.contrib.contenttypes.models import ContentType
+    from social_publishing.models import SocialPlatform, SocialPublication
+
+    product_video_type = ContentType.objects.get_for_model(ProductVideo, for_concrete_model=False)
+    product_video_ids = list(product.additional_videos.values_list('id', flat=True))
+    instagram_publications = list(
+        SocialPublication.objects.filter(
+            owner_user=request.user,
+            owner_role='vendor',
+            platform=SocialPlatform.INSTAGRAM,
+            content_type=product_video_type,
+            object_id__in=product_video_ids,
+        ).order_by('-updated_at')
+    )
+    from urllib.parse import urlparse
+    instagram_publication_rows = []
+    for publication in instagram_publications:
+        parsed = urlparse(publication.external_url or '')
+        hostname = (parsed.hostname or '').lower()
+        safe_permalink = (
+            publication.external_url
+            if parsed.scheme == 'https'
+            and (hostname == 'instagram.com' or hostname.endswith('.instagram.com'))
+            else ''
+        )
+        instagram_publication_rows.append({
+            'object_id': publication.object_id,
+            'status_label': publication.get_status_display(),
+            'permalink': safe_permalink,
+        })
     
     context = {
         'product': product,
@@ -1679,6 +1713,7 @@ def vendor_product_detail(request, product_id):
         'product_images': product_images,
         'variants': variants,
         'reviews': reviews,
+        'instagram_publications': instagram_publication_rows,
         'total_reviews': reviews.count(),
         'avg_rating': reviews.aggregate(avg=Avg('rating'))['avg'] or 0,
         'subscription_limits': user_subscription_limits(request.user),

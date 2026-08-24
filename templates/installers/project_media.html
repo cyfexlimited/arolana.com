@@ -1,5 +1,5 @@
 {% extends "installers/workspace/base.html" %}
-{% load optimized_images %}
+{% load optimized_images static %}
 {% block title %}Project media | {{ project.title }}{% endblock %}
 {% block workspace_content %}
 <style>
@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded",function(){
   input.addEventListener("change",render);
 });
 </script>
+<script src="{% static 'js/arolana-publishing-progress.js' %}"></script>
 <script>
 document.addEventListener("DOMContentLoaded",function(){
   const form=document.getElementById("providerProjectMediaForm");
@@ -156,6 +157,7 @@ document.addEventListener("DOMContentLoaded",function(){
   let instagramAccountState="loading";
   let uploadedProjectMediaId=null;
   let uploadInFlight=false;
+  const progress=window.ArolanaPublishingProgress&&window.ArolanaPublishingProgress.mount({container:form,title:"Uploading project media",successTitle:"Project media saved"});
   if(!form||!fileInput||!checkbox)return;
 
   const csrf=()=>form.querySelector('input[name="csrfmiddlewaretoken"]')?.value||"";
@@ -253,7 +255,7 @@ document.addEventListener("DOMContentLoaded",function(){
   form.addEventListener("submit",async function(event){
     if(uploadInFlight){event.preventDefault();return;}
     if(!checkbox.checked&&uploadedProjectMediaId){event.preventDefault();setStatus("YouTube: Published. Select Instagram to retry the retained publication without another upload.","error");return;}
-    if(!checkbox.checked)return;
+    if(!checkbox.checked){progress&&progress.start("Preparing project media…");return;}
     event.preventDefault();
     const videoFile=selectedVideoFile();
     if(instagramAccountState!=="connected"){setStatus(instagramAccountState==="expired"?"Reconnect Instagram before publishing this video.":"Connect Instagram before publishing this video.","error");refreshOptions();return;}
@@ -261,6 +263,7 @@ document.addEventListener("DOMContentLoaded",function(){
     const submitButton=form.querySelector("button[type=submit]");
     uploadInFlight=true;
     submitButton&&submitButton.setAttribute("disabled","disabled");
+    progress&&progress.start(uploadedProjectMediaId?"Preparing Instagram publication…":"Preparing project media…");
     setStatus("Uploading project video to Arolana...","info");
     try{
       let mediaId=uploadedProjectMediaId;
@@ -274,22 +277,27 @@ document.addEventListener("DOMContentLoaded",function(){
         if(!videoMedia||!videoMedia.id)throw new Error("Project video upload could not be completed.");
         mediaId=videoMedia.id;
         uploadedProjectMediaId=mediaId;
+        progress&&progress.update("YouTube upload complete.");
         if(data.instagram_publication){
           const publication=data.instagram_publication;
           if(publication.status==="failed")throw new Error("Instagram publishing failed.");
           uploadedProjectMediaId=null;
-          if(publication.status==="pending"){setStatus("YouTube: Published. Instagram: Pending Arolana approval.","info");if(submitButton)submitButton.innerHTML='<i class="fas fa-clock mr-2"></i>Pending approval';return;}
+          if(publication.status==="pending"){setStatus("YouTube: Published. Instagram: Pending Arolana approval.","info");progress&&progress.finish("YouTube complete. Instagram is pending Arolana approval.");if(submitButton)submitButton.innerHTML='<i class="fas fa-clock mr-2"></i>Pending approval';return;}
           showPermalink(publication.instagram_permalink||"");
+          progress&&progress.finish("YouTube and Instagram publishing completed.");
           if(submitButton)submitButton.innerHTML='<i class="fas fa-check mr-2"></i>Published';
           return;
         }
       }
-      setStatus("Project video uploaded. Publishing to Instagram...","info");
+      progress&&progress.update("Preparing Instagram publication…");
+      setStatus("Project video uploaded. Preparing Instagram publication...","info");
       const publication=await publishInstagram(videoFile,mediaId);
       uploadedProjectMediaId=null;
+      progress&&progress.finish(publication.status==="pending"?"YouTube complete. Instagram is pending Arolana approval.":"YouTube and Instagram publishing completed.");
       if(submitButton)submitButton.innerHTML=publication.status==="pending"?'<i class="fas fa-clock mr-2"></i>Pending approval':'<i class="fas fa-check mr-2"></i>Published';
     }catch(error){
       setStatus(uploadedProjectMediaId?"YouTube: Published. Instagram: Failed — retry will not upload YouTube again.":(error.message||"Video publishing failed."),"error");
+      progress&&progress.fail(uploadedProjectMediaId?"YouTube is published. Instagram preparation failed; retry uses the saved media.":"Project media could not be uploaded.");
       if(uploadedProjectMediaId&&submitButton)submitButton.innerHTML='<i class="fab fa-instagram mr-2"></i>Retry Instagram';
     }finally{
       uploadInFlight=false;

@@ -11149,6 +11149,26 @@ def _product_video_payload(video):
             return field.url if field else ""
         except Exception:
             return ""
+    publication_payload = None
+    if vendor and getattr(vendor, "user_id", None):
+        from django.contrib.contenttypes.models import ContentType
+        from social_publishing.models import SocialPlatform, SocialPublication
+
+        content_type = ContentType.objects.get_for_model(ProductVideo, for_concrete_model=False)
+        publication = SocialPublication.objects.filter(
+            owner_user_id=vendor.user_id,
+            owner_role="vendor",
+            platform=SocialPlatform.INSTAGRAM,
+            content_type=content_type,
+            object_id=video.pk,
+        ).first()
+        if publication:
+            publication_payload = {
+                "id": publication.pk,
+                "status": publication.status,
+                "instagram_permalink": publication.external_url,
+                "error_code": publication.error_code,
+            }
     return {
         "id": video.id, "title": video.title or product.name, "description": video.description,
         "source": video.source,
@@ -11163,6 +11183,7 @@ def _product_video_payload(video):
         "comment_count": ProductVideoComment.objects.filter(video=video, is_visible=True).count(),
         "vendor_name": getattr(vendor, "store_name", "") if vendor else "",
         "product": {"id": product.id, "name": product.name, "slug": product.slug, "price": str(product.price), "image": media_url(product.main_image)},
+        "instagram_publication": publication_payload,
     }
 
 @require_GET
@@ -12302,7 +12323,10 @@ def vendor_product_videos_api(request):
     if not limits.get("can_upload_video"):
         return JsonResponse({"success": False, "message": "Your current subscription does not include product video uploads. Upgrade to a video-enabled plan."}, status=403)
     product_id = request.POST.get("product_id")
-    product = get_object_or_404(Product, pk=product_id, vendor=request.user, is_active=True, approval_status="approved")
+    # The edit workspace is also available while a product is back in review.
+    # Ownership, rather than its current moderation state, is the security
+    # boundary for attaching a newly selected replacement video.
+    product = get_object_or_404(Product, pk=product_id, vendor=request.user)
     upload = request.FILES.get("video")
     if not upload:
         return JsonResponse({"success": False, "message": "Choose a video to upload."}, status=400)
@@ -12323,15 +12347,16 @@ def vendor_product_videos_api(request):
         return JsonResponse({"success": False, "message": f"YouTube upload failed: {exc}"}, status=502)
     video = ProductVideo.objects.create(
         product=product,
+        vendor=profile,
         title=title,
         description=request.POST.get("description", ""),
         source="youtube",
         youtube_url=yt["url"],
         youtube_video_id=yt["id"],
         youtube_visibility=visibility,
-        moderation_status="approved",
-        approved_by=request.user,
-        approved_at=timezone.now(),
+        moderation_status="pending",
+        approved_by=None,
+        approved_at=None,
         is_active=True,
     )
     return JsonResponse({"success": True, "message": "Video uploaded to YouTube and submitted for Arolana review.", "video": _product_video_payload(video)}, status=201)

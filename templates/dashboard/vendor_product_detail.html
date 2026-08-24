@@ -716,7 +716,7 @@
                     </div>
                 </div>
 
-                <div class="vendor-edit-panel-body">
+                <div class="vendor-edit-panel-body" id="productVideoPublishingWorkspace">
 
                     {% if product.video_type == 'youtube' and product.video_url %}
                     <div class="vendor-video-preview">
@@ -735,6 +735,19 @@
                         <p class="vendor-video-note">
                             YouTube: {{ product.video_url }}
                         </p>
+                    </div>
+                    {% endif %}
+
+                    {% if instagram_publications %}
+                    <div class="vendor-plan-card" style="margin-bottom:16px;">
+                        <strong class="vendor-edit-label">Existing Instagram publication</strong>
+                        {% for publication in instagram_publications %}
+                        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;">
+                            <span>Product video #{{ publication.object_id }}</span>
+                            <strong>{{ publication.status_label }}</strong>
+                            {% if publication.permalink %}<a href="{{ publication.permalink }}" target="_blank" rel="noopener" class="vendor-edit-btn vendor-edit-btn-light">View on Instagram</a>{% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
                     {% endif %}
 
@@ -980,61 +993,6 @@
             <section class="vendor-edit-panel">
                 <div class="vendor-edit-panel-header">
                     <div>
-                        <h2 class="vendor-edit-panel-title">Product Video</h2>
-                        <p class="vendor-edit-panel-subtitle">Add YouTube or MP4 video to increase conversion and trust.</p>
-                    </div>
-                </div>
-
-                <div class="vendor-edit-panel-body">
-                    {% if product.video_type == 'youtube' and product.video_url %}
-                    <div class="vendor-video-preview">
-                        <strong class="vendor-edit-label">Current Video</strong>
-                        <div class="vendor-video-frame">
-                            <iframe
-                                id="video-preview"
-                                frameborder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowfullscreen
-                                referrerpolicy="strict-origin-when-cross-origin">
-                            </iframe>
-                        </div>
-                        <p class="vendor-video-note">YouTube: {{ product.video_url }}</p>
-                    </div>
-                    {% elif product.video_type == 'local' and product.local_video %}
-                    <div class="vendor-video-preview">
-                        <strong class="vendor-edit-label">Current Video</strong>
-                        <video class="w-full rounded-lg" controls>
-                            <source src="{{ product.local_video.url }}" type="video/mp4">
-                        </video>
-                    </div>
-                    {% endif %}
-
-                    <div class="vendor-edit-form-grid">
-                        <div class="vendor-edit-field">
-                            <label class="vendor-edit-label">Video Type</label>
-                            <select name="video_type" id="videoType" class="vendor-edit-select">
-                                <option value="">No Video</option>
-                                <option value="youtube" {% if product.video_type == 'youtube' %}selected{% endif %}>YouTube</option>
-                                <option value="local" {% if product.video_type == 'local' %}selected{% endif %}>Local Video (MP4)</option>
-                            </select>
-                        </div>
-
-                        <div class="vendor-edit-field" id="youtubeUrlDiv" style="display:{% if product.video_type == 'youtube' %}block{% else %}none{% endif %};">
-                            <label class="vendor-edit-label">YouTube URL</label>
-                            <input type="url" name="youtube_url" id="youtubeUrl" value="{{ product.video_url|default:'' }}" placeholder="https://www.youtube.com/watch?v=..." class="vendor-edit-input">
-                        </div>
-
-                        <div class="vendor-edit-field" id="localVideoDiv" style="display:{% if product.video_type == 'local' %}block{% else %}none{% endif %};">
-                            <label class="vendor-edit-label">Local Video File (MP4)</label>
-                            <input type="file" name="local_video" accept="video/mp4" class="vendor-file-input">
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="vendor-edit-panel">
-                <div class="vendor-edit-panel-header">
-                    <div>
                         <h2 class="vendor-edit-panel-title">Description, Specifications & SEO</h2>
                         <p class="vendor-edit-panel-subtitle">Keep descriptions rich, accurate, and crawl-ready.</p>
                     </div>
@@ -1217,6 +1175,7 @@
 {% block extra_js %}
 {{ block.super }}
 <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<script src="{% static 'js/arolana-publishing-progress.js' %}"></script>
 <script>
 (function () {
     "use strict";
@@ -1303,7 +1262,7 @@
         updateVideoPreview();
     }
 })();
-
+</script>
 <script>
 (function () {
     const uploadButton = document.getElementById("uploadProductVideoToYouTube");
@@ -1323,6 +1282,13 @@
     const connectInstagramButton = document.getElementById("connectInstagramForProductVideo");
     let instagramAccountConnected = false;
     let uploadedProductVideoId = null;
+    let uploadInFlight = false;
+    const progressContainer = document.getElementById("productVideoPublishingWorkspace");
+    const progress = window.ArolanaPublishingProgress && window.ArolanaPublishingProgress.mount({
+        container: progressContainer,
+        title: "Publishing your product video",
+        successTitle: "Product video saved"
+    });
 
     if (!uploadButton || !videoInput) {
         return;
@@ -1472,7 +1438,7 @@
             instagramShareToFeed && instagramShareToFeed.checked ? "true" : "false"
         );
 
-        setInstagramStatus("Publishing Reel to Instagram...", "info");
+        setInstagramStatus("Preparing Instagram publication...", "info");
         const response = await fetch(
             "/api/social-publishing/instagram/videos/publish/",
             {
@@ -1485,6 +1451,8 @@
                 credentials: "same-origin"
             }
         );
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        if (!contentType.includes("application/json")) throw new Error("Instagram preparation failed.");
         const data = await response.json();
         if (!response.ok) {
             const error = new Error("Instagram publishing failed.");
@@ -1492,7 +1460,11 @@
             throw error;
         }
         const permalink = data.instagram_permalink || "";
-        showInstagramPermalink(permalink);
+        if (data.status === "pending") {
+            setInstagramStatus("Pending Arolana approval.", "info");
+        } else {
+            showInstagramPermalink(permalink);
+        }
         return data;
     }
 
@@ -1518,6 +1490,8 @@
     loadInstagramStatus();
 
     uploadButton.addEventListener("click", async function () {
+
+        if (uploadInFlight || (progress && progress.busy)) return;
 
         const file = videoInput.files && videoInput.files[0];
 
@@ -1580,7 +1554,11 @@
             visibility
         );
 
+        uploadInFlight = true;
         uploadButton.disabled = true;
+        progress && progress.start(uploadedProductVideoId
+            ? "Preparing Instagram publication…"
+            : "Preparing your product video…");
 
         if (buttonText) buttonText.textContent = uploadedProductVideoId
             ? "Publishing to Instagram..."
@@ -1606,26 +1584,31 @@
                         credentials: "same-origin"
                     }
                 );
+                const contentType = (response.headers.get("content-type") || "").toLowerCase();
+                if (!contentType.includes("application/json")) throw new Error("Product video upload failed.");
                 const data = await response.json();
                 if (!response.ok || !data.success) {
-                    throw new Error(data.message || "YouTube upload failed.");
+                    throw new Error("YouTube upload could not be completed.");
                 }
                 productVideoId = data.video && data.video.id;
                 if (!productVideoId) throw new Error("Video upload could not be completed.");
                 uploadedProductVideoId = productVideoId;
+                progress && progress.update("YouTube upload complete.");
             }
 
             showStatus(
                 instagramCheckbox && instagramCheckbox.checked
-                    ? "Video uploaded to YouTube. Publishing to Instagram..."
+                    ? "Video uploaded to YouTube. Preparing Instagram publication..."
                     : "Video uploaded to YouTube successfully and submitted for Arolana review.",
                 "success"
             );
 
             if (instagramCheckbox && instagramCheckbox.checked) {
+                progress && progress.update("Preparing Instagram publication…");
                 const publication = await publishToInstagram(file, productVideoId);
                 if (publication && publication.status === "pending") {
                     showStatus("YouTube: Published. Instagram: Pending Arolana approval.", "info");
+                    progress && progress.finish("YouTube complete. Instagram is pending Arolana approval.");
                     videoInput.value = "";
                     uploadedProductVideoId = null;
                     return;
@@ -1634,6 +1617,9 @@
                     "Video uploaded to YouTube and published to Instagram.",
                     "success"
                 );
+                progress && progress.finish("YouTube and Instagram publishing completed.");
+            } else {
+                progress && progress.finish("YouTube upload complete. Product video submitted for Arolana approval.");
             }
 
             if (buttonText) {
@@ -1651,6 +1637,9 @@
                         : (error.message || "Video publishing failed."),
                 "error"
             );
+            progress && progress.fail(uploadedProductVideoId
+                ? "YouTube is published. Instagram preparation failed; retry uses the saved video."
+                : "The product video could not be uploaded.");
 
             if (buttonText) {
                 buttonText.textContent = uploadedProductVideoId
@@ -1658,6 +1647,7 @@
                     : "Upload Video to YouTube";
             }
         } finally {
+            uploadInFlight = false;
             uploadButton.disabled = false;
         }
     });

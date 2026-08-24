@@ -6,8 +6,10 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.conf import settings
+from django.urls import reverse
 
-from products.models import Category, ProductVideo
+from products.models import Category, Product, ProductVideo
+from social_publishing.models import SocialPublication
 from vendors.models import VendorProfile
 
 User = get_user_model()
@@ -123,3 +125,91 @@ class VendorAddProductVideoPublishingTests(TestCase):
         self.assertIn('error.code==="primary_handoff_missing"', template)
         self.assertIn("YouTube: Published. Instagram: Failed", template)
         self.assertIn("Primary upload response could not be confirmed", template)
+
+
+class VendorEditProductPublishingTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="vendor-edit-video@arolana.com",
+            username="vendor-edit-video",
+            password="StrongPassword123!",
+            user_type="vendor",
+        )
+        self.profile = VendorProfile.objects.create(
+            user=self.user,
+            store_name="Edit Video Vendor",
+            store_slug="edit-video-vendor",
+            description="Edit video tests",
+            approval_status="approved",
+            is_verified=True,
+            is_active=True,
+            address_line_1="2 Video Way",
+            city="Ikeja",
+            state="Lagos",
+            country="Nigeria",
+        )
+        self.category = Category.objects.create(name="Edit Video", slug="edit-video")
+        self.product = Product.objects.create(
+            vendor=self.user,
+            category=self.category,
+            name="Edit Product",
+            slug="edit-product",
+            sku="EDIT-1",
+            price=Decimal("50.00"),
+            stock_quantity=4,
+            video_type="youtube",
+            video_url="https://www.youtube.com/watch?v=existing-id",
+            approval_status="approved",
+            is_active=True,
+        )
+        self.client.force_login(self.user)
+
+    @patch("dashboard.views._inspect_vendor_product_uploads", return_value=[])
+    @patch("dashboard.views.require_verified_kyc", return_value=None)
+    @patch("dashboard.views.user_subscription_limits")
+    def test_metadata_only_edit_does_not_republish_or_clear_video(self, limits, _kyc, _uploads):
+        limits.return_value = {
+            "can_upload_video": True, "can_upload_pdf": True,
+            "max_images_per_product": 10, "max_variants_per_product": 10,
+        }
+        response = self.client.post(
+            f"/dashboard/vendor/product/{self.product.id}/",
+            {
+                "name": "Metadata Only Edit", "price": "55.00", "stock_quantity": "5",
+                "category": str(self.category.id), "condition": "brand_new",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.video_url, "https://www.youtube.com/watch?v=existing-id")
+        self.assertEqual(ProductVideo.objects.count(), 0)
+        self.assertEqual(SocialPublication.objects.count(), 0)
+
+    @patch("products.views.youtube_upload_video")
+    @patch("products.views.user_subscription_limits")
+    def test_explicit_edit_video_upload_creates_one_pending_owned_video(self, limits, youtube_upload):
+        limits.return_value = {"can_upload_video": True}
+        youtube_upload.return_value = {
+            "id": "replacement-id",
+            "url": "https://www.youtube.com/watch?v=replacement-id",
+        }
+        response = self.client.post(
+            reverse("products:vendor_product_videos_api"),
+            {
+                "product_id": str(self.product.id),
+                "title": "Replacement video",
+                "video": SimpleUploadedFile("replacement.mp4", b"video-bytes", content_type="video/mp4"),
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        video = ProductVideo.objects.get(pk=response.json()["video"]["id"])
+        self.assertEqual(video.vendor, self.profile)
+        self.assertEqual(video.moderation_status, "pending")
+        self.assertIsNone(video.approved_at)
+        self.assertEqual(SocialPublication.objects.count(), 0)
+
+    def test_edit_template_has_one_upload_workspace_and_shared_progress(self):
+        template = Path(settings.BASE_DIR, "templates/dashboard/vendor_product_detail.html").read_text()
+        self.assertEqual(template.count('id="uploadProductVideoToYouTube"'), 1)
+        self.assertIn("arolana-publishing-progress.js", template)
+        self.assertIn("Existing Instagram publication", template)

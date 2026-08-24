@@ -451,6 +451,7 @@
 </div>
 
 <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<script src="{% static 'js/arolana-publishing-progress.js' %}"></script>
 <script>
 // Image preview
 document.querySelector('input[name="additional_images"]').addEventListener('change', function(e) {
@@ -813,6 +814,7 @@ document.getElementById('videoType').addEventListener('change', function() {
   let retainedVideoId=null;
   let redirectUrl="";
   if(!form||!instagramToggle)return;
+  const progress=window.ArolanaPublishingProgress&&window.ArolanaPublishingProgress.mount({container:form,title:"Publishing your product",successTitle:"Product saved"});
   const csrf=()=>form.querySelector('input[name="csrfmiddlewaretoken"]')?.value||"";
   const show=(message,type)=>{status.textContent=message||"";status.classList.toggle("hidden",!message);status.className=`mt-3 text-sm font-bold ${type==="error"?"text-red-700":type==="success"?"text-green-700":"text-slate-600"}`;};
   const refresh=()=>{options.classList.toggle("hidden",!(instagramToggle.checked&&connected));connectButton.classList.toggle("hidden",!(instagramToggle.checked&&!connected));};
@@ -825,14 +827,16 @@ document.getElementById('videoType').addEventListener('change', function() {
   caption.addEventListener("input",()=>{count.textContent=`${caption.value.length} / 2200`;});
   fileInput&&fileInput.addEventListener("change",()=>{retainedVideoId=null;redirectUrl="";show("","");});
   form.addEventListener("submit",async event=>{
-    if(!instagramToggle.checked)return;
+    if(progress&&progress.busy){event.preventDefault();return;}
+    const localVideo=form.querySelector('#videoType')?.value==="local"&&fileInput?.files?.[0];
+    if(!localVideo){progress&&progress.start("Saving your product…");return;}
     event.preventDefault();
-    if(!connected){show("Connect or reconnect Instagram before publishing.","error");refresh();return;}
-    if(form.querySelector('#videoType')?.value!=="local"||!fileInput?.files?.[0]){show("Choose a local video so the same source can publish to YouTube and Instagram.","error");return;}
+    if(instagramToggle.checked&&!connected){show("Connect or reconnect Instagram before publishing.","error");refresh();return;}
+    progress&&progress.start("Preparing your product…");
     const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
     try{
       if(!retainedVideoId){
-        show("Uploading primary video to YouTube...","info");
+        progress&&progress.update("Uploading video to YouTube…");show("Uploading primary video to YouTube...","info");
         const response=await fetch(form.action||window.location.href,{method:"POST",headers:{"X-CSRFToken":csrf(),"X-Requested-With":"XMLHttpRequest",Accept:"application/json"},body:new FormData(form),credentials:"same-origin"});
         const contentType=response.headers.get("content-type")||"";
         if(!contentType.includes("application/json")){
@@ -848,8 +852,10 @@ document.getElementById('videoType').addEventListener('change', function() {
         }
         retainedVideoId=returnedVideoId;
         redirectUrl=data.redirect_url||"";
+        progress&&progress.update("YouTube upload complete.");
       }
-      show("YouTube upload saved. Publishing to Instagram...","info");const body=new FormData();body.append("role","vendor");body.append("content_type","products.productvideo");body.append("object_id",String(retainedVideoId));body.append("video",fileInput.files[0]);body.append("caption",caption.value.slice(0,2200));body.append("share_to_feed",feed.checked?"true":"false");const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":csrf(),Accept:"application/json"},body,credentials:"same-origin"});const data=await response.json();if(!response.ok){const failure=new Error("instagram");failure.code=data.error_code||"instagram_publish_failed";throw failure;}if(data.status==="pending"){show("YouTube: Published. Instagram: Pending Arolana approval.","info");retainedVideoId=null;if(redirectUrl)setTimeout(()=>window.location.assign(redirectUrl),1200);return;}show("YouTube: Published. Instagram: Published.","success");const permalink=safeLink(data.instagram_permalink);if(permalink){status.appendChild(document.createTextNode(" "));const link=document.createElement("a");link.href=permalink;link.target="_blank";link.rel="noopener";link.textContent="View on Instagram";status.appendChild(link);}retainedVideoId=null;if(redirectUrl)setTimeout(()=>window.location.assign(redirectUrl),1200);
+      if(!instagramToggle.checked){show("YouTube: Published. Product submitted for Arolana approval.","success");progress&&progress.finish("YouTube upload complete. Product submitted for Arolana approval.");retainedVideoId=null;if(redirectUrl)setTimeout(()=>window.location.assign(redirectUrl),900);return;}
+      progress&&progress.update("Preparing Instagram publication…");show("YouTube upload saved. Preparing Instagram publication...","info");const body=new FormData();body.append("role","vendor");body.append("content_type","products.productvideo");body.append("object_id",String(retainedVideoId));body.append("video",fileInput.files[0]);body.append("caption",caption.value.slice(0,2200));body.append("share_to_feed",feed.checked?"true":"false");const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":csrf(),Accept:"application/json"},body,credentials:"same-origin"});const responseType=(response.headers.get("content-type")||"").toLowerCase();if(!responseType.includes("application/json"))throw Object.assign(new Error("instagram"),{code:"instagram_publish_failed"});const data=await response.json();if(!response.ok){const failure=new Error("instagram");failure.code=data.error_code||"instagram_publish_failed";throw failure;}if(data.status==="pending"){show("YouTube: Published. Instagram: Pending Arolana approval.","info");progress&&progress.finish("YouTube complete. Instagram is pending Arolana approval.");retainedVideoId=null;if(redirectUrl)setTimeout(()=>window.location.assign(redirectUrl),1200);return;}show("YouTube: Published. Instagram: Published.","success");progress&&progress.finish("YouTube and Instagram publishing completed.");const permalink=safeLink(data.instagram_permalink);if(permalink){status.appendChild(document.createTextNode(" "));const link=document.createElement("a");link.href=permalink;link.target="_blank";link.rel="noopener";link.textContent="View on Instagram";status.appendChild(link);}retainedVideoId=null;if(redirectUrl)setTimeout(()=>window.location.assign(redirectUrl),1200);
     }catch(error){
       const message=retainedVideoId
           ?"YouTube: Published. Instagram: Failed — retry will not upload YouTube again."
@@ -859,6 +865,7 @@ document.getElementById('videoType').addEventListener('change', function() {
               ?"Primary upload response could not be confirmed. Instagram was not started. Check the saved product before retrying."
               :"YouTube: Failed. Instagram: Not started.";
       show(message,"error");
+      progress&&progress.fail(message);
     }finally{submit.disabled=false;}
   });
   loadAccount();
