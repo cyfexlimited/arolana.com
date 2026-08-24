@@ -1,7 +1,12 @@
 """Moderation hooks for deferred social publications."""
 
+import logging
+
 from django.db import transaction
 from django.utils import timezone
+
+
+logger = logging.getLogger(__name__)
 
 
 def _release_after_commit(model, object_ids):
@@ -12,9 +17,23 @@ def _release_after_commit(model, object_ids):
     def release():
         from .publisher import release_pending_instagram_publications
 
-        release_pending_instagram_publications(model.objects.filter(pk__in=object_ids))
+        try:
+            release_pending_instagram_publications(model.objects.filter(pk__in=object_ids))
+        except Exception as exc:
+            # Approval has already committed. Never turn a successful moderation
+            # decision into an HTTP 500 because an external release failed.
+            logger.error(
+                "Deferred Instagram moderation release failed model=%s object_ids=%s "
+                "exception_class=%s",
+                model._meta.label_lower,
+                object_ids,
+                type(exc).__name__,
+            )
 
-    transaction.on_commit(release)
+    # ``robust=True`` is a final guard around the best-effort callback. The
+    # callback also catches internally so this remains safe on Django versions
+    # and test runners that execute captured callbacks directly.
+    transaction.on_commit(release, robust=True)
 
 
 @transaction.atomic

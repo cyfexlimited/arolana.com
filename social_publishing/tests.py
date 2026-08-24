@@ -757,6 +757,20 @@ class InstagramPublicationOrchestrationTests(TestCase):
         mock_publish.assert_called_once()
         mock_cleanup.assert_called_once()
 
+    @patch.object(SocialPublication.objects, "select_for_update")
+    def test_deferred_release_locks_publication_without_nullable_related_joins(
+        self, mock_select_for_update
+    ):
+        publication = Mock(pk=91, status=PublicationStatus.PUBLISHED)
+        mock_select_for_update.return_value.get.return_value = publication
+
+        result = continue_deferred_instagram_publication(publication)
+
+        self.assertIs(result, publication)
+        mock_select_for_update.assert_called_once_with()
+        mock_select_for_update.return_value.get.assert_called_once_with(pk=91)
+        mock_select_for_update.return_value.select_related.assert_not_called()
+
     @patch("social_publishing.publisher.continue_deferred_instagram_publication")
     def test_automatic_failure_is_recorded_without_raising_into_approval(self, mock_continue):
         account = self._account()
@@ -774,6 +788,35 @@ class InstagramPublicationOrchestrationTests(TestCase):
         results = release_pending_instagram_publications([self.user])
 
         self.assertEqual([item.pk for item in results], [publication.pk])
+        publication.refresh_from_db()
+        self.assertEqual(publication.status, PublicationStatus.FAILED)
+        self.assertEqual(publication.error_code, "instagram_publish_failed")
+
+    @patch(
+        "social_publishing.publisher.release_pending_instagram_publications",
+        side_effect=RuntimeError("provider unavailable"),
+    )
+    def test_post_commit_release_exception_does_not_escape_product_approval(
+        self, _mock_release
+    ):
+        from social_publishing.moderation import approve_product_package
+
+        product, video, _publication, _account = self._pending_product_publication(
+            "callback-failure"
+        )
+        reviewer = get_user_model().objects.create_user(
+            username="callback-reviewer",
+            email="callback-reviewer@example.com",
+            is_staff=True,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            approve_product_package(product, reviewer)
+
+        product.refresh_from_db()
+        video.refresh_from_db()
+        self.assertEqual(product.approval_status, "approved")
+        self.assertEqual(video.moderation_status, "approved")
 
 
     @patch("social_publishing.publisher.release_pending_instagram_publications")
@@ -952,6 +995,7 @@ class InstagramPublicationOrchestrationTests(TestCase):
             external_video_url="https://youtu.be/dQw4w9WgXcQ",
             approval_status=ServiceProjectMedia.STATUS_PENDING,
         )
+        mock_release.side_effect = RuntimeError("provider unavailable")
 
         with patch("installers.project_services.Notification.send"), patch(
             "installers.project_services.safe_project_email"

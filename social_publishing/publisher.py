@@ -1,5 +1,6 @@
 """Shared orchestration for publishing temporary videos to Instagram."""
 
+import logging
 import re
 from urllib.parse import urlparse
 
@@ -30,6 +31,7 @@ _SECRET_PATTERNS = (
     re.compile(r"(?i)(authorization)\s*:\s*bearer\s+[^\s,;]+"),
 )
 _SAFE_CODE_PATTERN = re.compile(r"[^A-Za-z0-9_.:-]+")
+logger = logging.getLogger(__name__)
 
 
 class InstagramPublicationError(Exception):
@@ -337,11 +339,10 @@ def continue_deferred_instagram_publication(publication):
     """Release one approved, moderation-pending publication without new upload bytes."""
 
     with transaction.atomic():
-        publication = (
-            SocialPublication.objects.select_for_update()
-            .select_related("owner_user", "deferred_video_lease")
-            .get(pk=publication.pk)
-        )
+        # Lock only the publication row. Combining FOR UPDATE with
+        # select_related("deferred_video_lease") generates a LEFT OUTER JOIN
+        # because that relation is nullable, which PostgreSQL refuses to lock.
+        publication = SocialPublication.objects.select_for_update().get(pk=publication.pk)
         if publication.status == PublicationStatus.PUBLISHED:
             return publication
         if publication.status in {PublicationStatus.UPLOADING, PublicationStatus.PROCESSING}:
@@ -413,8 +414,31 @@ def release_pending_instagram_publications(content_objects):
         for publication in publications:
             try:
                 released.append(continue_deferred_instagram_publication(publication))
-            except InstagramPublicationError:
-                released.append(SocialPublication.objects.get(pk=publication.pk))
+            except Exception as exc:
+                # This is a post-approval, best-effort operation. Preserve the
+                # approved content and leave a safe, actionable audit record.
+                logger.error(
+                    "Deferred Instagram publication failed publication_id=%s "
+                    "exception_class=%s",
+                    publication.pk,
+                    type(exc).__name__,
+                )
+                try:
+                    failed_publication = SocialPublication.objects.get(pk=publication.pk)
+                    if failed_publication.status != PublicationStatus.PUBLISHED:
+                        _mark_publication_failure(failed_publication, exc)
+                    released.append(failed_publication)
+                except Exception as persistence_exc:
+                    # The moderation callback has an additional robust guard;
+                    # never obscure the original approval if persistence itself
+                    # is temporarily unavailable.
+                    logger.error(
+                        "Deferred Instagram failure persistence failed publication_id=%s "
+                        "exception_class=%s",
+                        publication.pk,
+                        type(persistence_exc).__name__,
+                    )
+                    continue
     return released
 
 
