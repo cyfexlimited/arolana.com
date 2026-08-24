@@ -26,9 +26,9 @@ class SocialAccountAdmin(admin.ModelAdmin):
 
 @admin.register(SocialPublication)
 class SocialPublicationAdmin(admin.ModelAdmin):
-    list_display = ("owner_user", "owner_role", "platform", "status", "attempt_count", "published_at", "created_at")
-    list_filter = ("owner_role", "platform", "status")
-    search_fields = ("owner_user__email", "external_id", "external_url", "error_code")
+    list_display = ("owner_user", "owner_role", "platform", "status", "source_identity", "attempt_count", "published_at", "archived_at", "created_at")
+    list_filter = ("owner_role", "platform", "status", "archived_at")
+    search_fields = ("owner_user__email", "external_id", "external_url", "error_code", "original_content_type_label")
     readonly_fields = (
         "owner_user",
         "owner_role",
@@ -47,9 +47,19 @@ class SocialPublicationAdmin(admin.ModelAdmin):
         "error_message",
         "request_metadata",
         "response_metadata",
+        "archived_at",
+        "original_content_type_label",
+        "original_object_id",
+        "archive_metadata",
         "created_at",
         "updated_at",
     )
+
+    @admin.display(description="Original Arolana content")
+    def source_identity(self, obj):
+        label = obj.original_content_type_label or str(obj.content_type)
+        object_id = obj.original_object_id or obj.object_id
+        return f"{label} #{object_id}"
 
     def has_add_permission(self, request):
         return False

@@ -18,6 +18,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import transaction
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -51,6 +52,7 @@ from .oauth import (
     refresh_instagram_long_lived_token,
 )
 from staff_mobile.models import StaffMobileToken
+from .deletion import ActiveSocialPublicationError
 
 
 class SocialPublishingRoleTests(SimpleTestCase):
@@ -1121,7 +1123,10 @@ class InstagramPublicationOrchestrationTests(TestCase):
     @patch("social_publishing.publisher.cleanup_video_lease")
     def test_orphaned_pending_publication_is_failed_and_cleaned(self, mock_cleanup):
         _product, video, publication, _account = self._pending_product_publication("orphan")
-        video.delete()
+        # Simulate a legacy orphan without bypassing the active-publication
+        # deletion guard that now protects normal source deletion.
+        publication.object_id = video.pk + 999999
+        publication.save(update_fields=["object_id", "updated_at"])
 
         cleaned = cleanup_orphaned_pending_instagram_publications()
 
@@ -1551,6 +1556,287 @@ class InstagramVideoPublicationAPITests(TestCase):
         self.assertEqual(response.status_code, 403)
         mock_publish.assert_not_called()
 
+
+class ArolanaOnlySocialPublicationDeletionTests(TestCase):
+    def setUp(self):
+        from products.models import Category, Product, ProductVideo
+        from vendors.models import VendorProfile
+
+        # API attributes support the remaining shared-endpoint regression
+        # methods below; deletion fixtures use their own role-bound owner.
+        self.user = get_user_model().objects.create_user(
+            username="instagram-api-deletion-user",
+            email="instagram-api-deletion@example.com",
+            password="test-password",
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+        self.url = reverse("social_publishing:instagram_video_publish")
+        self.Product = Product
+        self.ProductVideo = ProductVideo
+        self.vendor_user = get_user_model().objects.create_user(
+            username="deletion-vendor", email="deletion-vendor@example.com"
+        )
+        self.vendor = VendorProfile.objects.create(
+            user=self.vendor_user,
+            store_name="Deletion Vendor",
+            store_slug="deletion-vendor",
+            description="Deletion lifecycle tests",
+            approval_status="approved",
+            is_verified=True,
+            is_active=True,
+            address_line_1="1 Audit Road",
+            city="Ikeja",
+            state="Lagos",
+            country="Nigeria",
+        )
+        self.category = Category.objects.create(name="Deletion Products", slug="deletion-products")
+        self.product = Product.objects.create(
+            vendor=self.vendor_user,
+            category=self.category,
+            name="Deletion Product",
+            slug="deletion-product",
+            sku="DELETE-1",
+            price="100.00",
+            stock_quantity=1,
+            approval_status="approved",
+            is_active=True,
+        )
+
+    def _video(self, content_type="video/mp4"):
+        return SimpleUploadedFile("reel.mp4", b"video-bytes", content_type=content_type)
+
+    def _payload(self, role="vendor"):
+        return {
+            "role": role,
+            "content_type": "products.productvideo",
+            "object_id": 42,
+            "video": self._video(),
+            "caption": "Arolana API reel",
+            "share_to_feed": "true",
+        }
+
+    def _publication(self, **overrides):
+        values = {
+            "pk": 91,
+            "status": PublicationStatus.PUBLISHED,
+            "external_id": "instagram-media-91",
+            "external_url": "https://www.instagram.com/reel/example/",
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def _successful_role_request(self, role):
+        publication = self._publication()
+        with patch("social_publishing.api_views._role_available", return_value=True), patch(
+            "social_publishing.api_views._resolve_publication_content", return_value=self.user
+        ), patch(
+            "social_publishing.api_views.publish_uploaded_video_to_instagram",
+            return_value=publication,
+        ) as mock_publish:
+            response = self.client.post(self.url, self._payload(role), format="multipart")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(mock_publish.call_args.kwargs["owner_role"], role)
+        return response
+
+    def product_video(self, suffix="one"):
+        return self.ProductVideo.objects.create(
+            product=self.product,
+            vendor=self.vendor,
+            title=f"Deletion video {suffix}",
+            source="youtube",
+            youtube_url=f"https://www.youtube.com/watch?v=delete-{suffix}",
+            youtube_video_id=f"delete-{suffix}",
+            moderation_status="approved",
+            is_active=True,
+        )
+
+    def publication(self, content, status=PublicationStatus.PUBLISHED, **overrides):
+        values = {
+            "owner_user": self.vendor_user,
+            "owner_role": "vendor",
+            "platform": SocialPlatform.INSTAGRAM,
+            "content_object": content,
+            "status": status,
+            "external_id": "instagram-media-123",
+            "external_url": "https://www.instagram.com/reel/preserved/",
+            "attempt_count": 2,
+            "error_code": "",
+            "error_message": "",
+        }
+        values.update(overrides)
+        return SocialPublication.objects.create(**values)
+
+    @patch("social_publishing.publisher.publish_reel")
+    @patch("core.youtube_service.requests.delete")
+    def test_published_product_video_delete_archives_audit_without_external_delete(
+        self, youtube_delete, instagram_publish
+    ):
+        from django.contrib import admin
+
+        video = self.product_video()
+        publication = self.publication(video)
+        video_id = video.pk
+        # Exercise the normal Django Admin object-delete path.
+        admin.site._registry[self.ProductVideo].delete_model(SimpleNamespace(), video)
+
+        self.assertFalse(self.ProductVideo.objects.filter(pk=video_id).exists())
+        publication.refresh_from_db()
+        self.assertEqual(publication.external_id, "instagram-media-123")
+        self.assertEqual(publication.external_url, "https://www.instagram.com/reel/preserved/")
+        self.assertEqual(publication.original_content_type_label, "products.ProductVideo")
+        self.assertEqual(publication.original_object_id, video_id)
+        self.assertIsNotNone(publication.archived_at)
+        self.assertIsNone(publication.content_object)
+        youtube_delete.assert_not_called()
+        instagram_publish.assert_not_called()
+
+    def test_product_cascade_archives_published_child_publication(self):
+        video = self.product_video("cascade")
+        publication = self.publication(video)
+        product_id, video_id = self.product.pk, video.pk
+        self.product.delete()
+
+        self.assertFalse(self.Product.objects.filter(pk=product_id).exists())
+        self.assertFalse(self.ProductVideo.objects.filter(pk=video_id).exists())
+        publication.refresh_from_db()
+        self.assertEqual(publication.status, PublicationStatus.PUBLISHED)
+        self.assertEqual(publication.original_object_id, video_id)
+        self.assertIsNotNone(publication.archived_at)
+
+    def test_failed_terminal_and_bulk_video_delete_preserve_audits(self):
+        from django.contrib import admin
+
+        videos = [self.product_video("bulk-a"), self.product_video("bulk-b")]
+        publications = [
+            self.publication(
+                video,
+                status=PublicationStatus.FAILED,
+                external_id="",
+                external_url="",
+                error_code="safe_failure",
+                error_message="Safe failure detail",
+            )
+            for video in videos
+        ]
+        queryset = self.ProductVideo.objects.filter(pk__in=[video.pk for video in videos])
+        # Exercise Django Admin's bulk delete implementation.
+        admin.site._registry[self.ProductVideo].delete_queryset(SimpleNamespace(), queryset)
+        self.assertFalse(self.ProductVideo.objects.filter(pk__in=[video.pk for video in videos]).exists())
+        for publication in publications:
+            publication.refresh_from_db()
+            self.assertEqual(publication.status, PublicationStatus.FAILED)
+            self.assertEqual(publication.error_code, "safe_failure")
+            self.assertIsNotNone(publication.archived_at)
+
+    @patch("social_publishing.video_staging.cleanup_video_lease")
+    def test_active_publication_blocks_delete_and_keeps_lease(self, cleanup):
+        video = self.product_video("pending")
+        lease = TemporaryVideoLease.objects.create(
+            owner_user=self.vendor_user,
+            owner_role="vendor",
+            storage_key="deletion/pending-source.mp4",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        publication = self.publication(
+            video,
+            status=PublicationStatus.PENDING,
+            external_id="",
+            external_url="",
+            deferred_video_lease=lease,
+        )
+        with self.assertRaises(ActiveSocialPublicationError):
+            with transaction.atomic():
+                video.delete()
+        self.assertTrue(self.ProductVideo.objects.filter(pk=video.pk).exists())
+        publication.refresh_from_db()
+        self.assertEqual(publication.status, PublicationStatus.PENDING)
+        self.assertEqual(publication.deferred_video_lease, lease)
+        cleanup.assert_not_called()
+
+    def test_provider_media_and_project_cascade_follow_same_lifecycle(self):
+        from datetime import date
+        from installers.models import (
+            ServiceCategory,
+            ServicePortfolio,
+            ServiceProjectMedia,
+            ServiceProviderProfile,
+        )
+
+        provider_user = get_user_model().objects.create_user(
+            username="deletion-provider", email="deletion-provider@example.com"
+        )
+        provider = ServiceProviderProfile.objects.create(
+            user=provider_user,
+            business_name="Deletion Provider",
+            contact_person="Owner",
+            provider_type="installer",
+            phone_number="+2348000000777",
+            email="deletion-provider@example.com",
+            country="Nigeria",
+            state="Lagos",
+            city="Ikeja",
+            address="2 Audit Road",
+            description="Provider",
+            verification_status=ServiceProviderProfile.STATUS_APPROVED,
+            subscription_status="active",
+            subscription_plan="Plus",
+            is_active=True,
+        )
+        category = ServiceCategory.objects.create(name="Deletion Services")
+        project = ServicePortfolio.objects.create(
+            provider=provider,
+            title="Deletion project",
+            short_summary="Summary",
+            description="Description",
+            service_category=category,
+            city="Ikeja",
+            state="Lagos",
+            country="Nigeria",
+            completed_at=date.today(),
+            project_result="Complete",
+            approval_status=ServicePortfolio.STATUS_APPROVED,
+        )
+        media = ServiceProjectMedia.objects.create(
+            project=project,
+            media_type=ServiceProjectMedia.TYPE_VIDEO,
+            external_video_url="https://youtu.be/provider-delete",
+            approval_status=ServiceProjectMedia.STATUS_APPROVED,
+        )
+        publication = SocialPublication.objects.create(
+            owner_user=provider_user,
+            owner_role="provider",
+            platform=SocialPlatform.INSTAGRAM,
+            content_object=media,
+            status=PublicationStatus.PUBLISHED,
+            external_id="provider-instagram-id",
+            external_url="https://www.instagram.com/reel/provider-preserved/",
+        )
+        project_publication = SocialPublication.objects.create(
+            owner_user=provider_user,
+            owner_role="provider",
+            platform=SocialPlatform.INSTAGRAM,
+            content_object=project,
+            status=PublicationStatus.FAILED,
+            error_code="safe_project_failure",
+            error_message="Safe project failure",
+        )
+        media_id = media.pk
+        project_id = project.pk
+        project.delete()
+        self.assertFalse(ServiceProjectMedia.objects.filter(pk=media_id).exists())
+        publication.refresh_from_db()
+        self.assertEqual(publication.external_id, "provider-instagram-id")
+        self.assertEqual(publication.original_content_type_label, "installers.ServiceProjectMedia")
+        self.assertEqual(publication.original_object_id, media_id)
+        self.assertIsNotNone(publication.archived_at)
+        project_publication.refresh_from_db()
+        self.assertEqual(
+            project_publication.original_content_type_label,
+            "installers.ServicePortfolio",
+        )
+        self.assertEqual(project_publication.original_object_id, project_id)
+        self.assertIsNotNone(project_publication.archived_at)
     def test_missing_and_invalid_video_are_rejected(self):
         missing = self._payload()
         missing.pop("video")

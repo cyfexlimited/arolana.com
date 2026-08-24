@@ -4,6 +4,8 @@ from django.utils.html import format_html
 
 from core.media_optimization import get_optimized_image_url
 from social_publishing.admin_inlines import SocialPublicationInline
+from social_publishing.admin_deletion import SocialPublicationDeleteGuardMixin
+from social_publishing.deletion import publications_for_objects
 
 from .models import (
     ProviderKYCDocument,
@@ -415,7 +417,7 @@ class ProviderSubscriptionPlanAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServicePortfolio)
-class ServicePortfolioAdmin(admin.ModelAdmin):
+class ServicePortfolioAdmin(SocialPublicationDeleteGuardMixin, admin.ModelAdmin):
     list_display = (
         "portfolio_preview", "title", "provider", "service_category", "location",
         "approval_status", "media_count", "has_video", "views_count",
@@ -433,6 +435,16 @@ class ServicePortfolioAdmin(admin.ModelAdmin):
         "published_at", "created_at", "updated_at",
     )
     actions = ("approve_projects", "request_project_changes", "reject_projects", "feature_projects", "verify_projects")
+
+    def social_publications_for_delete(self, objs):
+        project_ids = [obj.pk for obj in objs if getattr(obj, "pk", None)]
+        media_ids = ServiceProjectMedia.objects.filter(
+            project_id__in=project_ids
+        ).values_list("pk", flat=True)
+        return (
+            publications_for_objects(ServicePortfolio, project_ids)
+            | publications_for_objects(ServiceProjectMedia, media_ids)
+        )
     inlines = ()
     fieldsets = (
         ("Basic Information", {"fields": ("provider", "created_by", "title", "slug", "short_summary", "description", "project_type", "service_category")}),
@@ -585,7 +597,7 @@ ServicePortfolioAdmin.inlines = (
 
 
 @admin.register(ServiceProjectMedia)
-class ServiceProjectMediaAdmin(admin.ModelAdmin):
+class ServiceProjectMediaAdmin(SocialPublicationDeleteGuardMixin, admin.ModelAdmin):
     inlines = (SocialPublicationInline,)
     list_display = (
         "media_preview",
@@ -609,6 +621,10 @@ class ServiceProjectMediaAdmin(admin.ModelAdmin):
         "is_featured",
         "created_at",
     )
+
+    def social_publications_for_delete(self, objs):
+        media_ids = [obj.pk for obj in objs if getattr(obj, "pk", None)]
+        return publications_for_objects(ServiceProjectMedia, media_ids)
     search_fields = ("project__title", "project__provider__business_name", "caption", "alt_text")
     autocomplete_fields = ("project",)
     readonly_fields = (

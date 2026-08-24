@@ -2469,11 +2469,16 @@ def provider_project_media(
             )
 
             if action == "delete":
-                media.delete()
-                messages.success(
-                    request,
-                    "Project media removed.",
-                )
+                from social_publishing.deletion import ActiveSocialPublicationError
+                try:
+                    media.delete()
+                except ActiveSocialPublicationError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        "Project media removed.",
+                    )
 
             elif action == "set_cover":
                 if media.media_type != ServiceProjectMedia.TYPE_IMAGE:

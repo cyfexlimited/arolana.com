@@ -16,6 +16,7 @@ from core.private_upload_validation import (
     validate_project_document_upload,
     validate_project_video_upload,
 )
+from social_publishing.deletion import ActiveSocialPublicationError
 
 from .api_views import provider_from_request, provider_user_from_request, request_user_from_mobile_payload
 from .models import (
@@ -373,7 +374,10 @@ class ProviderProjectDetailAPIView(APIView):
         _provider, project, error = self._project(request, project_id)
         if error:
             return error
-        project.delete()
+        try:
+            project.delete()
+        except ActiveSocialPublicationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -655,7 +659,10 @@ class ProviderProjectMediaDeleteAPIView(ProviderProjectDetailAPIView):
         if error:
             return error
         media = get_object_or_404(project.media_items, pk=media_id)
-        media.delete()
+        try:
+            media.delete()
+        except ActiveSocialPublicationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

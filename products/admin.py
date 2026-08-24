@@ -20,6 +20,7 @@ from .models import (
 from django.utils.timezone import now
 from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
 from social_publishing.admin_inlines import SocialPublicationInline
+from social_publishing.admin_deletion import SocialPublicationDeleteGuardMixin
 from social_publishing.models import SocialPublication
 from .review_stats import refresh_product_review_stats
 
@@ -847,49 +848,6 @@ class ReviewVideoInline(admin.TabularInline):
 # =================================
 
 
-class SocialPublicationDeleteGuardMixin:
-    """Prevent Django Admin from silently orphaning publication audit rows."""
-
-    def social_publications_for_delete(self, objs):
-        return SocialPublication.objects.none()
-
-    def _publication_delete_warning(self, objs):
-        publications = self.social_publications_for_delete(objs)
-        if not publications.exists():
-            return ""
-        statuses = ", ".join(
-            f"{status}: {count}"
-            for status, count in publications.values_list("status")
-            .annotate(count=Count("pk"))
-            .order_by("status")
-        )
-        return (
-            "Deletion is blocked because related social publication audit records "
-            f"exist ({statuses}). Reconcile or explicitly archive those records "
-            "before deleting this content."
-        )
-
-    def get_deleted_objects(self, objs, request):
-        deleted_objects, model_count, perms_needed, protected = super().get_deleted_objects(
-            objs, request
-        )
-        warning = self._publication_delete_warning(objs)
-        if warning:
-            perms_needed.add(warning)
-        return deleted_objects, model_count, perms_needed, protected
-
-    def delete_model(self, request, obj):
-        warning = self._publication_delete_warning([obj])
-        if warning:
-            raise PermissionDenied(warning)
-        return super().delete_model(request, obj)
-
-    def delete_queryset(self, request, queryset):
-        warning = self._publication_delete_warning(queryset)
-        if warning:
-            raise PermissionDenied(warning)
-        return super().delete_queryset(request, queryset)
-
 @admin.register(Product)
 class ProductAdmin(SocialPublicationDeleteGuardMixin, admin.ModelAdmin):
     form = ProductAdminForm
@@ -907,12 +865,15 @@ class ProductAdmin(SocialPublicationDeleteGuardMixin, admin.ModelAdmin):
     def social_publications_for_delete(self, objs):
         product_ids = [obj.pk for obj in objs if getattr(obj, "pk", None)]
         video_ids = ProductVideo.objects.filter(product_id__in=product_ids).values("pk")
-        content_type = ContentType.objects.get_for_model(
+        video_content_type = ContentType.objects.get_for_model(
             ProductVideo, for_concrete_model=False
         )
+        product_content_type = ContentType.objects.get_for_model(
+            Product, for_concrete_model=False
+        )
         return SocialPublication.objects.filter(
-            content_type=content_type,
-            object_id__in=video_ids,
+            Q(content_type=product_content_type, object_id__in=product_ids)
+            | Q(content_type=video_content_type, object_id__in=video_ids)
         )
 
     def save_model(self, request, obj, form, change):

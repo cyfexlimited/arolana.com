@@ -5,3 +5,6 @@ class SocialPublishingConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "social_publishing"
     verbose_name = "Social Publishing"
+
+    def ready(self):
+        from . import signals  # noqa: F401

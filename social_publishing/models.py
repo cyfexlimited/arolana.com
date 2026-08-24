@@ -141,6 +141,10 @@ class SocialPublication(BaseModel):
         null=True,
         help_text="Temporary source retained only while moderation/publication is pending.",
     )
+    archived_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    original_content_type_label = models.CharField(max_length=200, blank=True)
+    original_object_id = models.PositiveBigIntegerField(blank=True, null=True)
+    archive_metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
         constraints = [
