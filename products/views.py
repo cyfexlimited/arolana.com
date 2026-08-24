@@ -12343,8 +12343,8 @@ def vendor_product_videos_api(request):
             description=request.POST.get("description", ""),
             privacy_status=visibility,
         )
-    except Exception as exc:
-        return JsonResponse({"success": False, "message": f"YouTube upload failed: {exc}"}, status=502)
+    except Exception:
+        return JsonResponse({"success": False, "message": "YouTube upload failed."}, status=502)
     video = ProductVideo.objects.create(
         product=product,
         vendor=profile,

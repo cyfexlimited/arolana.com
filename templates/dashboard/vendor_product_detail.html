@@ -692,7 +692,7 @@
         </div>
         {% endif %}
 
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" id="vendorEditProductForm">
             {% csrf_token %}
 
             <div class="vendor-plan-card">
@@ -1294,13 +1294,10 @@
         return;
     }
 
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) {
-            return parts.pop().split(";").shift();
-        }
-        return "";
+    function getCsrfToken() {
+        const form = document.getElementById("vendorEditProductForm");
+        const input = form && form.querySelector('input[name="csrfmiddlewaretoken"]');
+        return input ? input.value : "";
     }
 
     function setInstagramStatus(message, type) {
@@ -1391,7 +1388,7 @@
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "X-CSRFToken": getCookie("csrftoken"),
+                        "X-CSRFToken": getCsrfToken(),
                         "Accept": "application/json"
                     },
                     body: JSON.stringify({
@@ -1444,7 +1441,7 @@
             {
                 method: "POST",
                 headers: {
-                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-CSRFToken": getCsrfToken(),
                     "Accept": "application/json"
                 },
                 body: formData,
@@ -1567,7 +1564,7 @@
         showStatus(
             uploadedProductVideoId
                 ? "Retrying Instagram publishing. Your YouTube upload is already safe."
-                : "Uploading video to YouTube. Please keep this page open...",
+                : "Uploading video to Arolana. Please keep this page open...",
             "info"
         );
 
@@ -1579,7 +1576,7 @@
                     "{% url 'products:vendor_product_videos_api' %}",
                     {
                         method: "POST",
-                        headers: {"X-CSRFToken": getCookie("csrftoken")},
+                        headers: {"X-CSRFToken": getCsrfToken()},
                         body: formData,
                         credentials: "same-origin"
                     }

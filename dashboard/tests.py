@@ -4,12 +4,13 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.conf import settings
 from django.urls import reverse
+from django.contrib.contenttypes.models import ContentType
 
 from products.models import Category, Product, ProductVideo
-from social_publishing.models import SocialPublication
+from social_publishing.models import PublicationStatus, SocialPublication
 from vendors.models import VendorProfile
 
 User = get_user_model()
@@ -213,3 +214,87 @@ class VendorEditProductPublishingTests(TestCase):
         self.assertEqual(template.count('id="uploadProductVideoToYouTube"'), 1)
         self.assertIn("arolana-publishing-progress.js", template)
         self.assertIn("Existing Instagram publication", template)
+        self.assertIn('form.querySelector(\'input[name="csrfmiddlewaretoken"]\')', template)
+        self.assertNotIn('getCookie("csrftoken")', template)
+        self.assertIn("Uploading video to Arolana", template)
+        self.assertIn("YouTube upload complete.", template)
+
+    @patch("products.views.youtube_upload_video", side_effect=RuntimeError("provider secret detail"))
+    @patch("products.views.user_subscription_limits", return_value={"can_upload_video": True})
+    def test_failed_replacement_preserves_existing_video_and_publication(self, _limits, _youtube):
+        existing = ProductVideo.objects.create(
+            product=self.product,
+            vendor=self.profile,
+            title="Protected existing video",
+            source="youtube",
+            youtube_url="https://www.youtube.com/watch?v=protected-id",
+            youtube_video_id="protected-id",
+            moderation_status="approved",
+            is_active=True,
+        )
+        publication = SocialPublication.objects.create(
+            owner_user=self.user,
+            owner_role="vendor",
+            platform="instagram",
+            content_type=ContentType.objects.get_for_model(ProductVideo, for_concrete_model=False),
+            object_id=existing.pk,
+            status=PublicationStatus.PUBLISHED,
+            external_id="instagram-existing",
+            external_url="https://www.instagram.com/reel/existing/",
+        )
+        response = self.client.post(
+            reverse("products:vendor_product_videos_api"),
+            {
+                "product_id": str(self.product.id),
+                "video": SimpleUploadedFile("failed.mp4", b"replacement", content_type="video/mp4"),
+            },
+        )
+        self.assertEqual(response.status_code, 502)
+        self.assertNotContains(response, "provider secret detail", status_code=502)
+        self.assertEqual(ProductVideo.objects.filter(product=self.product).count(), 1)
+        existing.refresh_from_db()
+        publication.refresh_from_db()
+        self.assertTrue(existing.is_active)
+        self.assertEqual(existing.moderation_status, "approved")
+        self.assertEqual(publication.status, PublicationStatus.PUBLISHED)
+
+    @patch("products.views.youtube_upload_video")
+    @patch("products.views.user_subscription_limits", return_value={"can_upload_video": True})
+    def test_vendor_edit_upload_accepts_current_csrf_header(self, _limits, youtube_upload):
+        youtube_upload.return_value = {
+            "id": "csrf-replacement",
+            "url": "https://www.youtube.com/watch?v=csrf-replacement",
+        }
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+        page = csrf_client.get(reverse("dashboard:vendor_product_detail", args=[self.product.pk]))
+        self.assertEqual(page.status_code, 200)
+        csrf_token = csrf_client.cookies[settings.CSRF_COOKIE_NAME].value
+        response = csrf_client.post(
+            reverse("products:vendor_product_videos_api"),
+            {
+                "product_id": str(self.product.id),
+                "video": SimpleUploadedFile("csrf.mp4", b"video", content_type="video/mp4"),
+            },
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(ProductVideo.objects.filter(youtube_video_id="csrf-replacement").count(), 1)
+
+    @patch("products.views.youtube_upload_video")
+    @patch("products.views.user_subscription_limits", return_value={"can_upload_video": True})
+    def test_csrf_failure_creates_no_replacement(self, _limits, youtube_upload):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.user)
+        csrf_client.get(reverse("dashboard:vendor_product_detail", args=[self.product.pk]))
+        response = csrf_client.post(
+            reverse("products:vendor_product_videos_api"),
+            {
+                "product_id": str(self.product.id),
+                "video": SimpleUploadedFile("bad-csrf.mp4", b"video", content_type="video/mp4"),
+            },
+            HTTP_X_CSRFTOKEN="incorrect-token",
+        )
+        self.assertEqual(response.status_code, 403)
+        youtube_upload.assert_not_called()
+        self.assertEqual(ProductVideo.objects.count(), 0)
