@@ -1,5 +1,6 @@
 from decimal import Decimal
 from io import StringIO
+import re
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -266,6 +267,106 @@ class ProductVideoEmbedTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+
+    def _render_product_detail(self):
+        return Client().get(reverse("products:detail", args=[self.product.slug]))
+
+    def _youtube_iframe_count(self, response, video_id):
+        html = response.content.decode()
+        return len(
+            re.findall(
+                rf'<iframe\s+[^>]*src="https://www\.youtube\.com/embed/{re.escape(video_id)}(?:\?[^\"]*)?"',
+                html,
+            )
+        )
+
+    def test_legacy_and_product_video_same_youtube_id_render_once(self):
+        self.product.video_type = "youtube"
+        self.product.video_url = "https://www.youtube.com/watch?v=xIbUqxVXuNM"
+        self.product.save(update_fields=["video_type", "video_url", "updated_at"])
+        ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_video_id="xIbUqxVXuNM",
+            youtube_url="https://www.youtube.com/watch?v=xIbUqxVXuNM",
+            moderation_status="approved",
+            is_active=True,
+        )
+
+        response = self._render_product_detail()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._youtube_iframe_count(response, "xIbUqxVXuNM"), 1)
+        self.assertIsNone(response.context["legacy_product_video_embed_url"])
+
+    def test_equivalent_youtu_be_and_watch_urls_render_once(self):
+        self.product.video_type = "youtube"
+        self.product.video_url = "https://www.youtube.com/watch?v=xIbUqxVXuNM&feature=share"
+        self.product.save(update_fields=["video_type", "video_url", "updated_at"])
+        ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_url="https://youtu.be/xIbUqxVXuNM?si=harmless",
+            moderation_status="approved",
+            is_active=True,
+        )
+
+        response = self._render_product_detail()
+
+        self.assertEqual(self._youtube_iframe_count(response, "xIbUqxVXuNM"), 1)
+        self.assertIsNone(response.context["legacy_product_video_embed_url"])
+
+    def test_legacy_only_video_remains_visible(self):
+        self.product.video_type = "youtube"
+        self.product.video_url = "https://www.youtube.com/watch?v=legacyOnly1"
+        self.product.save(update_fields=["video_type", "video_url", "updated_at"])
+
+        response = self._render_product_detail()
+
+        self.assertEqual(self._youtube_iframe_count(response, "legacyOnly1"), 1)
+        self.assertIn("legacyOnly1", response.context["legacy_product_video_embed_url"])
+
+    def test_two_distinct_approved_product_videos_both_render(self):
+        for video_id in ("differentOne", "differentTwo"):
+            ProductVideo.objects.create(
+                product=self.product,
+                source="youtube",
+                youtube_video_id=video_id,
+                youtube_url=f"https://www.youtube.com/watch?v={video_id}",
+                moderation_status="approved",
+                is_active=True,
+            )
+
+        response = self._render_product_detail()
+
+        self.assertEqual(self._youtube_iframe_count(response, "differentOne"), 1)
+        self.assertEqual(self._youtube_iframe_count(response, "differentTwo"), 1)
+
+    def test_pending_or_inactive_product_video_is_not_public_or_deduplication_source(self):
+        self.product.video_type = "youtube"
+        self.product.video_url = "https://www.youtube.com/watch?v=legacyVisible"
+        self.product.save(update_fields=["video_type", "video_url", "updated_at"])
+        ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_video_id="legacyVisible",
+            youtube_url="https://youtu.be/legacyVisible",
+            moderation_status="pending",
+            is_active=True,
+        )
+        ProductVideo.objects.create(
+            product=self.product,
+            source="youtube",
+            youtube_video_id="inactiveHidden",
+            youtube_url="https://youtu.be/inactiveHidden",
+            moderation_status="approved",
+            is_active=False,
+        )
+
+        response = self._render_product_detail()
+
+        self.assertEqual(self._youtube_iframe_count(response, "legacyVisible"), 1)
+        self.assertNotContains(response, "inactiveHidden")
 
     def test_real_description_images_are_preserved(self):
         html = '<figure class="image"><img src="/media/products/real.webp"></figure>'

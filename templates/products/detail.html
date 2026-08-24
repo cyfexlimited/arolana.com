@@ -9278,7 +9278,7 @@
             <!-- Videos Tab -->
             <div x-show="tab=='videos'" x-transition.duration.300ms>
                 <div class="grid md:grid-cols-2 gap-6">
-                    {% if product.get_video_embed_url %}
+                    {% if legacy_product_video_embed_url %}
                     <div class="video-immersive rounded-xl overflow-hidden">
                         <div class="product-video-frame">
                             {% if product.video_type == 'local' and product.local_video %}
@@ -9303,7 +9303,7 @@
                                 </video>
                                 {% endif %}
                             {% else %}
-                                <iframe src="{{ product.get_video_embed_url }}"
+                                <iframe src="{{ legacy_product_video_embed_url }}"
                                         title="{{ product.video_title|default:product.name }}"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                         allowfullscreen
@@ -9360,7 +9360,7 @@
                     </div>
                     {% endif %}
                     {% empty %}
-                        {% if not product.get_video_embed_url %}
+                        {% if not legacy_product_video_embed_url %}
                         <p class="text-gray-500 text-center py-8 md:col-span-2">No product videos yet.</p>
                         {% endif %}
                     {% endfor %}

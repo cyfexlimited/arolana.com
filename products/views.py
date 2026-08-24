@@ -74,6 +74,44 @@ except ImportError:
     def user_subscription_limits(user):
         return {}
 
+
+def _youtube_video_identity(url="", video_id=""):
+    """Return a stable identity for equivalent supported YouTube URLs."""
+    if video_id:
+        return f"youtube:{str(video_id).strip()}"
+    embed_url = Product._extract_youtube_embed(url or "")
+    match = re.search(r"youtube\.com/embed/([\w-]+)", embed_url or "")
+    return f"youtube:{match.group(1)}" if match else ""
+
+
+def _product_video_identity(video):
+    if getattr(video, "source", "") == "youtube" or getattr(video, "youtube_url", ""):
+        return _youtube_video_identity(
+            getattr(video, "youtube_url", ""),
+            getattr(video, "youtube_video_id", ""),
+        )
+    embed_url = video.get_embed_url()
+    return f"embed:{embed_url}" if embed_url else ""
+
+
+def _legacy_product_video_embed_url(product, approved_videos):
+    """Use legacy Product video fields only when canonical rows differ/are absent."""
+    legacy_embed_url = product.get_video_embed_url()
+    if not legacy_embed_url:
+        return None
+
+    if product.video_type == "youtube":
+        legacy_identity = _youtube_video_identity(product.video_url)
+    else:
+        legacy_identity = f"embed:{legacy_embed_url}"
+
+    canonical_identities = {
+        identity
+        for identity in (_product_video_identity(video) for video in approved_videos)
+        if identity
+    }
+    return None if legacy_identity and legacy_identity in canonical_identities else legacy_embed_url
+
 # Note: Adjust import based on your actual orders app structure
 try:
     from orders.models import Cart, CartItem
@@ -2202,6 +2240,7 @@ def product_detail(request, slug):
         "active_videos",
         [],
     )
+    legacy_product_video_embed_url = _legacy_product_video_embed_url(product, videos)
 
     # ============================================================
     # Editorial articles
@@ -2829,6 +2868,7 @@ def product_detail(request, slug):
 
         "videos": videos,
         "product_videos": videos,
+        "legacy_product_video_embed_url": legacy_product_video_embed_url,
         "commerce_videos": commerce_videos,
 
         # Both keys are provided for template compatibility.
@@ -9270,14 +9310,18 @@ def mobile_product_detail_api(request, slug):
         })
 
     videos = []
-    if getattr(product, "video_url", "") or getattr(product, "local_video", None):
+    approved_product_videos = list(
+        product.additional_videos.filter(is_active=True, moderation_status="approved")
+    )
+    legacy_embed_url = _legacy_product_video_embed_url(product, approved_product_videos)
+    if legacy_embed_url:
         videos.append({
             "title": product.video_title or "Product video",
             "source": getattr(product, "video_type", "youtube"),
             "url": product.video_url or safe_url(getattr(product, "local_video", None)),
             "thumbnail": safe_url(getattr(product, "video_thumbnail", None)),
         })
-    for video in product.additional_videos.filter(is_active=True, moderation_status="approved"):
+    for video in approved_product_videos:
         videos.append({
             "title": video.title or "Product video",
             "description": getattr(video, "description", ""),
