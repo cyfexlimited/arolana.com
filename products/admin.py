@@ -3,6 +3,8 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django import forms
 from django_ckeditor_5.widgets import CKEditor5Widget
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Q
 
 from .models import (
@@ -18,6 +20,7 @@ from .models import (
 from django.utils.timezone import now
 from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
 from social_publishing.admin_inlines import SocialPublicationInline
+from social_publishing.models import SocialPublication
 from .review_stats import refresh_product_review_stats
 
 # NOTE FOR VARIANT IMAGES:
@@ -843,8 +846,52 @@ class ReviewVideoInline(admin.TabularInline):
 # 🔥 PRODUCT ADMIN WITH APPROVAL SYSTEM
 # =================================
 
+
+class SocialPublicationDeleteGuardMixin:
+    """Prevent Django Admin from silently orphaning publication audit rows."""
+
+    def social_publications_for_delete(self, objs):
+        return SocialPublication.objects.none()
+
+    def _publication_delete_warning(self, objs):
+        publications = self.social_publications_for_delete(objs)
+        if not publications.exists():
+            return ""
+        statuses = ", ".join(
+            f"{status}: {count}"
+            for status, count in publications.values_list("status")
+            .annotate(count=Count("pk"))
+            .order_by("status")
+        )
+        return (
+            "Deletion is blocked because related social publication audit records "
+            f"exist ({statuses}). Reconcile or explicitly archive those records "
+            "before deleting this content."
+        )
+
+    def get_deleted_objects(self, objs, request):
+        deleted_objects, model_count, perms_needed, protected = super().get_deleted_objects(
+            objs, request
+        )
+        warning = self._publication_delete_warning(objs)
+        if warning:
+            perms_needed.add(warning)
+        return deleted_objects, model_count, perms_needed, protected
+
+    def delete_model(self, request, obj):
+        warning = self._publication_delete_warning([obj])
+        if warning:
+            raise PermissionDenied(warning)
+        return super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        warning = self._publication_delete_warning(queryset)
+        if warning:
+            raise PermissionDenied(warning)
+        return super().delete_queryset(request, queryset)
+
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(SocialPublicationDeleteGuardMixin, admin.ModelAdmin):
     form = ProductAdminForm
     list_display = ['sku', 'manufacturer_sku', 'name', 'condition', 'price', 'stock_quantity', 'available_stock_display', 'stock_status_badge', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
     list_editable = ['price', 'stock_quantity', 'is_featured', 'is_active']
@@ -856,6 +903,17 @@ class ProductAdmin(admin.ModelAdmin):
     autocomplete_fields = ['vendor', 'category', 'brand']
     list_select_related = ['category', 'brand', 'vendor']
     list_per_page = 30
+
+    def social_publications_for_delete(self, objs):
+        product_ids = [obj.pk for obj in objs if getattr(obj, "pk", None)]
+        video_ids = ProductVideo.objects.filter(product_id__in=product_ids).values("pk")
+        content_type = ContentType.objects.get_for_model(
+            ProductVideo, for_concrete_model=False
+        )
+        return SocialPublication.objects.filter(
+            content_type=content_type,
+            object_id__in=video_ids,
+        )
 
     def save_model(self, request, obj, form, change):
         submitted_slug = obj.slug
@@ -1640,7 +1698,7 @@ class ProductCatalogRequestAdmin(admin.ModelAdmin):
 # =================================
 
 @admin.register(ProductVideo)
-class ProductVideoAdmin(admin.ModelAdmin):
+class ProductVideoAdmin(SocialPublicationDeleteGuardMixin, admin.ModelAdmin):
     inlines = (SocialPublicationInline,)
     list_display = [
         'product_name',
@@ -1679,6 +1737,16 @@ class ProductVideoAdmin(admin.ModelAdmin):
         'youtube_video_id',
         'youtube_url',
     ]
+
+    def social_publications_for_delete(self, objs):
+        video_ids = [obj.pk for obj in objs if getattr(obj, "pk", None)]
+        content_type = ContentType.objects.get_for_model(
+            ProductVideo, for_concrete_model=False
+        )
+        return SocialPublication.objects.filter(
+            content_type=content_type,
+            object_id__in=video_ids,
+        )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)

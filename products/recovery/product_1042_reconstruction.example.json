@@ -1,0 +1,49 @@
+{
+  "evidence": {
+    "deleted_product_id": 1042,
+    "deleted_product_video_id": 15,
+    "admin_deleted_at": "2026-08-24T00:09:37.722949+00:00",
+    "admin_actor_user_id": 2
+  },
+  "product": {
+    "vendor_user_id": 23,
+    "vendor_email": "cyfexlimited8@gmail.com",
+    "sku": "VND-23-SOFP89R5",
+    "name": "qwerty",
+    "slug": "qwerty",
+    "description": "dfghjk",
+    "specifications": "",
+    "category_id": null,
+    "brand_id": null,
+    "price": null,
+    "stock_quantity": null,
+    "condition": null,
+    "manufacturer_sku": "",
+    "main_image": "products/2026/08/cd07f5f535a94d0d8ff82b7c660fc85b.webp",
+    "approved_by_user_id": 2,
+    "approved_at": "2026-08-23T23:36:59.471992+00:00"
+  },
+  "video": {
+    "vendor_profile_id": 4,
+    "title": "qwerty",
+    "description": "dfghjk",
+    "youtube_video_id": "NSEgziF-7zY",
+    "youtube_url": "https://www.youtube.com/watch?v=NSEgziF-7zY",
+    "youtube_visibility": "unlisted",
+    "duration_seconds": 19,
+    "approved_by_user_id": 2,
+    "approved_at": "2026-08-24T00:08:52.550662+00:00"
+  },
+  "gallery_images": [
+    {"file_name": "products/gallery/2026/08/5f7fb7f5759a4ff58170304b632e01ad.webp", "order": 0},
+    {"file_name": "products/gallery/2026/08/072e2a8f539b4b25b0d0559575e042b7.webp", "order": 1},
+    {"file_name": "products/gallery/2026/08/18144614226148cf8b535e22cd1b7b43.webp", "order": 2},
+    {"file_name": "products/gallery/2026/08/cbb46070096249a59fe087a57411f336.webp", "order": 3},
+    {"file_name": "products/gallery/2026/08/e6b078bb85e04422a28dd704522e5014.webp", "order": 4}
+  ],
+  "social_publication": {
+    "id": 5,
+    "external_id": "18172197163452909",
+    "status": "published"
+  }
+}
