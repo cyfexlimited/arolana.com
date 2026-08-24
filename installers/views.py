@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 
 from arolana_payments.models import PaymentMethod, PaymentStatus, PaymentTransaction
 from arolana_payments.services import gateway_is_available, init_paystack_checkout
@@ -35,6 +36,7 @@ from .forms import (
     ServiceQuoteRequestForm,
     ServiceReviewForm,
 )
+from .csrf import header_first_csrf_protect
 from .models import (
     ProviderKYCDocument,
     ProviderProfileChangeRequest,
@@ -2410,6 +2412,8 @@ def provider_project_edit(
 # =============================================================================
 
 
+@csrf_exempt
+@header_first_csrf_protect
 @login_required
 def provider_project_media(
     request,

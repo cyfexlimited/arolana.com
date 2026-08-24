@@ -116,6 +116,31 @@ class SocialPublishingRoleTests(SimpleTestCase):
         self.assertNotIn('cookie("csrftoken")', template)
         self.assertIn('role:"provider"', template)
         self.assertIn('credentials:"same-origin"', template)
+        self.assertIn("let uploadInFlight=false", template)
+        self.assertIn("if(uploadInFlight){event.preventDefault();return;}", template)
+        self.assertEqual(template.count("const uploadBody=new FormData(form)"), 1)
+        self.assertNotIn('uploadBody.append("files"', template)
+        self.assertIn('uploadBody.delete("csrfmiddlewaretoken")', template)
+        self.assertIn('response.headers.get("Content-Type")', template)
+        self.assertIn('throw new Error(fallback)', template)
+
+    def test_provider_header_first_csrf_does_not_parse_multipart_post(self):
+        from installers.csrf import HeaderFirstCsrfViewMiddleware
+
+        class HeaderOnlyRequest:
+            method = "POST"
+            COOKIES = {settings.CSRF_COOKIE_NAME: "A" * 32}
+            META = {
+                "CSRF_COOKIE": "A" * 32,
+                settings.CSRF_HEADER_NAME: "A" * 32,
+            }
+
+            @property
+            def POST(self):
+                raise AssertionError("multipart POST was parsed during CSRF validation")
+
+        middleware = HeaderFirstCsrfViewMiddleware(lambda request: None)
+        middleware._check_token(HeaderOnlyRequest())
 
 from django.test import override_settings
 

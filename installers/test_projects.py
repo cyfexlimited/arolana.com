@@ -443,7 +443,8 @@ class ProjectNetworkTests(TestCase):
         self.client.force_login(self.user)
 
         response = self.client.post(
-            reverse("provider_workspace:project_media", args=[self.project.id]),
+            reverse("provider_workspace:project_media", args=[self.project.id])
+            + "?status=connected&platform=instagram",
             {
                 "action": "upload",
                 "stage": ServiceProjectMedia.STAGE_GENERAL,
@@ -548,6 +549,8 @@ class ProjectNetworkTests(TestCase):
         self.assertEqual(publication.status, "pending")
         self.assertEqual(publication.deferred_video_lease, lease)
         self.assertEqual(response.json()["instagram_publication"]["publication_id"], publication.id)
+        self.assertEqual(youtube_upload.call_count, 1)
+        self.assertEqual(stage_video.call_count, 1)
 
     @override_settings(
         SOCIAL_PUBLISHING_ENABLED=True,

@@ -155,6 +155,7 @@ document.addEventListener("DOMContentLoaded",function(){
   const status=document.getElementById("providerInstagramPublishStatus");
   let instagramAccountState="loading";
   let uploadedProjectMediaId=null;
+  let uploadInFlight=false;
   if(!form||!fileInput||!checkbox)return;
 
   const csrf=()=>form.querySelector('input[name="csrfmiddlewaretoken"]')?.value||"";
@@ -229,12 +230,18 @@ document.addEventListener("DOMContentLoaded",function(){
     body.append("share_to_feed",shareToFeed&&shareToFeed.checked?"true":"false");
     setStatus("Publishing Reel to Instagram...","info");
     const response=await fetch("/api/social-publishing/instagram/videos/publish/",{method:"POST",headers:{"X-CSRFToken":csrf(),"Accept":"application/json"},body,credentials:"same-origin"});
-    const data=await response.json();
+    const data=await readJsonResponse(response,"Instagram publishing failed.");
     if(!response.ok){const error=new Error("Instagram publishing failed.");error.code=data.error_code||"instagram_publish_failed";throw error;}
     if(data.status==="pending"){setStatus("YouTube: Published. Instagram: Pending Arolana approval.","info");return data;}
     const permalink=data.instagram_permalink||"";
     showPermalink(permalink);
     return data;
+  }
+
+  async function readJsonResponse(response,fallback){
+    const contentType=(response.headers.get("Content-Type")||"").toLowerCase();
+    if(!contentType.includes("application/json"))throw new Error(fallback);
+    try{return await response.json();}catch(_error){throw new Error(fallback);}
   }
 
   checkbox.addEventListener("change",refreshOptions);
@@ -244,6 +251,7 @@ document.addEventListener("DOMContentLoaded",function(){
   loadInstagram();
 
   form.addEventListener("submit",async function(event){
+    if(uploadInFlight){event.preventDefault();return;}
     if(!checkbox.checked&&uploadedProjectMediaId){event.preventDefault();setStatus("YouTube: Published. Select Instagram to retry the retained publication without another upload.","error");return;}
     if(!checkbox.checked)return;
     event.preventDefault();
@@ -251,13 +259,16 @@ document.addEventListener("DOMContentLoaded",function(){
     if(instagramAccountState!=="connected"){setStatus(instagramAccountState==="expired"?"Reconnect Instagram before publishing this video.":"Connect Instagram before publishing this video.","error");refreshOptions();return;}
     if(!videoFile){setStatus("Choose a video file before selecting Instagram publishing.","error");return;}
     const submitButton=form.querySelector("button[type=submit]");
+    uploadInFlight=true;
     submitButton&&submitButton.setAttribute("disabled","disabled");
     setStatus("Uploading project video to Arolana...","info");
     try{
       let mediaId=uploadedProjectMediaId;
       if(!mediaId){
-        const response=await fetch(window.location.href,{method:"POST",headers:{"X-CSRFToken":csrf(),"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:new FormData(form),credentials:"same-origin"});
-        const data=await response.json();
+        const uploadBody=new FormData(form);
+        uploadBody.delete("csrfmiddlewaretoken");
+        const response=await fetch(window.location.pathname,{method:"POST",headers:{"X-CSRFToken":csrf(),"X-Requested-With":"XMLHttpRequest","Accept":"application/json"},body:uploadBody,credentials:"same-origin"});
+        const data=await readJsonResponse(response,"Project media upload failed.");
         if(!response.ok||data.success===false)throw new Error(data.message||"Project media upload failed.");
         const videoMedia=(data.media||[]).find(item=>item.media_type==="video");
         if(!videoMedia||!videoMedia.id)throw new Error("Project video upload could not be completed.");
@@ -281,6 +292,7 @@ document.addEventListener("DOMContentLoaded",function(){
       setStatus(uploadedProjectMediaId?"YouTube: Published. Instagram: Failed — retry will not upload YouTube again.":(error.message||"Video publishing failed."),"error");
       if(uploadedProjectMediaId&&submitButton)submitButton.innerHTML='<i class="fab fa-instagram mr-2"></i>Retry Instagram';
     }finally{
+      uploadInFlight=false;
       submitButton&&submitButton.removeAttribute("disabled");
     }
   });
