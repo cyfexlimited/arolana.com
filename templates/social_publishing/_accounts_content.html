@@ -22,7 +22,7 @@
         <div class="sp-card-top">
           <div class="sp-icon">{% if item.platform == 'youtube' %}▶{% elif item.platform == 'instagram' %}◎{% elif item.platform == 'facebook' %}f{% elif item.platform == 'tiktok' %}♪{% else %}in{% endif %}</div>
           <div><h3>{{ item.label }}</h3><small>{% if item.hosting %}Permanent Arolana video host{% else %}Optional publishing destination{% endif %}</small></div>
-          <span class="sp-status {% if item.connected %}ok{% endif %}">{% if item.hosting %}Managed{% elif item.connected %}Connected{% elif not item.available %}Coming soon{% else %}Not connected{% endif %}</span>
+          <span class="sp-status {% if item.connected %}ok{% endif %}">{% if item.hosting %}Managed{% elif item.connected %}Connected{% elif item.status == 'expired' %}Expired{% elif item.status == 'revoked' %}Revoked{% elif item.status == 'error' %}Connection error{% elif not item.available %}Coming soon{% else %}Not connected{% endif %}</span>
         </div>
         {% if item.hosting %}
           <p>Arolana continues to send and play your marketplace videos through its managed YouTube hosting flow.</p>
@@ -33,11 +33,16 @@
         {% elif not item.configured %}
           <p>Arolana has not configured the OAuth credentials for this platform yet.</p>
         {% elif item.connected %}
-          <p>{{ item.account.account_username|default:item.account.account_name|default:"Authorized publishing account" }}</p>
+          <p>{{ item.account.account_username|default:item.account.account_name|default:"Authorized publishing account" }}{% if item.platform == 'facebook' and item.account.external_account_id %}<br><small>Page ID ending in {{ item.account.external_account_id|slice:'-4:' }}</small>{% endif %}</p>
           <form method="post" action="{% url 'social_publishing_web:disconnect' item.platform %}">{% csrf_token %}<input type="hidden" name="role" value="{{ role }}"><button class="sp-btn danger" type="submit">Disconnect</button></form>
         {% else %}
-          <p>Authorize Arolana to publish selected videos to your {{ item.label }} account.</p>
-          <a class="sp-btn" href="{% url 'social_publishing_web:connect' item.platform %}?role={{ role }}">Connect {{ item.label }}</a>
+          {% if item.status == 'expired' or item.status == 'revoked' or item.status == 'error' %}
+            <p>The previous authorization is no longer usable. Reconnect to continue.</p>
+            <a class="sp-btn" href="{% url 'social_publishing_web:connect' item.platform %}?role={{ role }}">Reconnect {{ item.label }}</a>
+          {% else %}
+            <p>Authorize Arolana to connect your {{ item.label }} account.</p>
+            <a class="sp-btn" href="{% url 'social_publishing_web:connect' item.platform %}?role={{ role }}">Connect {{ item.label }}</a>
+          {% endif %}
         {% endif %}
       </article>
     {% endfor %}

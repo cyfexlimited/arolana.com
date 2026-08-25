@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import SocialAccount, SocialPublication, TemporaryVideoLease
+from .models import SocialAccount, SocialConnectionAuditLog, SocialPublication, TemporaryVideoLease
 
 
 @admin.register(SocialAccount)
@@ -62,6 +62,20 @@ class SocialPublicationAdmin(admin.ModelAdmin):
         return f"{label} #{object_id}"
 
     def has_add_permission(self, request):
+        return False
+
+
+@admin.register(SocialConnectionAuditLog)
+class SocialConnectionAuditLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "user", "owner_role", "platform", "event", "stage", "http_status")
+    list_filter = ("platform", "owner_role", "event")
+    search_fields = ("user__email", "external_identity_id", "selected_destination_id", "provider_error_code")
+    readonly_fields = tuple(field.name for field in SocialConnectionAuditLog._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
         return False
 
 

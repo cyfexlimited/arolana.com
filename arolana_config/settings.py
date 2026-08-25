@@ -223,6 +223,7 @@ GOOGLE_MERCHANT_FEED_LABEL = "NG"
 # ============ MIDDLEWARE ============
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "core.middleware.CanonicalHostMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -461,6 +462,12 @@ SOCIAL_PUBLISHING_TEMP_RETENTION_HOURS = config(
 )
 SOCIAL_PUBLISHING_INSTAGRAM_ENABLED = config("SOCIAL_PUBLISHING_INSTAGRAM_ENABLED", default=False, cast=bool)
 SOCIAL_PUBLISHING_FACEBOOK_ENABLED = config("SOCIAL_PUBLISHING_FACEBOOK_ENABLED", default=False, cast=bool)
+SOCIAL_PUBLISHING_FACEBOOK_CONNECTION_ENABLED = config(
+    "SOCIAL_PUBLISHING_FACEBOOK_CONNECTION_ENABLED", default=False, cast=bool
+)
+SOCIAL_PUBLISHING_FACEBOOK_PUBLISHING_ENABLED = config(
+    "SOCIAL_PUBLISHING_FACEBOOK_PUBLISHING_ENABLED", default=False, cast=bool
+)
 SOCIAL_PUBLISHING_TIKTOK_ENABLED = config("SOCIAL_PUBLISHING_TIKTOK_ENABLED", default=False, cast=bool)
 SOCIAL_PUBLISHING_LINKEDIN_ENABLED = config("SOCIAL_PUBLISHING_LINKEDIN_ENABLED", default=False, cast=bool)
 

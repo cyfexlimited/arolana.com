@@ -12,11 +12,13 @@ from rest_framework.response import Response
 from staff_mobile.models import StaffMobileToken
 
 from .authentication import StaffMobileTokenAuthentication
+from .connection_security import audit_connection
+from .crypto import decrypt_token
 from .models import PublicationStatus, SocialAccount, SocialPlatform, SocialPublication
-from .oauth import platform_config
+from .oauth import platform_config, revoke_facebook_access
 from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
 from .serializers import InstagramVideoPublicationSerializer
-from .services import normalize_owner_role, platform_enabled, social_publishing_access
+from .services import normalize_owner_role, platform_connection_enabled, platform_enabled, social_publishing_access
 from .web_views import make_launch_token
 
 
@@ -160,7 +162,7 @@ def _platform_payload(platform, label, account=None):
     return {
         "platform": platform,
         "label": label,
-        "available": platform_enabled(platform),
+        "available": platform_connection_enabled(platform),
         "configured": configured,
         "connected": bool(account and account.is_connected),
         "status": account.status if account else "not_connected",
@@ -219,7 +221,7 @@ def social_account_connect_launch(request, platform):
     access = social_publishing_access(request.user, role)
     if not access.allowed:
         return Response({"detail": access.reason, "upgrade_required": True}, status=status.HTTP_403_FORBIDDEN)
-    if not platform_enabled(platform):
+    if not platform_connection_enabled(platform):
         return Response({"detail": f"{platform.title()} connection is not enabled yet."}, status=status.HTTP_409_CONFLICT)
     try:
         configured = platform_config(platform).configured
@@ -251,7 +253,23 @@ def social_account_disconnect(request, platform):
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     if platform == SocialPlatform.YOUTUBE:
         return Response({"detail": "Arolana YouTube hosting cannot be disconnected here."}, status=status.HTTP_400_BAD_REQUEST)
-    deleted, _ = SocialAccount.objects.filter(user=request.user, owner_role=role, platform=platform).delete()
+    account = SocialAccount.objects.filter(user=request.user, owner_role=role, platform=platform).first()
+    deleted = 0
+    if account:
+        audit_connection("disconnect_started", user=request.user, owner_role=role, platform=platform,
+                         social_account_id=account.pk, stage="disconnect")
+        if platform == SocialPlatform.FACEBOOK and account.access_token_encrypted:
+            try:
+                revoke_facebook_access(decrypt_token(account.access_token_encrypted))
+                audit_connection("provider_revoke_succeeded", user=request.user, owner_role=role,
+                                 platform=platform, social_account_id=account.pk, stage="provider_revoke")
+            except Exception as exc:
+                audit_connection("provider_revoke_failed", user=request.user, owner_role=role,
+                                 platform=platform, social_account_id=account.pk, stage="provider_revoke",
+                                 failure_reason=exc.__class__.__name__, http_status=getattr(exc, "http_status", None),
+                                 provider_error_code=getattr(exc, "provider_code", ""))
+        deleted, _ = account.delete()
+        audit_connection("disconnected", user=request.user, owner_role=role, platform=platform, stage="disconnect")
     return Response({"success": True, "disconnected": bool(deleted), "platform": platform})
 
 

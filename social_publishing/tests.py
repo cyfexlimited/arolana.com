@@ -53,6 +53,8 @@ from .oauth import (
 )
 from staff_mobile.models import StaffMobileToken
 from .deletion import ActiveSocialPublicationError
+from .connection_security import create_oauth_state
+from .web_views import _signed_oauth_state
 
 
 class SocialPublishingRoleTests(SimpleTestCase):
@@ -240,21 +242,19 @@ class InstagramOAuthTokenLifecycleTests(TestCase):
         }
         self.client.force_login(self.user)
         session = self.client.session
-        session["social_oauth"] = {
-            "state": "safe-state",
-            "user_id": self.user.pk,
-            "role": "admin",
-            "platform": "instagram",
-            "return_url": "",
-        }
         session.save()
+        state_row, raw_state = create_oauth_state(
+            user=self.user, owner_role="admin", platform="instagram",
+            session_identity=session.session_key,
+        )
+        safe_state = _signed_oauth_state(state_row, raw_state, session.session_key, "")
 
         response = self.client.get(
             reverse(
                 "social_publishing_web:oauth_callback",
                 kwargs={"platform": "instagram"},
             ),
-            {"state": "safe-state", "code": "authorization-code"},
+            {"state": safe_state, "code": "authorization-code"},
         )
 
         self.assertEqual(response.status_code, 302)
@@ -401,21 +401,20 @@ class ProviderInstagramReconnectTests(TestCase):
         }
         client = APIClient()
         session = client.session
-        session["social_oauth"] = {
-            "state": "provider-safe-state",
-            "user_id": self.user.pk,
-            "role": "provider",
-            "platform": "instagram",
-            "return_url": "/dashboard/provider/projects/1/media/",
-        }
         session.save()
+        state_row, raw_state = create_oauth_state(
+            user=self.user, owner_role="provider", platform="instagram",
+            session_identity=session.session_key,
+            return_target="/dashboard/provider/projects/1/media/",
+        )
+        safe_state = _signed_oauth_state(state_row, raw_state, session.session_key, "")
 
         response = client.get(
             reverse(
                 "social_publishing_web:oauth_callback",
                 kwargs={"platform": "instagram"},
             ),
-            {"state": "provider-safe-state", "code": "authorization-code"},
+            {"state": safe_state, "code": "authorization-code"},
         )
 
         self.assertEqual(response.status_code, 302)

@@ -31,6 +31,13 @@ class InstagramTokenLifecycleError(RuntimeError):
     """Safe Instagram token exchange/refresh failure without credential data."""
 
 
+class SocialProviderError(RuntimeError):
+    def __init__(self, reason, *, http_status=None, provider_code=""):
+        super().__init__(reason)
+        self.http_status = http_status
+        self.provider_code = str(provider_code or "")[:120]
+
+
 def _safe_token_response(response, action):
     if not response.ok:
         raise InstagramTokenLifecycleError(
@@ -105,6 +112,10 @@ def refresh_instagram_account_if_needed(account, *, now=None):
         account.status = SocialConnectionStatus.EXPIRED
         account.last_error = "Instagram access token expired. Reauthorization is required."
         account.save(update_fields=["status", "last_error", "updated_at"])
+        from .connection_security import audit_connection
+        audit_connection("expired", user=account.user, owner_role=account.owner_role,
+                         platform=account.platform, social_account_id=account.pk,
+                         stage="token_refresh", failure_reason="token_expired")
         raise InstagramTokenLifecycleError(
             "The Instagram account requires reauthorization."
         )
@@ -144,6 +155,10 @@ def refresh_instagram_account_if_needed(account, *, now=None):
                 "updated_at",
             ]
         )
+        from .connection_security import audit_connection
+        audit_connection("refreshed", user=account.user, owner_role=account.owner_role,
+                         platform=account.platform, social_account_id=account.pk,
+                         stage="token_refresh")
         return account
     except Exception as exc:
         account.status = SocialConnectionStatus.ERROR
@@ -206,7 +221,7 @@ def platform_config(platform):
             token_url=f"https://graph.facebook.com/{meta_version}/oauth/access_token",
             scopes=_split_scopes(
                 getattr(settings, "SOCIAL_PUBLISHING_FACEBOOK_SCOPES", ""),
-                ("pages_show_list", "pages_read_engagement", "pages_manage_posts"),
+                ("pages_show_list", "pages_read_engagement"),
             ),
         )
 
@@ -245,6 +260,10 @@ def callback_uri(request, platform):
     ).strip()
     if configured:
         return configured
+    if platform == SocialPlatform.FACEBOOK:
+        site_url = str(getattr(settings, "SITE_URL", "") or "").rstrip("/")
+        if site_url:
+            return f"{site_url}{reverse('social_publishing_web:oauth_callback', kwargs={'platform': platform})}"
     return request.build_absolute_uri(
         reverse("social_publishing_web:oauth_callback", kwargs={"platform": platform})
     )
@@ -346,3 +365,117 @@ def resolve_identity(platform, token_data):
         "account_username": "",
         "platform_metadata": {},
     }
+
+
+def discover_facebook_pages(access_token):
+    """Return only Pages Meta says the authorized user can manage."""
+    cfg = platform_config(SocialPlatform.FACEBOOK)
+    version = cfg.authorization_url.split("/")[-3]
+    try:
+        response = requests.get(
+            f"https://graph.facebook.com/{version}/me/accounts",
+            params={"fields": "id,name,access_token,tasks", "access_token": access_token},
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise SocialProviderError("Facebook Page discovery could not be completed.") from exc
+    if not response.ok:
+        try:
+            error = (response.json() or {}).get("error") or {}
+        except ValueError:
+            error = {}
+        raise SocialProviderError(
+            "Facebook Page discovery failed.",
+            http_status=response.status_code,
+            provider_code=error.get("code", ""),
+        )
+    try:
+        rows = response.json().get("data", [])
+    except (ValueError, AttributeError) as exc:
+        raise SocialProviderError("Facebook Page discovery returned an invalid response.") from exc
+    pages = []
+    for row in rows if isinstance(rows, list) else []:
+        page_id = str(row.get("id") or "").strip()
+        page_token = str(row.get("access_token") or "").strip()
+        tasks = {str(task).upper() for task in (row.get("tasks") or [])}
+        if not page_id or not page_token or not tasks.intersection({"CREATE_CONTENT", "MANAGE"}):
+            continue
+        pages.append({
+            "id": page_id,
+            "name": str(row.get("name") or "Facebook Page")[:255],
+            "tasks": sorted(tasks),
+            "access_token": page_token,
+        })
+    return pages
+
+
+def resolve_facebook_user_identity(access_token):
+    cfg = platform_config(SocialPlatform.FACEBOOK)
+    version = cfg.authorization_url.split("/")[-3]
+    try:
+        response = requests.get(
+            f"https://graph.facebook.com/{version}/me",
+            params={"fields": "id,name", "access_token": access_token}, timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise SocialProviderError("Facebook identity discovery could not be completed.") from exc
+    if not response.ok:
+        raise SocialProviderError("Facebook identity discovery failed.", http_status=response.status_code)
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise SocialProviderError("Facebook identity discovery returned an invalid response.") from exc
+    identity_id = str(data.get("id") or "").strip()
+    if not identity_id:
+        raise SocialProviderError("Facebook identity discovery returned no account identifier.")
+    return {"id": identity_id, "name": str(data.get("name") or "")[:255]}
+
+
+def exchange_facebook_long_lived_token(short_lived_token):
+    """Exchange the callback user token before deriving Page access tokens."""
+    cfg = platform_config(SocialPlatform.FACEBOOK)
+    version = cfg.authorization_url.split("/")[-3]
+    try:
+        response = requests.get(
+            f"https://graph.facebook.com/{version}/oauth/access_token",
+            params={
+                "grant_type": "fb_exchange_token", "client_id": cfg.client_id,
+                "client_secret": cfg.client_secret, "fb_exchange_token": short_lived_token,
+            },
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise SocialProviderError("Facebook long-lived token exchange could not be completed.") from exc
+    if not response.ok:
+        try:
+            error = (response.json() or {}).get("error") or {}
+        except ValueError:
+            error = {}
+        raise SocialProviderError(
+            "Facebook long-lived token exchange failed.", http_status=response.status_code,
+            provider_code=error.get("code", ""),
+        )
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise SocialProviderError("Facebook long-lived token exchange returned an invalid response.") from exc
+    if not data.get("access_token"):
+        raise SocialProviderError("Facebook long-lived token exchange returned no access token.")
+    return data
+
+
+def revoke_facebook_access(access_token):
+    cfg = platform_config(SocialPlatform.FACEBOOK)
+    version = cfg.authorization_url.split("/")[-3]
+    try:
+        response = requests.delete(
+            f"https://graph.facebook.com/{version}/me/permissions",
+            params={"access_token": access_token}, timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise SocialProviderError("Facebook authorization could not be revoked.") from exc
+    if not response.ok:
+        raise SocialProviderError(
+            "Facebook authorization could not be revoked.", http_status=response.status_code
+        )
+    return True

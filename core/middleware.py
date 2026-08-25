@@ -1,9 +1,49 @@
 import hashlib
 import time
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.core.cache import cache
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+
+
+class CanonicalHostMiddleware:
+    """Redirect www to SITE_URL without forwarding OAuth callback secrets."""
+
+    OAUTH_QUERY_KEYS = {"code", "state", "oauth_token", "signed_request"}
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        site = urlsplit(str(getattr(settings, "SITE_URL", "") or ""))
+        canonical_host = (site.hostname or "").lower()
+        request_host = request.get_host().split(":", 1)[0].lower()
+        if (
+            not settings.DEBUG
+            and canonical_host
+            and request_host == f"www.{canonical_host}"
+        ):
+            path = request.path_info or request.path
+            is_oauth_callback = (
+                path.startswith("/social-publishing/callback/")
+                or path.startswith("/social-publishing/meta/")
+                or path == "/integrations/youtube/oauth/callback/"
+                or (
+                    path.startswith("/api/ads/v2/management/connected-accounts/")
+                    and path.endswith("/callback/")
+                )
+                or (path.startswith("/accounts/") and path.endswith("/login/callback/"))
+            )
+            has_oauth_material = bool(self.OAUTH_QUERY_KEYS.intersection(request.GET.keys()))
+            if is_oauth_callback or has_oauth_material:
+                return HttpResponseBadRequest(
+                    "OAuth callbacks must use the canonical Arolana host. Start a new connection from arolana.com."
+                )
+            response = HttpResponse(status=308)
+            response["Location"] = f"{site.scheme or 'https'}://{canonical_host}{request.get_full_path()}"
+            return response
+        return self.get_response(request)
 
 
 class ArolanaSecurityHeadersMiddleware:

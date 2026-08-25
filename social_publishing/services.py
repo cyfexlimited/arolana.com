@@ -59,9 +59,23 @@ def connected_platforms(user, role):
 
 
 def platform_enabled(platform):
+    """Publishing capability gate. Facebook connection never implies publishing."""
     platform = str(platform or "").strip().lower()
     if platform == SocialPlatform.YOUTUBE:
         return True
     if not bool(getattr(settings, "SOCIAL_PUBLISHING_ENABLED", False)):
         return False
+    if platform == SocialPlatform.FACEBOOK:
+        return bool(getattr(settings, "SOCIAL_PUBLISHING_FACEBOOK_PUBLISHING_ENABLED", False))
+    return bool(getattr(settings, f"SOCIAL_PUBLISHING_{platform.upper()}_ENABLED", False))
+
+
+def platform_connection_enabled(platform):
+    platform = str(platform or "").strip().lower()
+    if platform == SocialPlatform.YOUTUBE:
+        return False
+    if not bool(getattr(settings, "SOCIAL_PUBLISHING_ENABLED", False)):
+        return False
+    if platform == SocialPlatform.FACEBOOK:
+        return bool(getattr(settings, "SOCIAL_PUBLISHING_FACEBOOK_CONNECTION_ENABLED", False))
     return bool(getattr(settings, f"SOCIAL_PUBLISHING_{platform.upper()}_ENABLED", False))

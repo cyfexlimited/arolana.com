@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -26,6 +28,64 @@ class SocialConnectionStatus(models.TextChoices):
     EXPIRED = "expired", "Expired"
     REVOKED = "revoked", "Revoked"
     ERROR = "error", "Error"
+
+
+class SocialOAuthState(models.Model):
+    """Durable, single-use state for a role-bound social OAuth launch."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    owner_role = models.CharField(max_length=20, choices=SocialOwnerRole.choices)
+    platform = models.CharField(max_length=20, choices=SocialPlatform.choices)
+    token_hash = models.CharField(max_length=64, unique=True)
+    session_binding_hash = models.CharField(max_length=64, blank=True)
+    mobile_launch_hash = models.CharField(max_length=64, blank=True)
+    safe_return_target = models.CharField(max_length=1000, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    used_at = models.DateTimeField(blank=True, null=True, db_index=True)
+    pending_token_expires_at = models.DateTimeField(blank=True, null=True)
+    pending_scopes = models.JSONField(default=list, blank=True)
+    pending_destinations = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["platform", "expires_at", "used_at"])]
+
+
+class SocialConnectionAuditLog(models.Model):
+    """Sanitized, credential-free connection lifecycle audit trail."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    owner_role = models.CharField(max_length=20, choices=SocialOwnerRole.choices, blank=True)
+    platform = models.CharField(max_length=20, choices=SocialPlatform.choices, db_index=True)
+    event = models.CharField(max_length=64, db_index=True)
+    social_account = models.ForeignKey(
+        "SocialAccount", on_delete=models.SET_NULL, null=True, blank=True, related_name="connection_audit_logs"
+    )
+    external_identity_id = models.CharField(max_length=255, blank=True)
+    selected_destination_id = models.CharField(max_length=255, blank=True)
+    http_status = models.PositiveIntegerField(blank=True, null=True)
+    provider_error_code = models.CharField(max_length=120, blank=True)
+    failure_reason = models.CharField(max_length=255, blank=True)
+    stage = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+
+class SocialDataDeletionRequest(models.Model):
+    """Idempotent provider data-deletion confirmation without callback payloads."""
+
+    platform = models.CharField(max_length=20, choices=SocialPlatform.choices)
+    external_account_id = models.CharField(max_length=255)
+    confirmation_code = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["platform", "external_account_id"],
+                name="uniq_social_data_deletion_platform_identity",
+            )
+        ]
 
 
 class SocialAccount(BaseModel):

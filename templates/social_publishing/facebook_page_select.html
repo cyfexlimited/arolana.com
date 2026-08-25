@@ -1,0 +1,26 @@
+{% extends 'base/base.html' %}
+{% block content %}
+<main style="max-width:760px;margin:48px auto;padding:0 18px">
+  <section style="background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:28px;box-shadow:0 16px 45px rgba(15,23,42,.08)">
+    <span style="font-size:12px;font-weight:900;color:#1877f2;text-transform:uppercase;letter-spacing:.08em">Facebook connection</span>
+    <h1 style="color:#071a44;margin:8px 0">Select a Facebook Page</h1>
+    <p style="color:#64748b">Arolana will connect only the Page you explicitly select. No content will be published during connection.</p>
+    {% if pages %}
+      <form method="post" style="display:grid;gap:12px;margin-top:22px">{% csrf_token %}
+        <input type="hidden" name="selection" value="{{ selection }}">
+        {% for page in pages %}
+          <label style="display:flex;gap:12px;align-items:center;border:1px solid #dbe4f0;padding:15px;border-radius:14px">
+            <input type="radio" name="page_id" value="{{ page.id }}" required>
+            <span><strong>{{ page.name }}</strong><br><small>Page ID ending in {{ page.id|slice:'-4:' }}</small></span>
+          </label>
+        {% endfor %}
+        <button type="submit" style="border:0;border-radius:12px;padding:12px 16px;background:#1877f2;color:#fff;font-weight:900">Connect selected Page</button>
+      </form>
+    {% else %}
+      <div role="alert" style="margin-top:22px;padding:16px;border-radius:14px;background:#fff7ed;color:#9a3412">
+        Meta did not return any manageable Facebook Pages for this account.
+      </div>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}
