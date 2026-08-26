@@ -6,7 +6,7 @@ behind the platform feature flags and is implemented by later publisher adapters
 
 from dataclasses import dataclass
 from datetime import timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import requests
 from django.conf import settings
@@ -335,6 +335,64 @@ def token_expiry(token_data):
     return timezone.now() + timedelta(seconds=max(0, seconds))
 
 
+def instagram_identity_from_profile(profile, fallback_id=""):
+    baseline = {
+        "external_account_id": str(fallback_id or "")[:255],
+        "account_name": "Instagram Professional Account",
+        "account_username": "",
+        "platform_metadata": {},
+    }
+    if not isinstance(profile, dict):
+        return baseline
+
+    profile_picture_url = str(profile.get("profile_picture_url") or "").strip()
+    if profile_picture_url and urlsplit(profile_picture_url).scheme.lower() != "https":
+        profile_picture_url = ""
+    username = str(profile.get("username") or "").strip().lstrip("@")[:255]
+    account_type = str(profile.get("account_type") or "").strip()[:80]
+    return {
+        "external_account_id": str(profile.get("id") or fallback_id or "")[:255],
+        "account_name": "Instagram Professional Account",
+        "account_username": username,
+        "platform_metadata": {
+            key: value
+            for key, value in {
+                "account_type": account_type,
+                "profile_picture_url": profile_picture_url,
+            }.items()
+            if value
+        },
+    }
+
+
+def resolve_instagram_identity(access_token, fallback_id=""):
+    """Best-effort safe Professional account identity for display."""
+    baseline = instagram_identity_from_profile({}, fallback_id)
+    if not access_token:
+        return baseline
+
+    version = str(
+        getattr(settings, "SOCIAL_PUBLISHING_META_GRAPH_VERSION", "v25.0") or "v25.0"
+    ).strip()
+    if not version.startswith("v"):
+        version = f"v{version}"
+    try:
+        response = requests.get(
+            f"https://graph.instagram.com/{version}/me",
+            params={
+                "fields": "id,username,account_type,profile_picture_url",
+                "access_token": access_token,
+            },
+            timeout=30,
+        )
+        if not response.ok:
+            return baseline
+        profile = response.json()
+    except (requests.RequestException, ValueError):
+        return baseline
+    return instagram_identity_from_profile(profile, fallback_id)
+
+
 def resolve_identity(platform, token_data):
     """Return a safe baseline identity without requiring publishing permissions.
 
@@ -359,9 +417,15 @@ def resolve_identity(platform, token_data):
             "platform_metadata": {},
         }
 
+    if platform == SocialPlatform.INSTAGRAM:
+        return resolve_instagram_identity(
+            token_data.get("access_token", ""),
+            token_data.get("user_id", "") or token_data.get("id", ""),
+        )
+
     return {
         "external_account_id": token_data.get("user_id", "") or token_data.get("id", ""),
-        "account_name": "Instagram account" if platform == SocialPlatform.INSTAGRAM else "Facebook account",
+        "account_name": "Facebook account",
         "account_username": "",
         "platform_metadata": {},
     }

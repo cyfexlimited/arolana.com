@@ -4,6 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
+import requests
+
 from social_publishing.instagram import (
     InstagramPublishingError,
     create_reel_container,
@@ -50,6 +52,7 @@ from .oauth import (
     exchange_instagram_long_lived_token,
     refresh_instagram_account_if_needed,
     refresh_instagram_long_lived_token,
+    resolve_instagram_identity,
 )
 from staff_mobile.models import StaffMobileToken
 from .deletion import ActiveSocialPublicationError
@@ -226,10 +229,11 @@ class InstagramOAuthTokenLifecycleTests(TestCase):
             is_staff=True,
         )
 
+    @patch("social_publishing.oauth.requests.get")
     @patch("social_publishing.web_views.exchange_instagram_long_lived_token")
     @patch("social_publishing.web_views.exchange_code")
     def test_callback_persists_long_lived_token_and_expiry(
-        self, mock_exchange_code, mock_long_lived
+        self, mock_exchange_code, mock_long_lived, mock_profile_get
     ):
         mock_exchange_code.return_value = {
             "access_token": "short-lived-token",
@@ -240,6 +244,15 @@ class InstagramOAuthTokenLifecycleTests(TestCase):
             "expires_in": 5184000,
             "token_type": "bearer",
         }
+        mock_profile_get.return_value = Mock(
+            ok=True,
+            json=Mock(return_value={
+                "id": "instagram-user-1",
+                "username": "arolana_professional",
+                "account_type": "BUSINESS",
+                "profile_picture_url": "https://cdninstagram.example/avatar.jpg",
+            }),
+        )
         self.client.force_login(self.user)
         session = self.client.session
         session.save()
@@ -261,12 +274,225 @@ class InstagramOAuthTokenLifecycleTests(TestCase):
         account = SocialAccount.objects.get(user=self.user, owner_role="admin")
         self.assertEqual(decrypt_token(account.access_token_encrypted), "long-lived-token")
         self.assertEqual(account.external_account_id, "instagram-user-1")
+        self.assertEqual(account.account_username, "arolana_professional")
+        self.assertEqual(account.account_name, "Instagram Professional Account")
+        self.assertEqual(
+            account.platform_metadata["profile_picture_url"],
+            "https://cdninstagram.example/avatar.jpg",
+        )
         self.assertGreater(account.token_expires_at, timezone.now() + timedelta(days=59))
         self.assertEqual(
             account.platform_metadata[INSTAGRAM_TOKEN_KIND_KEY],
             INSTAGRAM_LONG_LIVED_TOKEN_KIND,
         )
         mock_long_lived.assert_called_once_with("short-lived-token")
+
+
+class InstagramConnectedIdentityTests(SimpleTestCase):
+    @patch("social_publishing.oauth.requests.get")
+    def test_connected_identity_uses_meta_username_and_safe_profile_fields(self, mock_get):
+        mock_get.return_value = Mock(
+            ok=True,
+            json=Mock(return_value={
+                "id": "17841400000000001",
+                "username": "actual_business",
+                "account_type": "BUSINESS",
+                "profile_picture_url": "https://cdninstagram.example/profile.jpg",
+                "access_token": "must-not-be-persisted",
+            }),
+        )
+
+        identity = resolve_instagram_identity("secret-token", "fallback-id")
+
+        self.assertEqual(identity["account_username"], "actual_business")
+        self.assertEqual(identity["external_account_id"], "17841400000000001")
+        self.assertEqual(identity["account_name"], "Instagram Professional Account")
+        self.assertEqual(identity["platform_metadata"]["account_type"], "BUSINESS")
+        self.assertNotIn("secret-token", str(identity))
+        self.assertNotIn("must-not-be-persisted", str(identity))
+
+    @patch("social_publishing.oauth.requests.get")
+    def test_connected_identity_without_username_uses_professional_fallback(self, mock_get):
+        mock_get.return_value = Mock(
+            ok=True,
+            json=Mock(return_value={"id": "17841400000000002", "account_type": "CREATOR"}),
+        )
+
+        identity = resolve_instagram_identity("secret-token", "fallback-id")
+
+        self.assertEqual(identity["account_username"], "")
+        self.assertEqual(identity["account_name"], "Instagram Professional Account")
+
+    @patch(
+        "social_publishing.oauth.requests.get",
+        side_effect=requests.RequestException("provider unavailable"),
+    )
+    def test_failed_profile_lookup_keeps_safe_connected_identity(self, _mock_get):
+        identity = resolve_instagram_identity("secret-token", "fallback-id")
+
+        self.assertEqual(identity["external_account_id"], "fallback-id")
+        self.assertEqual(identity["account_name"], "Instagram Professional Account")
+        self.assertEqual(identity["account_username"], "")
+        self.assertNotIn("secret-token", str(identity))
+
+    def test_no_token_uses_safe_connected_identity_without_lookup(self):
+        identity = resolve_instagram_identity("", "fallback-id")
+
+        self.assertEqual(identity["external_account_id"], "fallback-id")
+        self.assertEqual(identity["account_name"], "Instagram Professional Account")
+
+
+@override_settings(
+    SOCIAL_PUBLISHING_ENABLED=True,
+    SOCIAL_PUBLISHING_INSTAGRAM_ENABLED=True,
+    SOCIAL_PUBLISHING_INSTAGRAM_APP_ID="instagram-app-id",
+    SOCIAL_PUBLISHING_INSTAGRAM_APP_SECRET="instagram-app-secret",
+)
+class InstagramConnectedIdentityUITests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="instagram-identity-admin",
+            email="instagram-identity@example.com",
+            password="test-password",
+            is_staff=True,
+        )
+        self.client.force_login(self.user)
+
+    def test_connected_account_renders_username_professional_label_and_avatar(self):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="17841400000000003",
+            account_name="Instagram Professional Account",
+            account_username="actual_business",
+            access_token_encrypted="encrypted-token-must-not-render",
+            platform_metadata={
+                "account_type": "BUSINESS",
+                "profile_picture_url": "https://cdninstagram.example/avatar.jpg",
+            },
+        )
+
+        response = self.client.get(
+            reverse("social_publishing_web:accounts"), {"role": "admin"}
+        )
+
+        self.assertContains(response, "@actual_business")
+        self.assertContains(response, "Instagram Professional Account")
+        self.assertContains(response, "https://cdninstagram.example/avatar.jpg")
+        self.assertNotContains(response, "encrypted-token-must-not-render")
+        self.assertNotContains(response, "Instagram account")
+
+    def test_connected_account_without_username_renders_professional_fallback(self):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="17841400000000004",
+            account_name="Instagram Professional Account",
+        )
+
+        response = self.client.get(
+            reverse("social_publishing_web:accounts"), {"role": "admin"}
+        )
+
+        self.assertContains(response, "Instagram Professional Account")
+        self.assertNotContains(response, "Instagram account")
+
+    @patch("social_publishing.instagram.verify_instagram_account")
+    def test_existing_connected_account_is_enriched_from_stored_credential(self, mock_verify):
+        mock_verify.return_value = {
+            "id": "17841400000000006",
+            "username": "existing_business",
+            "account_type": "BUSINESS",
+            "profile_picture_url": "https://cdninstagram.example/existing.jpg",
+        }
+        account = SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="17841400000000006",
+            account_name="Instagram account",
+            access_token_encrypted=encrypt_token("stored-token-must-not-render"),
+        )
+
+        response = self.client.get(
+            reverse("social_publishing_web:accounts"), {"role": "admin"}
+        )
+
+        account.refresh_from_db()
+        self.assertEqual(account.account_username, "existing_business")
+        self.assertContains(response, "@existing_business")
+        self.assertNotContains(response, "stored-token-must-not-render")
+
+    @patch(
+        "social_publishing.instagram.verify_instagram_account",
+        side_effect=InstagramPublishingError("provider lookup failed"),
+    )
+    def test_existing_account_profile_failure_does_not_break_connected_ui(self, _mock_verify):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="17841400000000007",
+            account_name="Instagram account",
+            access_token_encrypted=encrypt_token("failed-token-must-not-render"),
+        )
+
+        response = self.client.get(
+            reverse("social_publishing_web:accounts"), {"role": "admin"}
+        )
+
+        self.assertContains(response, "Connected")
+        self.assertContains(response, "Instagram Professional Account")
+        self.assertNotContains(response, "provider lookup failed")
+        self.assertNotContains(response, "failed-token-must-not-render")
+
+    def test_disconnected_account_keeps_not_connected_state(self):
+        response = self.client.get(
+            reverse("social_publishing_web:accounts"), {"role": "admin"}
+        )
+
+        self.assertContains(response, "Not connected")
+        self.assertNotContains(response, "@actual_business")
+
+    def test_status_api_returns_only_safe_instagram_identity(self):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="17841400000000005",
+            account_name="Instagram Professional Account",
+            account_username="api_business",
+            access_token_encrypted="encrypted-api-token-must-not-render",
+            refresh_token_encrypted="encrypted-refresh-token-must-not-render",
+            platform_metadata={
+                "profile_picture_url": "https://cdninstagram.example/api-avatar.jpg",
+            },
+        )
+
+        response = self.client.get(
+            reverse("social_publishing:accounts_status"), {"role": "admin"}
+        )
+        instagram = next(
+            item for item in response.data["platforms"]
+            if item["platform"] == SocialPlatform.INSTAGRAM
+        )
+
+        self.assertEqual(instagram["account_username"], "api_business")
+        self.assertEqual(instagram["external_account_id"], "17841400000000005")
+        self.assertEqual(
+            instagram["profile_picture_url"],
+            "https://cdninstagram.example/api-avatar.jpg",
+        )
+        rendered = str(response.data)
+        self.assertNotIn("encrypted-api-token-must-not-render", rendered)
+        self.assertNotIn("encrypted-refresh-token-must-not-render", rendered)
 
 
 @override_settings(

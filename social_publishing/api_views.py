@@ -18,7 +18,13 @@ from .models import PublicationStatus, SocialAccount, SocialPlatform, SocialPubl
 from .oauth import platform_config, revoke_facebook_access
 from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
 from .serializers import InstagramVideoPublicationSerializer
-from .services import normalize_owner_role, platform_connection_enabled, platform_enabled, social_publishing_access
+from .services import (
+    ensure_instagram_account_identity,
+    normalize_owner_role,
+    platform_connection_enabled,
+    platform_enabled,
+    social_publishing_access,
+)
 from .web_views import make_launch_token
 
 
@@ -154,6 +160,8 @@ def _platform_payload(platform, label, account=None):
             "hosting": "arolana",
             "account_name": "Arolana YouTube hosting",
             "account_username": "",
+            "external_account_id": "",
+            "profile_picture_url": "",
         }
     try:
         configured = platform_config(platform).configured
@@ -169,6 +177,12 @@ def _platform_payload(platform, label, account=None):
         "hosting": "external",
         "account_name": account.account_name if account else "",
         "account_username": account.account_username if account else "",
+        "external_account_id": account.external_account_id if account else "",
+        "profile_picture_url": (
+            str((account.platform_metadata or {}).get("profile_picture_url") or "")
+            if account and platform == SocialPlatform.INSTAGRAM
+            else ""
+        ),
     }
 
 
@@ -188,6 +202,7 @@ def social_accounts_status(request):
         item.platform: item
         for item in SocialAccount.objects.filter(user=request.user, owner_role=role)
     }
+    ensure_instagram_account_identity(accounts.get(SocialPlatform.INSTAGRAM))
     platforms = [
         _platform_payload(platform, label, accounts.get(platform))
         for platform, label in SocialPlatform.choices

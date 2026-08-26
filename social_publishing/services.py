@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from django.conf import settings
+from django.utils import timezone
 
 from subscriptions.lifecycle import get_effective_subscription
 
@@ -56,6 +57,45 @@ def connected_platforms(user, role):
             status=SocialConnectionStatus.CONNECTED,
         ).values_list("platform", flat=True)
     )
+
+
+def ensure_instagram_account_identity(account):
+    """Populate a legacy connected account's safe display identity once."""
+    if (
+        not account
+        or account.platform != SocialPlatform.INSTAGRAM
+        or not account.is_connected
+        or account.account_username
+        or not account.access_token_encrypted
+    ):
+        return account
+
+    try:
+        from .instagram import verify_instagram_account
+        from .oauth import instagram_identity_from_profile
+
+        profile = verify_instagram_account(account)
+        identity = instagram_identity_from_profile(profile, account.external_account_id)
+        account.external_account_id = identity["external_account_id"]
+        account.account_name = identity["account_name"]
+        account.account_username = identity["account_username"]
+        account.platform_metadata = {
+            **(account.platform_metadata or {}),
+            **identity["platform_metadata"],
+        }
+        account.last_verified_at = timezone.now()
+        account.save(update_fields=[
+            "external_account_id",
+            "account_name",
+            "account_username",
+            "platform_metadata",
+            "last_verified_at",
+            "updated_at",
+        ])
+    except Exception:
+        # Identity is presentation-only; connection and publishing stay usable.
+        return account
+    return account
 
 
 def platform_enabled(platform):

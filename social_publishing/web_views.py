@@ -39,7 +39,12 @@ from .oauth import (
     revoke_facebook_access,
     token_expiry,
 )
-from .services import normalize_owner_role, platform_connection_enabled, social_publishing_access
+from .services import (
+    ensure_instagram_account_identity,
+    normalize_owner_role,
+    platform_connection_enabled,
+    social_publishing_access,
+)
 
 User = get_user_model()
 LAUNCH_SALT = "arolana.social-publishing.launch.v1"
@@ -158,6 +163,7 @@ def _platform_rows(user, role):
         account.platform: account
         for account in SocialAccount.objects.filter(user=user, owner_role=role)
     }
+    ensure_instagram_account_identity(existing.get(SocialPlatform.INSTAGRAM))
     rows = []
     for platform, label in SocialPlatform.choices:
         if platform == SocialPlatform.YOUTUBE:

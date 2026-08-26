@@ -145,7 +145,7 @@ def verify_instagram_account(account):
     response = requests.get(
         f"{_graph_base_url()}/me",
         params={
-            "fields": "id,username,account_type",
+            "fields": "id,username,account_type,profile_picture_url",
             "access_token": access_token,
         },
         timeout=DEFAULT_HTTP_TIMEOUT,
