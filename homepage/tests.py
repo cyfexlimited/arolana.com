@@ -168,6 +168,10 @@ class HomepageProductSectionTests(TestCase):
             store_name=f"{username.title()} Store",
             store_slug=f"{username}-store",
             description="Test vendor",
+            address_line_1="1 Marketplace Road",
+            city="Lagos",
+            state="Lagos",
+            country="Nigeria",
             approval_status="approved",
             subscription_tier="enterprise" if priority else "free",
             subscription_active=active,
@@ -246,6 +250,28 @@ class HomepageProductSectionTests(TestCase):
         self.assertIn("ah-trending-section", html)
         self.assertIn("Browse Picks", html)
         self.assertIn("--ah-section-accent: #FF7A00", html)
+
+    def test_market_grid_renders_vendor_identity_and_tier_once(self):
+        HomepageSection.objects.all().delete()
+        vendor = self.create_vendor("single-vendor", priority=100, active=True)
+        vendor.vendor_profile.is_verified = True
+        vendor.vendor_profile.save(update_fields=["is_verified"])
+        self.create_product(vendor, "single-vendor-product")
+        HomepageSection.objects.create(
+            title="New Arrivals",
+            section_type="new_arrivals",
+            layout_style="market_grid",
+            products_limit=1,
+            show_vendor=True,
+            show_subscription_badge=True,
+        )
+
+        context = homepage_sections({"request": RequestFactory().get("/")})
+        html = render_to_string("homepage/sections.html", context)
+
+        self.assertEqual(html.count("Single-Vendor Store"), 1)
+        self.assertEqual(html.count("Verified"), 1)
+        self.assertEqual(html.count("Enterprise Vendor"), 1)
 
     def test_storefront_order_keeps_explicit_sort_then_plan_priority(self):
         free_vendor = self.create_vendor("sort-free")

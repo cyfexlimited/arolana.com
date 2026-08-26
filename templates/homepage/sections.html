@@ -2652,27 +2652,6 @@
                                     </div>
                                     {% endif %}
 
-                                    {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
-                                    {% with vendor_profile=product.vendor.vendor_profile %}
-                                    <div class="ah-new-arrivals-vendor">
-                                        <span class="ah-new-arrivals-vendor-name">{{ vendor_profile.store_name }}</span>
-
-                                        {% if vendor_profile.is_verified %}
-                                        <span class="ah-new-arrivals-badge ah-new-arrivals-badge-verified">
-                                            <i class="fas fa-check-circle"></i>
-                                            Verified
-                                        </span>
-                                        {% endif %}
-
-                                        {% if section.show_subscription_badge %}
-                                        <span class="ah-new-arrivals-badge ah-new-arrivals-badge-plan">
-                                            <i class="fas fa-gem"></i>
-                                            {{ vendor_profile.badge_level|default:vendor_profile.subscription_plan_label }}
-                                        </span>
-                                        {% endif %}
-                                    </div>
-                                    {% endwith %}
-                                    {% endif %}
                                 </div>
                             </a>
                             {% empty %}
