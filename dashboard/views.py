@@ -35,7 +35,15 @@ from accounts.models import User
 from orders.models import Order, OrderItem
 from deliveries.models import DeliveryRequest
 from .models import AdminActivityLog, SystemAlert, VendorAdminMessage, VendorNotification
-from subscriptions.models import SubscriptionPlan, VendorSubscription, subscription_label, user_has_paid_subscription, user_subscription_limits, user_subscription_tier
+from subscriptions.models import (
+    SubscriptionPlan,
+    VendorSubscription,
+    get_tier_limits,
+    normalize_subscription_tier,
+    subscription_label,
+    tier_is_paid,
+    user_subscription_limits,
+)
 from subscriptions.entitlements import can_create_vendor_offer, vendor_listing_usage
 from arolana_payments.models import PaymentTransaction
 from django.core.exceptions import ObjectDoesNotExist
@@ -168,21 +176,38 @@ def _vendor_customer_chat_stats(user):
     if VendorChatRoom is None:
         return {'customer_chat_unread': 0, 'customer_chat_count': 0}
     rooms = VendorChatRoom.objects.filter(vendor=user, is_active=True)
+    stats = rooms.aggregate(
+        total_unread=Sum('vendor_unread'),
+        room_count=Count('pk'),
+    )
     return {
-        'customer_chat_unread': rooms.aggregate(total=Sum('vendor_unread'))['total'] or 0,
-        'customer_chat_count': rooms.count(),
+        'customer_chat_unread': stats['total_unread'] or 0,
+        'customer_chat_count': stats['room_count'],
     }
 
 
 def _vendor_subscription_context(user):
-    tier = user_subscription_tier(user)
-    limits = user_subscription_limits(user)
     current_subscription = VendorSubscription.objects.filter(
         vendor=user,
         is_active=True,
         end_date__gt=timezone.now()
     ).select_related('plan').first()
     vendor_profile = getattr(user, 'vendor_profile', None)
+    if current_subscription:
+        tier = normalize_subscription_tier(current_subscription.plan.name)
+    elif vendor_profile:
+        profile_expiry = (
+            getattr(vendor_profile, 'subscription_expires_at', None)
+            or vendor_profile.subscription_expiry
+        )
+        tier = (
+            'free'
+            if profile_expiry and profile_expiry <= timezone.now()
+            else normalize_subscription_tier(vendor_profile.subscription_tier)
+        )
+    else:
+        tier = 'free'
+    limits = get_tier_limits(tier)
     subscription_invoices = PaymentTransaction.objects.filter(
         user=user,
         checkout_data__purpose='vendor_subscription',
@@ -206,36 +231,61 @@ def _vendor_subscription_context(user):
         'subscription_expiring_soon': bool(expires_at and expires_at <= timezone.now() + timedelta(days=3)),
         'subscription_plans': subscription_plans,
         'subscription_invoices': subscription_invoices,
-        'chat_enabled': user_has_paid_subscription(user),
+        'chat_enabled': bool(limits['chat_enabled'] and tier_is_paid(tier)),
     }
 
 
-def _vendor_performance_context(user, vendor_profile=None):
+def _vendor_performance_context(
+    user,
+    vendor_profile=None,
+    *,
+    product_stats=None,
+    review_stats=None,
+    subscription_limits=None,
+):
     all_products = Product.objects.filter(vendor=user)
     active_products = all_products.filter(is_active=True, approval_status='approved')
     order_items = OrderItem.objects.filter(product__vendor=user)
     orders = Order.objects.filter(items__product__vendor=user).distinct()
     reviews = ProductReview.objects.filter(product__vendor=user, is_active=True)
 
-    delivered_count = orders.filter(status='delivered').count()
-    shipped_count = orders.filter(status='shipped').count()
-    cancelled_count = orders.filter(status='cancelled').count()
-    refunded_count = orders.filter(status='refunded').count()
+    order_status_stats = orders.aggregate(
+        delivered=Count('pk', filter=Q(status='delivered'), distinct=True),
+        shipped=Count('pk', filter=Q(status='shipped'), distinct=True),
+        cancelled=Count('pk', filter=Q(status='cancelled'), distinct=True),
+        refunded=Count('pk', filter=Q(status='refunded'), distinct=True),
+    )
+    delivered_count = order_status_stats['delivered']
+    shipped_count = order_status_stats['shipped']
+    cancelled_count = order_status_stats['cancelled']
+    refunded_count = order_status_stats['refunded']
     completed_or_problem_count = delivered_count + shipped_count + cancelled_count + refunded_count
     fallback_fulfillment = getattr(vendor_profile, 'fulfillment_rate', 0) if vendor_profile else 0
     fallback_return = getattr(vendor_profile, 'return_rate', 0) if vendor_profile else 0
     fulfillment_rate = _percent(delivered_count + shipped_count, completed_or_problem_count, fallback_fulfillment)
     return_rate = _percent(refunded_count, completed_or_problem_count, fallback_return)
 
-    avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+    if review_stats is None:
+        review_stats = reviews.aggregate(avg=Avg('rating'), total=Count('pk'))
+    avg_rating = review_stats['avg'] or 0
     rating_score = _percent(avg_rating, 5)
-    in_stock_count = active_products.filter(Q(stock_quantity__gt=F('low_stock_threshold')) | Q(allow_backorder=True)).count()
-    product_health = _percent(in_stock_count, active_products.count(), 100 if active_products.exists() else 0)
-    approved_count = all_products.filter(approval_status='approved').count()
-    approval_base = all_products.exclude(approval_status='rejected').count() or all_products.count()
+    if product_stats is None:
+        product_stats = all_products.aggregate(
+            total=Count('pk'),
+            active_approved=Count('pk', filter=Q(is_active=True, approval_status='approved')),
+            in_stock=Count('pk', filter=Q(is_active=True, approval_status='approved') & (Q(stock_quantity__gt=F('low_stock_threshold')) | Q(allow_backorder=True))),
+            approved=Count('pk', filter=Q(approval_status='approved')),
+            approval_base=Count('pk', filter=~Q(approval_status='rejected')),
+            total_views=Sum('views_count'),
+        )
+    in_stock_count = product_stats['in_stock']
+    active_product_count = product_stats['active_approved']
+    product_health = _percent(in_stock_count, active_product_count, 100 if active_product_count else 0)
+    approved_count = product_stats['approved']
+    approval_base = product_stats['approval_base'] or product_stats['total']
     approval_rate = _percent(approved_count, approval_base, 0)
     kyc_score = 100 if vendor_profile and vendor_profile.has_verified_kyc() else 0
-    subscription_priority = user_subscription_limits(user).get('priority_score', 0)
+    subscription_priority = (subscription_limits or user_subscription_limits(user)).get('priority_score', 0)
 
     vendor_score = round(
         (rating_score * 0.30) +
@@ -258,7 +308,7 @@ def _vendor_performance_context(user, vendor_profile=None):
         vendor_score_label = 'Needs Attention'
 
     total_units_sold = order_items.filter(order__status='delivered').aggregate(total=Sum('quantity'))['total'] or 0
-    total_views = all_products.aggregate(total=Sum('views_count'))['total'] or 0
+    total_views = product_stats['total_views'] or 0
 
     return {
         'vendor_score': vendor_score,
@@ -460,17 +510,7 @@ def vendor_dashboard(request):
         .order_by('-created_at')
     )
 
-    total_orders = orders.count()
-
-    total_sales = (
-        order_items
-        .filter(order__status='delivered')
-        .aggregate(total=Sum('subtotal'))['total']
-        or 0
-    )
-
     reviews = ProductReview.objects.filter(product__vendor=request.user, is_active=True)
-    avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
     low_stock = products.filter(stock_quantity__lte=5)
 
     top_products = (
@@ -484,14 +524,32 @@ def vendor_dashboard(request):
     recent_orders = orders[:10]
     recent_reviews = reviews.order_by('-created_at')[:5]
 
-    pending_count = all_products.filter(approval_status='pending').count()
-    approved_count = all_products.filter(approval_status='approved').count()
-    rejected_count = all_products.filter(approval_status='rejected').count()
-    changes_required_count = all_products.filter(approval_status='requires_changes').count()
+    product_stats = all_products.aggregate(
+        total=Count('pk'),
+        active_approved=Count('pk', filter=Q(is_active=True, approval_status='approved')),
+        current=Count('pk', filter=~Q(approval_status='rejected')),
+        pending=Count('pk', filter=Q(approval_status='pending')),
+        approved=Count('pk', filter=Q(approval_status='approved')),
+        rejected=Count('pk', filter=Q(approval_status='rejected')),
+        changes_required=Count('pk', filter=Q(approval_status='requires_changes')),
+        low_stock=Count('pk', filter=Q(is_active=True, approval_status='approved', stock_quantity__lte=5)),
+        in_stock=Count('pk', filter=Q(is_active=True, approval_status='approved') & (Q(stock_quantity__gt=F('low_stock_threshold')) | Q(allow_backorder=True))),
+        approval_base=Count('pk', filter=~Q(approval_status='rejected')),
+        total_views=Sum('views_count'),
+    )
+    review_stats = reviews.aggregate(avg=Avg('rating'), total=Count('pk'))
+    avg_rating = review_stats['avg'] or 0
+
+    order_stats = orders.aggregate(total=Count('pk', distinct=True))
+    total_orders = order_stats['total']
 
     vendor_notifications_qs = VendorNotification.objects.filter(vendor=request.user)
-    notification_count = vendor_notifications_qs.count()
-    unread_notification_count = vendor_notifications_qs.filter(is_read=False).count()
+    notification_stats = vendor_notifications_qs.aggregate(
+        total=Count('pk'),
+        unread=Count('pk', filter=Q(is_read=False)),
+    )
+    notification_count = notification_stats['total']
+    unread_notification_count = notification_stats['unread']
     notifications_list = vendor_notifications_qs.order_by('-created_at')[:10]
 
     notifications = []
@@ -532,22 +590,26 @@ def vendor_dashboard(request):
 
     monthly_sales = []
     today = timezone.now().date()
-
+    monthly_sales_expressions = {
+        f'month_{i}': Sum(
+            'subtotal',
+            filter=Q(
+                order__status='delivered',
+                order__created_at__month=(today.replace(day=1) - timedelta(days=30 * i)).month,
+            ),
+        )
+        for i in range(6)
+    }
+    item_stats = order_items.aggregate(
+        total_sales=Sum('subtotal', filter=Q(order__status='delivered')),
+        **monthly_sales_expressions,
+    )
+    total_sales = item_stats['total_sales'] or 0
     for i in range(6):
         month_start = today.replace(day=1) - timedelta(days=30 * i)
-        month_sales = (
-            order_items
-            .filter(
-                order__status='delivered',
-                order__created_at__month=month_start.month,
-            )
-            .aggregate(total=Sum('subtotal'))['total']
-            or 0
-        )
-
         monthly_sales.append({
             'month': month_start.strftime('%b'),
-            'sales': float(month_sales),
+            'sales': float(item_stats[f'month_{i}'] or 0),
         })
 
     monthly_sales.reverse()
@@ -558,41 +620,45 @@ def vendor_dashboard(request):
         .order_by('-created_at')[:5]
     )
 
-    quote_request_count = (
-        VendorQuoteRequest.objects
-        .filter(
-            vendor=vendor_profile,
-            status__in=['new', 'admin_review', 'sent_to_vendor'],
-        )
-        .count()
+    vendor_quotes = VendorQuoteRequest.objects.filter(vendor=vendor_profile)
+    quote_stats = vendor_quotes.aggregate(
+        all=Count('pk'),
+        active=Count('pk', filter=Q(status__in=['new', 'admin_review', 'sent_to_vendor'])),
+        new=Count('pk', filter=Q(status='new')),
+        admin_review=Count('pk', filter=Q(status='admin_review')),
+        sent_to_vendor=Count('pk', filter=Q(status='sent_to_vendor')),
+        vendor_replied=Count('pk', filter=Q(status='vendor_replied')),
+        closed=Count('pk', filter=Q(status='closed')),
     )
-
+    quote_request_count = quote_stats['active']
     quote_status_counts = {
-        'all': VendorQuoteRequest.objects.filter(vendor=vendor_profile).count(),
-        'new': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='new').count(),
-        'admin_review': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='admin_review').count(),
-        'sent_to_vendor': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='sent_to_vendor').count(),
-        'vendor_replied': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='vendor_replied').count(),
-        'closed': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='closed').count(),
+        key: quote_stats[key]
+        for key in ('all', 'new', 'admin_review', 'sent_to_vendor', 'vendor_replied', 'closed')
     }
 
     subscription_context = _vendor_subscription_context(request.user)
-    performance_context = _vendor_performance_context(request.user, vendor_profile)
+    performance_context = _vendor_performance_context(
+        request.user,
+        vendor_profile,
+        product_stats=product_stats,
+        review_stats=review_stats,
+        subscription_limits=subscription_context['subscription_limits'],
+    )
     chat_context = _vendor_customer_chat_stats(request.user)
 
     context = {
         'vendor_profile': vendor_profile,
 
-        'total_products': products.count(),
-        'current_product_count': all_products.exclude(approval_status='rejected').count(),
+        'total_products': product_stats['active_approved'],
+        'current_product_count': product_stats['current'],
         'total_orders': total_orders,
         'total_sales': total_sales,
         'low_stock': low_stock,
-        'low_stock_count': low_stock.count(),
+        'low_stock_count': product_stats['low_stock'],
         'top_products': top_products,
 
         'avg_rating': round(avg_rating, 1),
-        'total_reviews': reviews.count(),
+        'total_reviews': review_stats['total'],
 
         'recent_orders': recent_orders,
         'recent_reviews': recent_reviews,
@@ -600,10 +666,10 @@ def vendor_dashboard(request):
         'categories': categories,
         'brands': brands,
 
-        'pending_count': pending_count,
-        'approved_count': approved_count,
-        'rejected_count': rejected_count,
-        'changes_required_count': changes_required_count,
+        'pending_count': product_stats['pending'],
+        'approved_count': product_stats['approved'],
+        'rejected_count': product_stats['rejected'],
+        'changes_required_count': product_stats['changes_required'],
 
         'notifications': notifications,
         'notification_count': notification_count,

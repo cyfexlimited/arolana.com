@@ -19,7 +19,6 @@ from .oauth import platform_config, revoke_facebook_access
 from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
 from .serializers import InstagramVideoPublicationSerializer
 from .services import (
-    ensure_instagram_account_identity,
     normalize_owner_role,
     platform_connection_enabled,
     platform_enabled,
@@ -202,7 +201,6 @@ def social_accounts_status(request):
         item.platform: item
         for item in SocialAccount.objects.filter(user=request.user, owner_role=role)
     }
-    ensure_instagram_account_identity(accounts.get(SocialPlatform.INSTAGRAM))
     platforms = [
         _platform_payload(platform, label, accounts.get(platform))
         for platform, label in SocialPlatform.choices

@@ -8,12 +8,102 @@ from django.test import Client, TestCase
 from django.conf import settings
 from django.urls import reverse
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from products.models import Category, Product, ProductVideo
 from social_publishing.models import PublicationStatus, SocialPublication
 from vendors.models import VendorProfile
+from orders.models import Order, OrderItem
 
 User = get_user_model()
+
+
+class VendorDashboardPerformanceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="vendor-dashboard-performance@arolana.com",
+            username="vendor-dashboard-performance",
+            password="StrongPassword123!",
+            user_type="vendor",
+        )
+        self.profile = VendorProfile.objects.create(
+            user=self.user,
+            store_name="Dashboard Performance Vendor",
+            store_slug="dashboard-performance-vendor",
+            description="Dashboard metrics",
+            approval_status="approved",
+            is_verified=True,
+            is_active=True,
+            address_line_1="1 Metrics Way",
+            city="Ikeja",
+            state="Lagos",
+            country="Nigeria",
+        )
+        self.category = Category.objects.create(name="Dashboard Metrics", slug="dashboard-metrics")
+        for index, status in enumerate(("approved", "pending", "rejected", "requires_changes"), 1):
+            product = Product.objects.create(
+                vendor=self.user,
+                category=self.category,
+                name=f"Metric Product {index}",
+                slug=f"metric-product-{index}",
+                sku=f"METRIC-{index}",
+                price=Decimal("100.00"),
+                stock_quantity=3,
+                approval_status=status,
+                is_active=True,
+                views_count=index,
+            )
+            if status == "approved":
+                self.approved_product = product
+        customer = User.objects.create_user(
+            email="dashboard-customer@arolana.com",
+            username="dashboard-customer",
+            password="StrongPassword123!",
+            user_type="customer",
+        )
+        for index, status in enumerate(("delivered", "cancelled"), 1):
+            order = Order.objects.create(
+                user=customer,
+                status=status,
+                subtotal=Decimal("100.00"),
+                total=Decimal("100.00"),
+                shipping_address="1 Customer Road",
+                billing_address="1 Customer Road",
+            )
+            OrderItem.objects.create(
+                order=order,
+                product=self.approved_product,
+                quantity=index,
+                price=Decimal("100.00"),
+                subtotal=Decimal("100.00") * index,
+            )
+        self.client.force_login(self.user)
+
+    def test_consolidated_dashboard_metrics_preserve_status_definitions(self):
+        response = self.client.get(reverse("dashboard:vendor_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_products"], 1)
+        self.assertEqual(response.context["current_product_count"], 3)
+        self.assertEqual(response.context["pending_count"], 1)
+        self.assertEqual(response.context["approved_count"], 1)
+        self.assertEqual(response.context["rejected_count"], 1)
+        self.assertEqual(response.context["changes_required_count"], 1)
+        self.assertEqual(response.context["total_views"], 10)
+        self.assertEqual(response.context["total_orders"], 2)
+        self.assertEqual(response.context["total_sales"], Decimal("100.00"))
+        self.assertEqual(response.context["delivered_count"], 1)
+        self.assertEqual(response.context["cancelled_count"], 1)
+        self.assertEqual(response.context["total_units_sold"], 1)
+
+    def test_warm_dashboard_query_count_stays_below_phase_one_ceiling(self):
+        self.client.get(reverse("dashboard:vendor_home"))
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(reverse("dashboard:vendor_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(queries), 50)
 
 
 class VendorAddProductVideoPublishingTests(TestCase):

@@ -29,8 +29,9 @@
                 <a href="{% url 'products:category' category.slug %}" class="desktop-department-heading">
                     <span class="desktop-department-icon">
                         {% if category.image %}
-                            {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
-                            <img data-src="{{ category_image_url }}" alt="" width="42" height="42" decoding="async">
+                            {% deterministic_optimized_image_url category.image 'nav_icon' as category_image_url %}
+                            {% seo_media_url category.image as category_image_fallback_url %}
+                            <img data-src="{{ category_image_url }}" data-fallback-src="{{ category_image_fallback_url }}" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc}" alt="" width="42" height="42" decoding="async">
                         {% elif category.icon %}
                             <i class="fas fa-{{ category.icon }}" aria-hidden="true"></i>
                         {% else %}

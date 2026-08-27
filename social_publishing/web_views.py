@@ -40,7 +40,6 @@ from .oauth import (
     token_expiry,
 )
 from .services import (
-    ensure_instagram_account_identity,
     normalize_owner_role,
     platform_connection_enabled,
     social_publishing_access,
@@ -163,7 +162,6 @@ def _platform_rows(user, role):
         account.platform: account
         for account in SocialAccount.objects.filter(user=user, owner_role=role)
     }
-    ensure_instagram_account_identity(existing.get(SocialPlatform.INSTAGRAM))
     rows = []
     for platform, label in SocialPlatform.choices:
         if platform == SocialPlatform.YOUTUBE:

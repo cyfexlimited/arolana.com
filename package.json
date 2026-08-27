@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "build:tailwind": "tailwindcss -c tailwind.config.js -i ./static/css/src/arolana-tailwind.css -o ./static/css/arolana-tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

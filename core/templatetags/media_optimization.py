@@ -8,6 +8,7 @@ from core.media_optimization import (
     get_optimized_image_url,
     get_safe_background_image_url,
     get_verified_optimized_image_url,
+    optimized_name_for,
 )
 
 
@@ -85,6 +86,28 @@ def optimized_image_url(image, preset="product_card"):
 def safe_background_image_url(image, preset="background_desktop"):
     """Optimized CSS background URL with guaranteed original-upload fallback."""
     return get_safe_background_image_url(image, preset)
+
+
+@register.simple_tag(takes_context=True)
+def deterministic_optimized_image_url(context, image, preset="nav_icon"):
+    """Return a public derivative URL without checking remote storage.
+
+    Navigation images use a browser-side original-image fallback, so rendering
+    must not add an S3/Tigris existence request for every icon.
+    """
+    original_name = _clean_file_name(image)
+    if not original_name:
+        return ""
+    if not getattr(settings, "OPTIMIZED_MEDIA_ENABLED", True):
+        return _build_public_media_url(
+            original_name,
+            request=context.get("request"),
+        )
+    optimized_name = optimized_name_for(original_name, preset)
+    return _build_public_media_url(
+        optimized_name or original_name,
+        request=context.get("request"),
+    )
 
 
 @register.simple_tag(takes_context=True)

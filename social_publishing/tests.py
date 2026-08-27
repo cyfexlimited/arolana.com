@@ -402,14 +402,8 @@ class InstagramConnectedIdentityUITests(TestCase):
         self.assertNotContains(response, "Instagram account")
 
     @patch("social_publishing.instagram.verify_instagram_account")
-    def test_existing_connected_account_is_enriched_from_stored_credential(self, mock_verify):
-        mock_verify.return_value = {
-            "id": "17841400000000006",
-            "username": "existing_business",
-            "account_type": "BUSINESS",
-            "profile_picture_url": "https://cdninstagram.example/existing.jpg",
-        }
-        account = SocialAccount.objects.create(
+    def test_accounts_page_does_not_fetch_missing_identity_from_meta(self, mock_verify):
+        SocialAccount.objects.create(
             user=self.user,
             owner_role="admin",
             platform=SocialPlatform.INSTAGRAM,
@@ -423,16 +417,15 @@ class InstagramConnectedIdentityUITests(TestCase):
             reverse("social_publishing_web:accounts"), {"role": "admin"}
         )
 
-        account.refresh_from_db()
-        self.assertEqual(account.account_username, "existing_business")
-        self.assertContains(response, "@existing_business")
+        mock_verify.assert_not_called()
+        self.assertContains(response, "Instagram Professional Account")
         self.assertNotContains(response, "stored-token-must-not-render")
 
     @patch(
         "social_publishing.instagram.verify_instagram_account",
         side_effect=InstagramPublishingError("provider lookup failed"),
     )
-    def test_existing_account_profile_failure_does_not_break_connected_ui(self, _mock_verify):
+    def test_existing_account_profile_failure_does_not_break_connected_ui(self, mock_verify):
         SocialAccount.objects.create(
             user=self.user,
             owner_role="admin",
@@ -449,6 +442,7 @@ class InstagramConnectedIdentityUITests(TestCase):
 
         self.assertContains(response, "Connected")
         self.assertContains(response, "Instagram Professional Account")
+        mock_verify.assert_not_called()
         self.assertNotContains(response, "provider lookup failed")
         self.assertNotContains(response, "failed-token-must-not-render")
 
@@ -493,6 +487,26 @@ class InstagramConnectedIdentityUITests(TestCase):
         rendered = str(response.data)
         self.assertNotIn("encrypted-api-token-must-not-render", rendered)
         self.assertNotIn("encrypted-refresh-token-must-not-render", rendered)
+
+    @patch("social_publishing.instagram.verify_instagram_account")
+    def test_status_api_does_not_fetch_missing_identity_from_meta(self, mock_verify):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="17841400000000008",
+            account_name="Instagram Professional Account",
+            access_token_encrypted=encrypt_token("api-token-must-not-render"),
+        )
+
+        response = self.client.get(
+            reverse("social_publishing:accounts_status"), {"role": "admin"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_verify.assert_not_called()
+        self.assertNotIn("api-token-must-not-render", str(response.data))
 
 
 @override_settings(

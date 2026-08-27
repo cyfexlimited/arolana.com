@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import patch
+from pathlib import Path
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.http import HttpResponse
@@ -14,6 +16,8 @@ from .deployment_health import readiness_status
 from .media_optimization import PRESETS, get_optimized_image_url, get_safe_background_image_url
 from .middleware import ArolanaRateLimitMiddleware, ArolanaSecurityHeadersMiddleware
 from .models import HomePageAppearance, SiteSettings
+from currency.models import Currency
+from products.models import Category, Product
 
 
 class ArolanaSecurityMiddlewareTests(TestCase):
@@ -291,6 +295,97 @@ class PerformanceHelperTests(SimpleTestCase):
         storage.exists.assert_not_called()
         storage.open.assert_not_called()
 
+
+class FrontendPayloadRegressionTests(TestCase):
+    def test_homepage_uses_compiled_tailwind_and_keeps_navigation(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/static/css/arolana-tailwind.css")
+        self.assertNotContains(response, "cdn.tailwindcss.com")
+        self.assertContains(response, "mobileMenuOpen")
+        self.assertContains(response, "desktop-all-categories")
+
+    def test_login_uses_lightweight_auth_base_with_csrf_form(self):
+        response = self.client.get("/accounts/login/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/static/css/arolana-tailwind.css")
+        self.assertContains(response, "csrfmiddlewaretoken")
+        self.assertContains(response, "Sign in")
+        self.assertNotContains(response, "cdn.tailwindcss.com")
+        self.assertNotContains(response, "desktop-all-categories")
+        self.assertNotContains(response, "arolana-smart-chat")
+
+    def test_social_publishing_ui_uses_compiled_css_and_keeps_instagram_row(self):
+        user = get_user_model().objects.create_user(
+            email="payload-admin@arolana.com",
+            username="payload-admin",
+            password="StrongPassword123!",
+            is_staff=True,
+            user_type="admin",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get("/social-publishing/accounts/?role=admin")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "/static/css/arolana-tailwind.css")
+        self.assertContains(response, "Social Accounts")
+        self.assertContains(response, "Instagram")
+        self.assertNotContains(response, "cdn.tailwindcss.com")
+
+    def test_publishing_destinations_remain_on_video_upload_surfaces(self):
+        base_dir = Path(settings.BASE_DIR)
+        for relative_path in (
+            "templates/dashboard/vendor_add_product.html",
+            "templates/dashboard/vendor_product_detail.html",
+            "templates/installers/project_media.html",
+        ):
+            with self.subTest(template=relative_path):
+                template = base_dir.joinpath(relative_path).read_text()
+                self.assertIn("Publishing Destinations", template)
+                self.assertIn("/api/social-publishing/instagram/videos/publish/", template)
+
+    def test_product_listing_and_detail_keep_critical_product_ui(self):
+        Currency.objects.create(
+            code="NGN",
+            symbol="₦",
+            name="Nigerian Naira",
+            exchange_rate="1.0",
+            is_base=True,
+            is_active=True,
+        )
+        category = Category.objects.create(name="Payload Category", slug="payload-category")
+        product = Product.objects.create(
+            vendor=get_user_model().objects.create_user(
+                email="payload-vendor@arolana.com",
+                username="payload-vendor",
+                password="StrongPassword123!",
+                user_type="vendor",
+            ),
+            category=category,
+            name="Payload Product",
+            slug="payload-product",
+            sku="PAYLOAD-1",
+            price="120.00",
+            stock_quantity=5,
+            approval_status="approved",
+            is_active=True,
+        )
+
+        listing_response = self.client.get("/products/")
+        detail_response = self.client.get(product.get_absolute_url())
+
+        self.assertEqual(listing_response.status_code, 200)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(listing_response, "Payload Product")
+        self.assertContains(listing_response, "/static/css/arolana-tailwind.css")
+        self.assertContains(detail_response, "Payload Product")
+        self.assertContains(detail_response, "/static/css/arolana-tailwind.css")
+        self.assertNotContains(listing_response, "cdn.tailwindcss.com")
+        self.assertNotContains(detail_response, "cdn.tailwindcss.com")
+
     def test_optimized_image_template_filter_handles_missing_images(self):
         rendered = Template(
             "{% load optimized_images %}"
@@ -298,6 +393,33 @@ class PerformanceHelperTests(SimpleTestCase):
         ).render(Context({"image": None}))
 
         self.assertEqual(rendered, '<img src="" alt="Product">')
+
+    @override_settings(
+        OPTIMIZED_MEDIA_ENABLED=True,
+        SITE_URL="https://arolana.com",
+        MEDIA_URL="/media/",
+    )
+    def test_navigation_derivative_url_never_checks_remote_storage(self):
+        image = SimpleNamespace(
+            name="categories/conferencing.jpg",
+            url="/media/categories/conferencing.jpg",
+        )
+
+        with patch("core.media_optimization.default_storage") as storage:
+            rendered = Template(
+                "{% load media_optimization %}"
+                "{% deterministic_optimized_image_url image 'nav_icon' as icon_url %}"
+                "{% seo_media_url image as fallback_url %}"
+                "{{ icon_url }}|{{ fallback_url }}"
+            ).render(Context({"image": image}))
+
+        self.assertEqual(
+            rendered,
+            "https://arolana.com/media/optimized/nav_icon/categories/conferencing.webp"
+            "|https://arolana.com/media/categories/conferencing.jpg",
+        )
+        storage.exists.assert_not_called()
+        storage.open.assert_not_called()
 
     def test_customer_facing_and_legacy_presets_are_available(self):
         required_presets = {

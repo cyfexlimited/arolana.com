@@ -116,66 +116,12 @@
     <meta name="apple-mobile-web-app-title" content="Arolana">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '{{ site_settings.primary_color|default:"#d4af37" }}',
-                        secondary: '{{ site_settings.secondary_color|default:"#111827" }}',
-                        luxury: '#1a1a1a',
-                        gold: '#d4af37',
-                        platinum: '#e8e8e8'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        luxury: ['Montserrat', 'Inter', 'sans-serif'],
-                        premium: ['Inter', 'system-ui', 'sans-serif'],
-                        logo: ['Montserrat', 'Inter', 'sans-serif'],
-                        heading: ['Montserrat', 'Inter', 'sans-serif'],
-                        mega: ['Roboto Condensed', 'Inter', 'sans-serif']
-                    },
-                    boxShadow: {
-                        luxury: '0 20px 60px rgba(0, 0, 0, 0.15)',
-                        'luxury-lg': '0 40px 120px rgba(0, 0, 0, 0.25)',
-                        'luxury-sm': '0 10px 30px rgba(0, 0, 0, 0.1)'
-                    },
-                    animation: {
-                        float: 'float 6s ease-in-out infinite',
-                        glow: 'glow 3s ease-in-out infinite',
-                        shimmer: 'shimmer 2s infinite',
-                        'pulse-luxury': 'pulse-luxury 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-10px)' }
-                        },
-                        glow: {
-                            '0%, 100%': { textShadow: '0 0 20px rgba(212, 175, 55, 0.5)' },
-                            '50%': { textShadow: '0 0 40px rgba(212, 175, 55, 0.8)' }
-                        },
-                        shimmer: {
-                            '0%': { backgroundPosition: '-1000px 0' },
-                            '100%': { backgroundPosition: '1000px 0' }
-                        },
-                        'pulse-luxury': {
-                            '0%, 100%': { opacity: '1' },
-                            '50%': { opacity: '.7' }
-                        }
-                    }
-                }
-            }
-        };
-    </script>
-
+    <link rel="stylesheet" href="{% static 'css/arolana-tailwind.css' %}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -3357,8 +3303,9 @@ body.product-detail-full-width .arolana-ad-placeholder {
                     <li class="mega-menu-container {% if forloop.counter >= 8 %}mega-align-right{% elif forloop.counter >= 5 %}mega-align-center{% endif %}">
                         <a href="{% url 'products:category' category.slug %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             {% if category.image %}
-                                {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
-                                <img src="{{ category_image_url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition" width="20" height="20" decoding="async">
+                                {% deterministic_optimized_image_url category.image 'nav_icon' as category_image_url %}
+                                {% seo_media_url category.image as category_image_fallback_url %}
+                                <img src="{{ category_image_url }}" data-fallback-src="{{ category_image_fallback_url }}" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition" width="20" height="20" decoding="async">
                             {% elif category.icon %}
                                 <i class="fas fa-{{ category.icon }} group-hover:scale-125 transition"></i>
                             {% else %}
@@ -3779,8 +3726,9 @@ body.product-detail-full-width .arolana-ad-placeholder {
                         <span class="mobile-menu-left">
                             <span class="mobile-menu-icon">
                                 {% if category.image %}
-                                    {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
-                                    <img src="{{ category_image_url }}" alt="{{ category.name }}">
+                                    {% deterministic_optimized_image_url category.image 'nav_icon' as category_image_url %}
+                                    {% seo_media_url category.image as category_image_fallback_url %}
+                                    <img src="{{ category_image_url }}" data-fallback-src="{{ category_image_fallback_url }}" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc}" alt="{{ category.name }}">
                                 {% elif category.icon %}
                                     <i class="fas fa-{{ category.icon }}"></i>
                                 {% else %}
@@ -3834,8 +3782,9 @@ body.product-detail-full-width .arolana-ad-placeholder {
                         <span class="mobile-menu-left">
                             <span class="mobile-menu-icon">
                                 {% if category.image %}
-                                    {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
-                                    <img src="{{ category_image_url }}" alt="{{ category.name }}">
+                                    {% deterministic_optimized_image_url category.image 'nav_icon' as category_image_url %}
+                                    {% seo_media_url category.image as category_image_fallback_url %}
+                                    <img src="{{ category_image_url }}" data-fallback-src="{{ category_image_fallback_url }}" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc}" alt="{{ category.name }}">
                                 {% elif category.icon %}
                                     <i class="fas fa-{{ category.icon }}"></i>
                                 {% else %}
