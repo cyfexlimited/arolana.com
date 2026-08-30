@@ -291,7 +291,9 @@ def social_account_connect_launch(request, platform):
         return Response({"detail": f"{platform.title()} OAuth is not configured."}, status=status.HTTP_409_CONFLICT)
 
     return_url = str(request.data.get("return_url", "") or "").strip()
-    launch = make_launch_token(request.user, role, platform, return_url=return_url)
+    launch = make_launch_token(
+        request.user, role, platform, return_url=return_url, request=request
+    )
     connect_path = reverse("social_publishing_web:connect", kwargs={"platform": platform})
     connect_url = request.build_absolute_uri(f"{connect_path}?launch={launch}")
     return Response({"platform": platform, "role": role, "authorization_url": connect_url})

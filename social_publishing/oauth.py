@@ -476,6 +476,38 @@ def discover_facebook_pages(access_token):
     return pages
 
 
+def discover_facebook_granted_scopes(access_token):
+    """Return only permissions Meta confirms as granted for this connection."""
+    cfg = platform_config(SocialPlatform.FACEBOOK)
+    version = cfg.authorization_url.split("/")[-3]
+    try:
+        response = requests.get(
+            f"https://graph.facebook.com/{version}/me/permissions",
+            params={"fields": "permission,status", "access_token": access_token},
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise SocialProviderError("Facebook permission verification could not be completed.") from exc
+    if not response.ok:
+        try:
+            error = (response.json() or {}).get("error") or {}
+        except ValueError:
+            error = {}
+        raise SocialProviderError(
+            "Facebook permission verification failed.",
+            http_status=response.status_code,
+            provider_code=error.get("code", ""),
+        )
+    try:
+        rows = (response.json() or {}).get("data", [])
+    except (ValueError, AttributeError) as exc:
+        raise SocialProviderError("Facebook permission verification returned an invalid response.") from exc
+    return sorted({
+        str(row.get("permission") or "").strip()
+        for row in rows if isinstance(row, dict) and str(row.get("status") or "").lower() == "granted"
+    })
+
+
 def resolve_facebook_user_identity(access_token):
     cfg = platform_config(SocialPlatform.FACEBOOK)
     version = cfg.authorization_url.split("/")[-3]

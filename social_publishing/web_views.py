@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import secrets
+from urllib.parse import urlsplit, urlunsplit
 
 from django.conf import settings
 from django.contrib import messages
@@ -33,6 +34,7 @@ from .oauth import (
     exchange_instagram_long_lived_token,
     exchange_facebook_long_lived_token,
     discover_facebook_pages,
+    discover_facebook_granted_scopes,
     platform_config,
     resolve_identity,
     resolve_facebook_user_identity,
@@ -62,22 +64,31 @@ def _role_allowed(user, role):
     return False
 
 
-def _safe_return_url(value):
+def _safe_return_url(value, request=None):
     value = str(value or "").strip()
     if value.startswith("arolanastaffmobile://"):
         return value
-    if value.startswith("/") and not value.startswith("//"):
+    if value.startswith("/") and not value.startswith(("//", "/\\")):
         return value
+    if request is not None:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme in {"http", "https"}
+            and parsed.netloc == request.get_host()
+            and not parsed.username
+            and not parsed.password
+        ):
+            return urlunsplit(("", "", parsed.path or "/", parsed.query, ""))
     return ""
 
 
-def make_launch_token(user, role, platform, return_url=""):
+def make_launch_token(user, role, platform, return_url="", request=None):
     return signing.dumps(
         {
             "user_id": user.pk,
             "role": normalize_owner_role(role),
             "platform": platform,
-            "return_url": _safe_return_url(return_url),
+            "return_url": _safe_return_url(return_url, request=request),
         },
         salt=LAUNCH_SALT,
         compress=True,
@@ -147,7 +158,7 @@ def _launch_identity(request, platform):
         role = normalize_owner_role(data.get("role"))
         if not _role_allowed(user, role):
             raise PermissionError("This role is not available for this Arolana account.")
-        return user, role, _safe_return_url(data.get("return_url")), launch
+        return user, role, _safe_return_url(data.get("return_url"), request=request), launch
 
     if not request.user.is_authenticated:
         raise PermissionError("Sign in to connect a social account.")
@@ -297,6 +308,7 @@ def oauth_callback(request, platform):
             long_lived = exchange_facebook_long_lived_token(token_data["access_token"])
             token_data = {**token_data, **long_lived}
             facebook_identity = resolve_facebook_user_identity(token_data["access_token"])
+            granted_scopes = discover_facebook_granted_scopes(token_data["access_token"])
             pages = discover_facebook_pages(token_data["access_token"])
             audit_connection("identity_discovered", user=user, owner_role=role, platform=platform,
                              external_identity_id=facebook_identity["id"], stage="page_discovery")
@@ -308,7 +320,7 @@ def oauth_callback(request, platform):
                     "access_token_encrypted": encrypt_token(page["access_token"]),
                 })
             state_row.pending_token_expires_at = token_expiry(token_data)
-            state_row.pending_scopes = list(platform_config(platform).scopes)
+            state_row.pending_scopes = granted_scopes
             state_row.pending_destinations = safe_pages
             state_row.save(update_fields=[
                 "pending_token_expires_at",
@@ -319,6 +331,12 @@ def oauth_callback(request, platform):
                 platform=platform, stage="page_selection",
                 failure_reason="no_manageable_pages" if not safe_pages else "",
             )
+            if "pages_manage_posts" not in {scope.lower() for scope in granted_scopes}:
+                audit_connection(
+                    "permissions_incomplete", user=user, owner_role=role,
+                    platform=platform, stage="permission_verification",
+                    failure_reason="pages_manage_posts_not_granted",
+                )
             selection = signing.dumps({"state_id": state_row.pk, "user_id": user.pk}, salt=FACEBOOK_SELECTION_SALT)
             return redirect(f"{reverse('social_publishing_web:facebook_select')}?selection={selection}")
         if platform == SocialPlatform.INSTAGRAM:
