@@ -27,7 +27,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from .services import normalize_owner_role
+from .services import normalize_owner_role, publication_summary_for_content
 from .models import (
     PublicationStatus,
     SocialAccount,
@@ -2398,6 +2398,29 @@ class FacebookDeferredPublicationTests(TestCase):
         self.assertEqual(mock_stage.call_count, 1)
         mock_publish.assert_not_called()
 
+    def test_mobile_publication_summary_is_owned_and_credential_free(self):
+        publication = SocialPublication.objects.create(
+            owner_user=self.vendor, owner_role="vendor", social_account=self.account,
+            platform=SocialPlatform.FACEBOOK, content_object=self.video,
+            status=PublicationStatus.FAILED, external_id="facebook-video-91",
+            external_url="https://www.facebook.com/vendor/videos/91",
+            attempt_count=2, error_message="raw Graph detail access_token=never-return",
+        )
+        summary = publication_summary_for_content(
+            self.video, platform=SocialPlatform.FACEBOOK,
+            owner_user_id=self.vendor.pk, owner_role="vendor",
+        )
+        self.assertEqual(summary["publication_id"], publication.pk)
+        self.assertEqual(summary["facebook_video_id"], "facebook-video-91")
+        self.assertEqual(summary["facebook_permalink"], publication.external_url)
+        self.assertEqual(summary["attempt_count"], 2)
+        self.assertEqual(summary["error_message"], "Facebook publication could not be completed.")
+        self.assertNotIn("access_token", str(summary))
+        self.assertIsNone(publication_summary_for_content(
+            self.video, platform=SocialPlatform.FACEBOOK,
+            owner_user_id=self.vendor.pk + 100, owner_role="vendor",
+        ))
+
     @patch("social_publishing.publisher.cleanup_video_lease")
     @patch("social_publishing.publisher.publish_page_video")
     @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/facebook.mp4")
@@ -2449,6 +2472,8 @@ class FacebookDeferredPublicationTests(TestCase):
             self.assertIn("Facebook", template)
             self.assertIn("facebook/videos/prepare/", template)
             self.assertIn("accounts/facebook/connect/", template)
+            self.assertIn("Facebook publishing is currently not enabled.", template)
+            self.assertIn("account_publishing_ready", template)
         self.assertNotIn("<strong>Facebook</strong><span class=\"text-xs font-black\">Coming soon", Path(settings.BASE_DIR, "templates/dashboard/vendor_add_product.html").read_text())
 
     @patch("social_publishing.publisher.social_publishing_access")

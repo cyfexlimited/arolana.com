@@ -1,14 +1,25 @@
 from dataclasses import dataclass
+import re
+from urllib.parse import urlparse
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 
 from subscriptions.lifecycle import get_effective_subscription
 
-from .models import SocialAccount, SocialConnectionStatus, SocialOwnerRole, SocialPlatform
+from .models import (
+    PublicationStatus,
+    SocialAccount,
+    SocialConnectionStatus,
+    SocialOwnerRole,
+    SocialPlatform,
+    SocialPublication,
+)
 
 
 DEFAULT_SOCIAL_PUBLISHING_TIERS = {"pro", "special", "enterprise"}
+_SAFE_EXTERNAL_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,255}$")
 
 
 @dataclass(frozen=True)
@@ -17,6 +28,77 @@ class SocialPublishingAccess:
     role: str
     tier: str
     reason: str = ""
+
+
+def publication_summary_for_content(content_object, *, platform, owner_user_id=None, owner_role=""):
+    """Return a credential-free publication summary for an owned content object.
+
+    This deliberately excludes request/response metadata and provider messages so
+    mobile clients can render moderation/publication state without receiving
+    encrypted credentials, raw Graph responses, or staging details.
+    """
+    if content_object is None or not getattr(content_object, "pk", None):
+        return None
+    content_type = ContentType.objects.get_for_model(
+        content_object, for_concrete_model=False
+    )
+    publications = SocialPublication.objects.filter(
+        platform=platform,
+        content_type=content_type,
+        object_id=content_object.pk,
+    )
+    if owner_user_id:
+        publications = publications.filter(owner_user_id=owner_user_id)
+    if owner_role:
+        publications = publications.filter(owner_role=owner_role)
+    publication = publications.order_by("-updated_at", "-pk").first()
+    if publication is None:
+        return None
+
+    external_url = str(publication.external_url or "").strip()
+    parsed = urlparse(external_url)
+    hostname = (parsed.hostname or "").lower()
+    safe_permalink = (
+        external_url
+        if parsed.scheme == "https"
+        and (hostname == "facebook.com" or hostname.endswith(".facebook.com"))
+        else ""
+    )
+    external_id = str(publication.external_id or "").strip()
+    safe_external_id = external_id if _SAFE_EXTERNAL_ID.fullmatch(external_id) else ""
+    metadata = publication.response_metadata or {}
+    post_id = str(metadata.get("facebook_post_id") or "").strip()
+    safe_post_id = post_id if _SAFE_EXTERNAL_ID.fullmatch(post_id) else ""
+    failed = publication.status == PublicationStatus.FAILED
+    return {
+        "publication_id": publication.pk,
+        "exists": True,
+        "status": publication.status,
+        "facebook_video_id": safe_external_id,
+        "facebook_post_id": safe_post_id,
+        "facebook_permalink": safe_permalink,
+        "awaiting_moderation": bool(
+            publication.status == PublicationStatus.PENDING
+            and (publication.request_metadata or {}).get("awaiting_moderation")
+        ),
+        "attempt_count": int(publication.attempt_count or 0),
+        "retry_available": bool(
+            failed and publication.deferred_video_lease_id
+        ),
+        "error_message": (
+            "Facebook publication could not be completed."
+            if failed
+            else ""
+        ),
+        "last_attempt_at": (
+            publication.last_attempt_at.isoformat()
+            if publication.last_attempt_at else ""
+        ),
+        "next_retry_at": (
+            publication.next_retry_at.isoformat()
+            if publication.next_retry_at else ""
+        ),
+    }
 
 
 def normalize_owner_role(role):

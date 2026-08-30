@@ -309,7 +309,10 @@ class ProviderProjectsAPIView(APIView):
             return error
         projects = provider.portfolio_items.optimized()
         return Response({
-            "projects": ServicePortfolioSerializer(projects, many=True, context={"request": request}).data,
+            "projects": ServicePortfolioSerializer(
+                projects, many=True,
+                context={"request": request, "include_social_publications": True},
+            ).data,
             "entitlements": ProjectEntitlementService(provider).payload(),
         })
 
@@ -329,7 +332,9 @@ class ProviderProjectsAPIView(APIView):
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({
             "message": "Project draft saved.",
-            "project": ServicePortfolioSerializer(project, context={"request": request}).data,
+            "project": ServicePortfolioSerializer(
+                project, context={"request": request, "include_social_publications": True},
+            ).data,
             "entitlements": entitlements.payload(),
         }, status=status.HTTP_201_CREATED)
 
@@ -349,7 +354,9 @@ class ProviderProjectDetailAPIView(APIView):
         if error:
             return error
         return Response({
-            "project": ServicePortfolioSerializer(project, context={"request": request}).data,
+            "project": ServicePortfolioSerializer(
+                project, context={"request": request, "include_social_publications": True},
+            ).data,
             "entitlements": ProjectEntitlementService(provider).payload(),
         })
 
@@ -367,7 +374,9 @@ class ProviderProjectDetailAPIView(APIView):
             project.save(update_fields=["approval_status", "updated_at"])
         return Response({
             "message": "Project changes saved.",
-            "project": ServicePortfolioSerializer(project, context={"request": request}).data,
+            "project": ServicePortfolioSerializer(
+                project, context={"request": request, "include_social_publications": True},
+            ).data,
         })
 
     def delete(self, request, project_id):
@@ -414,7 +423,7 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
             "media": ServiceProjectMediaSerializer(
                 media_items,
                 many=True,
-                context={"request": request},
+                context={"request": request, "include_social_publications": True},
             ).data,
             "media_groups": _media_group_payload(media_items, request),
             "entitlements": ProjectEntitlementService(provider).payload(),
@@ -618,7 +627,10 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
 
         return Response({
             "message": f"{len(created)} project media item{'s' if len(created) != 1 else ''} uploaded for review.",
-            "media": ServiceProjectMediaSerializer(created, many=True, context={"request": request}).data,
+            "media": ServiceProjectMediaSerializer(
+                created, many=True,
+                context={"request": request, "include_social_publications": True},
+            ).data,
             "instagram_publication": instagram_publication,
             "entitlements": service.payload(),
         }, status=status.HTTP_201_CREATED)
@@ -651,7 +663,9 @@ class ProviderProjectMediaDeleteAPIView(ProviderProjectDetailAPIView):
                 if source_changed
                 else "Project media details updated."
             ),
-            "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
+            "media": ServiceProjectMediaSerializer(
+                media, context={"request": request, "include_social_publications": True},
+            ).data,
         })
 
     def delete(self, request, project_id, media_id):
@@ -691,7 +705,10 @@ class ProviderProjectMediaReorderAPIView(ProviderProjectDetailAPIView):
         media_items = project.media_items.order_by("display_order", "id")
         return Response({
             "message": "Project media order saved.",
-            "media": ServiceProjectMediaSerializer(media_items, many=True, context={"request": request}).data,
+            "media": ServiceProjectMediaSerializer(
+                media_items, many=True,
+                context={"request": request, "include_social_publications": True},
+            ).data,
         })
 
 
@@ -710,7 +727,9 @@ class ProviderProjectMediaCoverAPIView(ProviderProjectDetailAPIView):
         media.save(update_fields=["is_cover", "is_featured", "updated_at"])
         return Response({
             "message": "Project cover updated.",
-            "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
+            "media": ServiceProjectMediaSerializer(
+                media, context={"request": request, "include_social_publications": True},
+            ).data,
         })
 
 
@@ -783,7 +802,10 @@ class StaffProjectsAPIView(APIView):
         query = request.query_params.get("q")
         if query:
             projects = projects.filter(Q(title__icontains=query) | Q(provider__business_name__icontains=query))
-        return Response({"projects": ServicePortfolioSerializer(projects[:100], many=True, context={"request": request}).data})
+        return Response({"projects": ServicePortfolioSerializer(
+            projects[:100], many=True,
+            context={"request": request, "include_social_publications": True},
+        ).data})
 
 
 class StaffProjectDetailAPIView(APIView):
@@ -799,7 +821,9 @@ class StaffProjectDetailAPIView(APIView):
         _user, project, error = self._staff_project(request, project_id)
         if error:
             return error
-        return Response({"project": ServicePortfolioSerializer(project, context={"request": request}).data})
+        return Response({"project": ServicePortfolioSerializer(
+            project, context={"request": request, "include_social_publications": True},
+        ).data})
 
 
 class StaffProjectModerationAPIView(StaffProjectDetailAPIView):
@@ -817,7 +841,9 @@ class StaffProjectModerationAPIView(StaffProjectDetailAPIView):
         )
         return Response({
             "message": f"Project marked {project.get_approval_status_display().lower()}.",
-            "project": ServicePortfolioSerializer(project, context={"request": request}).data,
+            "project": ServicePortfolioSerializer(
+                project, context={"request": request, "include_social_publications": True},
+            ).data,
         })
 
 
@@ -878,7 +904,7 @@ class StaffProjectMediaAPIView(APIView):
             "media": ServiceProjectMediaSerializer(
                 media_items[:200],
                 many=True,
-                context={"request": request},
+                context={"request": request, "include_social_publications": True},
             ).data,
         })
 
@@ -907,26 +933,28 @@ class StaffProjectMediaModerationAPIView(APIView):
                 {"detail": "Choose pending, approved, rejected, or requires_changes."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        media.approval_status = approval_status
-        media.moderation_note = str(request.data.get("note", "") or "").strip()
         if approval_status == ServiceProjectMedia.STATUS_APPROVED:
-            media.approved_by = user
-            media.approved_at = timezone.now()
-            media.is_active = True
+            from social_publishing.moderation import approve_project_media
+
+            media = approve_project_media(media, user)
         else:
+            media.approval_status = approval_status
+            media.moderation_note = str(request.data.get("note", "") or "").strip()
             media.approved_by = None
             media.approved_at = None
             if approval_status == ServiceProjectMedia.STATUS_REJECTED:
                 media.is_active = False
-        media.save(update_fields=[
-            "approval_status",
-            "moderation_note",
-            "approved_by",
-            "approved_at",
-            "is_active",
-            "updated_at",
-        ])
+            media.save(update_fields=[
+                "approval_status",
+                "moderation_note",
+                "approved_by",
+                "approved_at",
+                "is_active",
+                "updated_at",
+            ])
         return Response({
             "message": f"Project media marked {media.get_approval_status_display().lower()}.",
-            "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
+            "media": ServiceProjectMediaSerializer(
+                media, context={"request": request, "include_social_publications": True},
+            ).data,
         })

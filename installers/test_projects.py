@@ -410,6 +410,40 @@ class ProjectNetworkTests(TestCase):
         self.assertEqual(payload["media"][0]["media_type"], ServiceProjectMedia.TYPE_VIDEO)
         self.assertTrue(payload["media"][0]["id"])
 
+    def test_provider_media_api_returns_safe_owned_facebook_publication_status(self):
+        media = ServiceProjectMedia.objects.create(
+            project=self.project,
+            media_type=ServiceProjectMedia.TYPE_VIDEO,
+            caption="Facebook-ready project video",
+            external_video_url="https://www.youtube.com/watch?v=provider-facebook-status",
+        )
+        account = SocialAccount.objects.create(
+            user=self.user,
+            owner_role="provider",
+            platform=SocialPlatform.FACEBOOK,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="provider-page-1",
+            access_token_encrypted="encrypted-provider-page-token",
+        )
+        SocialPublication.objects.create(
+            owner_user=self.user,
+            owner_role="provider",
+            social_account=account,
+            platform=SocialPlatform.FACEBOOK,
+            content_object=media,
+            status="pending",
+            attempt_count=1,
+        )
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("provider_api:provider_project_media", args=[self.project.id]),
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        returned = next(item for item in response.json()["media"] if item["id"] == media.id)
+        self.assertEqual(returned["facebook_publication"]["status"], "pending")
+        self.assertNotIn("access_token", str(returned["facebook_publication"]).lower())
+
     @patch("installers.project_api.youtube_upload_video")
     def test_provider_mobile_video_uses_youtube_primary_host_when_selected(self, youtube_upload):
         youtube_upload.return_value = {
@@ -948,6 +982,34 @@ class ProjectNetworkTests(TestCase):
         self.project.refresh_from_db()
         self.assertEqual(self.project.approval_status, ServicePortfolio.STATUS_APPROVED)
         self.assertTrue(self.project.moderation_history.filter(actor=staff).exists())
+
+    @patch("social_publishing.publisher.release_pending_facebook_publications")
+    def test_staff_mobile_media_approval_uses_shared_deferred_release_hook(self, release_facebook):
+        staff = User.objects.create_superuser(
+            username="mobile-media-admin",
+            email="mobile-media-admin@example.com",
+            password="pass12345",
+        )
+        media = ServiceProjectMedia.objects.create(
+            project=self.project,
+            media_type=ServiceProjectMedia.TYPE_VIDEO,
+            external_video_url="https://www.youtube.com/watch?v=staff-media-release",
+            approval_status=ServiceProjectMedia.STATUS_PENDING,
+        )
+        self.client.force_login(staff)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse(
+                    "staff_mobile:staff_projects_api:staff_project_media_moderate",
+                    args=[self.project.id, media.id],
+                ),
+                {"status": ServiceProjectMedia.STATUS_APPROVED},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        media.refresh_from_db()
+        self.assertEqual(media.approval_status, ServiceProjectMedia.STATUS_APPROVED)
+        release_facebook.assert_called_once()
 
     def test_mobile_home_exposes_admin_controlled_projects_section(self):
         ServiceMarketplaceHomepageSection.objects.create(

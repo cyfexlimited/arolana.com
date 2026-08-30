@@ -335,6 +335,7 @@ class ServiceProjectMediaSerializer(serializers.ModelSerializer):
     stage_label = serializers.CharField(source="get_stage_display", read_only=True)
     approval_status_label = serializers.CharField(source="get_approval_status_display", read_only=True)
     processing_status_label = serializers.CharField(source="get_processing_status_display", read_only=True)
+    facebook_publication = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceProjectMedia
@@ -345,8 +346,24 @@ class ServiceProjectMediaSerializer(serializers.ModelSerializer):
             "is_featured", "is_cover", "approval_status", "approval_status_label",
             "moderation_note", "approved_at", "processing_status", "processing_status_label",
             "processing_error", "video_duration", "file_size", "mime_type", "is_playable",
-            "original_filename", "created_at", "updated_at",
+            "original_filename", "facebook_publication", "created_at", "updated_at",
         ]
+
+    def get_facebook_publication(self, obj):
+        if not self.context.get("include_social_publications"):
+            return None
+        provider = getattr(getattr(obj, "project", None), "provider", None)
+        if not provider or not provider.user_id:
+            return None
+        from social_publishing.models import SocialPlatform
+        from social_publishing.services import publication_summary_for_content
+
+        return publication_summary_for_content(
+            obj,
+            platform=SocialPlatform.FACEBOOK,
+            owner_user_id=provider.user_id,
+            owner_role="provider",
+        )
 
     def get_image_url(self, obj):
         return absolute_optimized_url(self.context.get("request"), obj.image, "project_gallery", verify_exists=True)

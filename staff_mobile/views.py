@@ -759,6 +759,18 @@ def _staff_product_video_payload(video, request=None, include_comments=False):
         "vendor_name": vendor.store_name if vendor else "",
         "vendor_tier": vendor.subscription_tier if vendor else "",
     }
+    if vendor and vendor.user_id:
+        from social_publishing.models import SocialPlatform
+        from social_publishing.services import publication_summary_for_content
+
+        payload["facebook_publication"] = publication_summary_for_content(
+            video,
+            platform=SocialPlatform.FACEBOOK,
+            owner_user_id=vendor.user_id,
+            owner_role="vendor",
+        )
+    else:
+        payload["facebook_publication"] = None
 
     if include_comments:
         payload["recent_comments"] = [
