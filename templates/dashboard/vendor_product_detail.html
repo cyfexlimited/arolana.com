@@ -1294,6 +1294,7 @@
     let instagramAccountConnected = false;
     let facebookAccountConnected = false;
     let facebookPublishingEnabled = false;
+    let facebookPermissionReady = false;
     let uploadedProductVideoId = null;
     let uploadInFlight = false;
     const progressContainer = document.getElementById("productVideoPublishingWorkspace");
@@ -1345,8 +1346,8 @@
         if (connectInstagramButton) {
             connectInstagramButton.style.display = enabled && !instagramAccountConnected ? "inline-flex" : "none";
         }
-        if (facebookCheckbox) facebookCheckbox.disabled = !(facebookAccountConnected && facebookPublishingEnabled);
-        if (connectFacebookButton) connectFacebookButton.style.display = facebookAccountConnected && facebookPublishingEnabled ? "none" : "inline-flex";
+        if (facebookCheckbox) facebookCheckbox.disabled = !(facebookAccountConnected && facebookPublishingEnabled && facebookPermissionReady);
+        if (connectFacebookButton) connectFacebookButton.style.display = facebookAccountConnected && (!facebookPublishingEnabled || facebookPermissionReady) ? "none" : "inline-flex";
     }
 
     async function loadInstagramStatus() {
@@ -1370,7 +1371,8 @@
             });
             instagramAccountConnected = Boolean(instagram && instagram.connected);
             facebookAccountConnected = Boolean(facebook && facebook.connected);
-            facebookPublishingEnabled = Boolean(facebook && facebook.publishing_ready);
+            facebookPublishingEnabled = Boolean(facebook && facebook.publishing_enabled);
+            facebookPermissionReady = Boolean(facebook && facebook.account_publishing_ready);
             const connectLabel = connectInstagramButton && connectInstagramButton.querySelector("span");
             if (instagramAccountConnected) {
                 instagramConnectionStatus.textContent =
@@ -1390,7 +1392,10 @@
                 instagramConnectionStatus.style.color = "#b91c1c";
             }
             if (facebookConnectionStatus) {
-                if (facebookAccountConnected && facebookPublishingEnabled) {
+                if (facebookAccountConnected && !facebookPublishingEnabled) {
+                    facebookConnectionStatus.textContent = "Facebook publishing is currently not enabled.";
+                    facebookConnectionStatus.style.color = "#475569";
+                } else if (facebookAccountConnected && facebookPermissionReady) {
                     facebookConnectionStatus.textContent = "Facebook Page connected" + (facebook.account_name ? ": " + facebook.account_name : ".");
                     facebookConnectionStatus.style.color = "#15803d";
                 } else if (facebookAccountConnected) {
@@ -1410,6 +1415,7 @@
             instagramAccountConnected = false;
             facebookAccountConnected = false;
             facebookPublishingEnabled = false;
+            facebookPermissionReady = false;
             instagramConnectionStatus.textContent =
                 "Could not check Instagram connection right now.";
             instagramConnectionStatus.style.color = "#b91c1c";

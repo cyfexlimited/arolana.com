@@ -205,7 +205,12 @@ def _platform_payload(platform, label, account=None):
         configured = platform_config(platform).configured
     except ValueError:
         configured = False
-    return {
+    facebook_permission_ready = (
+        facebook_page_publishing_ready(account)
+        if platform == SocialPlatform.FACEBOOK
+        else False
+    )
+    payload = {
         "platform": platform,
         "label": label,
         "available": platform_connection_enabled(platform),
@@ -214,7 +219,7 @@ def _platform_payload(platform, label, account=None):
             platform_enabled(platform)
             and (
                 platform != SocialPlatform.FACEBOOK
-                or facebook_page_publishing_ready(account)
+                or facebook_permission_ready
             )
         ),
         "configured": configured,
@@ -230,6 +235,12 @@ def _platform_payload(platform, label, account=None):
             else ""
         ),
     }
+    if platform == SocialPlatform.FACEBOOK:
+        # Keep the Page's stored Meta grant distinct from the global publishing
+        # feature gate so clients never prompt a connected, authorized Page to
+        # reconnect merely because publishing is intentionally disabled.
+        payload["account_publishing_ready"] = facebook_permission_ready
+    return payload
 
 
 @api_view(["GET"])

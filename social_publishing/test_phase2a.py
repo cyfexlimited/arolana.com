@@ -367,6 +367,19 @@ class FacebookVendorReconnectReturnTests(TestCase):
         )
         facebook = next(row for row in status.data["platforms"] if row["platform"] == "facebook")
         self.assertTrue(facebook["publishing_ready"])
+        self.assertTrue(facebook["account_publishing_ready"])
+
+    def test_granted_page_scope_remains_visible_when_global_publishing_is_disabled(self):
+        self._select_page("/dashboard/vendor/product/add/")
+        with self.settings(SOCIAL_PUBLISHING_FACEBOOK_PUBLISHING_ENABLED=False):
+            status = self.client.get(
+                reverse("social_publishing:accounts_status"), {"role": "vendor"}
+            )
+        facebook = next(row for row in status.data["platforms"] if row["platform"] == "facebook")
+        self.assertTrue(facebook["connected"])
+        self.assertFalse(facebook["publishing_enabled"])
+        self.assertFalse(facebook["publishing_ready"])
+        self.assertTrue(facebook["account_publishing_ready"])
 
     def test_connected_page_without_meta_posting_scope_remains_not_ready(self):
         self._select_page(
@@ -379,3 +392,4 @@ class FacebookVendorReconnectReturnTests(TestCase):
         facebook = next(row for row in status.data["platforms"] if row["platform"] == "facebook")
         self.assertTrue(facebook["connected"])
         self.assertFalse(facebook["publishing_ready"])
+        self.assertFalse(facebook["account_publishing_ready"])
