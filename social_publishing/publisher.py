@@ -10,6 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .instagram import publish_reel
+from .facebook import publish_page_video
 from .models import (
     PublicationStatus,
     SocialAccount,
@@ -18,7 +19,12 @@ from .models import (
     SocialPublication,
 )
 from .oauth import InstagramTokenLifecycleError, refresh_instagram_account_if_needed
-from .services import normalize_owner_role, platform_enabled, social_publishing_access
+from .services import (
+    facebook_page_publishing_ready,
+    normalize_owner_role,
+    platform_enabled,
+    social_publishing_access,
+)
 from .video_staging import (
     cleanup_video_lease,
     get_video_delivery_url,
@@ -29,6 +35,7 @@ from .video_staging import (
 _SECRET_PATTERNS = (
     re.compile(r"(?i)(access[_ -]?token|refresh[_ -]?token|client[_ -]?secret)\s*[:=]\s*[^\s,;]+"),
     re.compile(r"(?i)(authorization)\s*:\s*bearer\s+[^\s,;]+"),
+    re.compile(r"(?i)(token)\s*[:=]\s*[^\s,;]+"),
 )
 _SAFE_CODE_PATTERN = re.compile(r"[^A-Za-z0-9_.:-]+")
 logger = logging.getLogger(__name__)
@@ -38,6 +45,15 @@ class InstagramPublicationError(Exception):
     """A safe, caller-facing failure from Instagram publication orchestration."""
 
     def __init__(self, message, *, code="instagram_publish_failed", publication=None):
+        super().__init__(message)
+        self.code = code
+        self.publication = publication
+
+
+class FacebookPublicationError(Exception):
+    """A safe, caller-facing failure from Facebook publication orchestration."""
+
+    def __init__(self, message, *, code="facebook_publish_failed", publication=None):
         super().__init__(message)
         self.code = code
         self.publication = publication
@@ -109,21 +125,47 @@ def _connected_instagram_account(user, owner_role):
     return account
 
 
+def _connected_facebook_account(user, owner_role):
+    try:
+        account = SocialAccount.objects.get(
+            user=user,
+            owner_role=owner_role,
+            platform=SocialPlatform.FACEBOOK,
+            status=SocialConnectionStatus.CONNECTED,
+        )
+    except SocialAccount.DoesNotExist as exc:
+        raise FacebookPublicationError(
+            "A connected Facebook Page is required.", code="facebook_not_connected"
+        ) from exc
+    if not account.is_connected or not account.external_account_id or not account.access_token_encrypted:
+        raise FacebookPublicationError(
+            "The connected Facebook Page requires reauthorization.",
+            code="facebook_reauthorization_required",
+        )
+    if not facebook_page_publishing_ready(account):
+        raise FacebookPublicationError(
+            "The connected Facebook Page requires publishing permission.",
+            code="facebook_publish_permission_required",
+        )
+    return account
+
+
 def _prepare_publication(
-    *, user, owner_role, account, content_type, object_id, share_to_feed, caption=""
+    *, user, owner_role, account, content_type, object_id, platform=SocialPlatform.INSTAGRAM,
+    share_to_feed=True, caption="", error_class=InstagramPublicationError,
 ):
     with transaction.atomic():
         publication, _created = SocialPublication.objects.select_for_update().get_or_create(
             owner_user=user,
             owner_role=owner_role,
-            platform=SocialPlatform.INSTAGRAM,
+            platform=platform,
             content_type=content_type,
             object_id=object_id,
             defaults={"social_account": account},
         )
         if publication.status == PublicationStatus.PUBLISHED:
-            raise InstagramPublicationError(
-                "This content has already been published to Instagram.",
+            raise error_class(
+                "This content has already been published to this platform.",
                 code="already_published",
                 publication=publication,
             )
@@ -131,11 +173,17 @@ def _prepare_publication(
             PublicationStatus.UPLOADING,
             PublicationStatus.PROCESSING,
         }:
-            raise InstagramPublicationError(
-                "This content is already being published to Instagram.",
+            raise error_class(
+                "This content is already being published to this platform.",
                 code="publish_in_progress",
                 publication=publication,
             )
+
+        # A moderation-held intent already owns the selected destination and
+        # temporary source. Repeated browser submits must not replace it or
+        # create a second external publication attempt.
+        if publication.status == PublicationStatus.PENDING and not _created:
+            return publication
 
         if account is not None:
             publication.social_account = account
@@ -192,7 +240,11 @@ def _mark_publication_failure(publication, exc, account=None):
         account.status = SocialConnectionStatus.EXPIRED
         account.last_error = "Instagram authorization expired. Reauthorization is required."
         account.save(update_fields=["status", "last_error", "updated_at"])
-    safe_code = exc.code if isinstance(exc, InstagramPublicationError) else _safe_error_code(exc)
+    safe_code = (
+        exc.code
+        if isinstance(exc, (InstagramPublicationError, FacebookPublicationError))
+        else _safe_error_code(exc)
+    )
     safe_message = _safe_error_message(exc)
     publication.status = PublicationStatus.FAILED
     publication.error_code = safe_code
@@ -270,6 +322,7 @@ def publish_uploaded_video_to_instagram(
     publication = _prepare_publication(
         user=user,
         owner_role=owner_role,
+        platform=SocialPlatform.INSTAGRAM,
         account=None,
         content_type=content_type,
         object_id=object_id,
@@ -296,6 +349,9 @@ def publish_uploaded_video_to_instagram(
         account = _connected_instagram_account(user, owner_role)
         publication.social_account = account
         publication.save(update_fields=["social_account", "updated_at"])
+
+        if publication.status == PublicationStatus.PENDING:
+            return publication
 
         if not _content_is_approved_for_distribution(content_type, content_object):
             _stage_publication_source(publication, uploaded_file)
@@ -333,6 +389,144 @@ def publish_uploaded_video_to_instagram(
             code=safe_code,
             publication=publication,
         ) from exc
+
+
+def _publish_facebook_from_deferred_source(publication, account):
+    lease = publication.deferred_video_lease
+    if lease is None or lease.cleanup_completed_at or lease.is_expired:
+        raise FacebookPublicationError(
+            "The temporary Facebook source is no longer available.",
+            code="deferred_video_unavailable",
+            publication=publication,
+        )
+    video_url = str(get_video_delivery_url(lease) or "").strip()
+    parsed_video_url = urlparse(video_url)
+    if parsed_video_url.scheme.lower() != "https" or not parsed_video_url.netloc:
+        raise FacebookPublicationError(
+            "Facebook video delivery requires HTTPS.",
+            code="https_video_url_required",
+            publication=publication,
+        )
+    publication.status = PublicationStatus.PROCESSING
+    publication.save(update_fields=["status", "updated_at"])
+    result = publish_page_video(
+        account,
+        video_url=video_url,
+        description=str((publication.request_metadata or {}).get("caption") or "")[:2200],
+    )
+    video_id = str(result.get("video_id") or "").strip()
+    if not video_id:
+        raise FacebookPublicationError("Facebook returned no video ID.", code="facebook_video_id_missing")
+    publication.status = PublicationStatus.PUBLISHED
+    publication.external_id = video_id
+    publication.external_url = ""
+    publication.published_at = timezone.now()
+    publication.error_code = ""
+    publication.error_message = ""
+    publication.response_metadata = {"facebook_video_id": video_id, "facebook_post_id": str(result.get("post_id") or "")}
+    publication.save(update_fields=[
+        "status", "external_id", "external_url", "published_at", "error_code",
+        "error_message", "response_metadata", "updated_at",
+    ])
+    cleanup_video_lease(lease)
+    return publication
+
+
+def prepare_uploaded_video_for_facebook(*, user, owner_role, content_object, uploaded_file, caption=""):
+    """Create one moderation-gated Facebook Page publication intent.
+
+    The original video is retained only in a bounded temporary lease.  No
+    Facebook request occurs until the ProductVideo is approved.
+    """
+    owner_role = normalize_owner_role(owner_role)
+    content_type, object_id = _content_identity(content_object)
+    publication = _prepare_publication(
+        user=user, owner_role=owner_role, platform=SocialPlatform.FACEBOOK,
+        account=None, content_type=content_type, object_id=object_id, caption=caption,
+        error_class=FacebookPublicationError,
+    )
+    account = None
+    try:
+        access = social_publishing_access(user, owner_role)
+        if not access.allowed:
+            raise FacebookPublicationError(access.reason or "Social publishing is not available.", code="social_publishing_access_denied")
+        if not platform_enabled(SocialPlatform.FACEBOOK):
+            raise FacebookPublicationError("Facebook publishing is not enabled.", code="facebook_publishing_disabled")
+        account = _connected_facebook_account(user, owner_role)
+        publication.social_account = account
+        publication.save(update_fields=["social_account", "updated_at"])
+        if publication.status == PublicationStatus.PENDING:
+            return publication
+        _stage_publication_source(publication, uploaded_file)
+        publication.status = PublicationStatus.PENDING
+        publication.error_code = ""
+        publication.error_message = ""
+        publication.request_metadata = {"caption": str(caption or "")[:2200], "awaiting_moderation": True}
+        publication.save(update_fields=["status", "error_code", "error_message", "request_metadata", "updated_at"])
+        return publication
+    except Exception as exc:
+        safe_code, safe_message = _mark_publication_failure(publication, exc, account)
+        if isinstance(exc, FacebookPublicationError):
+            exc.args = (safe_message,)
+            exc.publication = publication
+            raise
+        raise FacebookPublicationError(safe_message, code=safe_code, publication=publication) from exc
+
+
+def continue_deferred_facebook_publication(publication):
+    """Publish one already-approved Facebook intent without new upload bytes."""
+    with transaction.atomic():
+        publication = SocialPublication.objects.select_for_update().get(pk=publication.pk)
+        if publication.status in {PublicationStatus.PUBLISHED, PublicationStatus.UPLOADING, PublicationStatus.PROCESSING}:
+            return publication
+        content_object = publication.content_object
+        if content_object is None or not _content_is_approved_for_distribution(publication.content_type, content_object):
+            return publication
+        publication.status = PublicationStatus.UPLOADING
+        publication.attempt_count += 1
+        publication.last_attempt_at = timezone.now()
+        publication.error_code = ""
+        publication.error_message = ""
+        publication.request_metadata = {**(publication.request_metadata or {}), "awaiting_moderation": False}
+        publication.save(update_fields=["status", "attempt_count", "last_attempt_at", "error_code", "error_message", "request_metadata", "updated_at"])
+    account = None
+    try:
+        access = social_publishing_access(publication.owner_user, publication.owner_role)
+        if not access.allowed:
+            raise FacebookPublicationError(access.reason or "Social publishing is not available.", code="social_publishing_access_denied")
+        if not platform_enabled(SocialPlatform.FACEBOOK):
+            raise FacebookPublicationError("Facebook publishing is not enabled.", code="facebook_publishing_disabled")
+        account = _connected_facebook_account(publication.owner_user, publication.owner_role)
+        publication.social_account = account
+        publication.save(update_fields=["social_account", "updated_at"])
+        return _publish_facebook_from_deferred_source(publication, account)
+    except Exception as exc:
+        safe_code, safe_message = _mark_publication_failure(publication, exc, account)
+        if isinstance(exc, FacebookPublicationError):
+            exc.args = (safe_message,)
+            exc.publication = publication
+            raise
+        raise FacebookPublicationError(safe_message, code=safe_code, publication=publication) from exc
+
+
+def release_pending_facebook_publications(content_objects):
+    """Best-effort Facebook release after moderation; approval never rolls back."""
+    released = []
+    for content_object in content_objects:
+        content_type, object_id = _content_identity(content_object)
+        for publication in SocialPublication.objects.filter(
+            platform=SocialPlatform.FACEBOOK, content_type=content_type, object_id=object_id,
+            status=PublicationStatus.PENDING, deferred_video_lease__isnull=False,
+        ):
+            try:
+                released.append(continue_deferred_facebook_publication(publication))
+            except Exception as exc:
+                logger.error("Deferred Facebook publication failed publication_id=%s exception_class=%s", publication.pk, type(exc).__name__)
+                failed = SocialPublication.objects.get(pk=publication.pk)
+                if failed.status != PublicationStatus.PUBLISHED:
+                    _mark_publication_failure(failed, exc)
+                released.append(failed)
+    return released
 
 
 def continue_deferred_instagram_publication(publication):

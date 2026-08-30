@@ -15,6 +15,7 @@ from social_publishing.instagram import (
     publish_reel_container,
     wait_for_container,
 )
+from social_publishing.facebook import FacebookPublishingError, publish_page_video
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
@@ -36,6 +37,7 @@ from .models import (
     TemporaryVideoLease,
 )
 from .publisher import (
+    FacebookPublicationError,
     InstagramPublicationError,
     _content_is_approved_for_distribution,
     _prepare_publication,
@@ -43,6 +45,9 @@ from .publisher import (
     cleanup_orphaned_pending_instagram_publications,
     release_pending_instagram_publications,
     publish_uploaded_video_to_instagram,
+    prepare_uploaded_video_for_facebook,
+    continue_deferred_facebook_publication,
+    release_pending_facebook_publications,
 )
 from .oauth import (
     INSTAGRAM_LONG_LIVED_TOKEN_KIND,
@@ -61,6 +66,69 @@ from .web_views import _signed_oauth_state
 
 
 class SocialPublishingRoleTests(SimpleTestCase):
+    def test_facebook_connection_requests_page_publishing_permission(self):
+        from .oauth import platform_config
+
+        self.assertIn(
+            "pages_manage_posts",
+            platform_config(SocialPlatform.FACEBOOK).scopes,
+        )
+
+    @patch("social_publishing.facebook.decrypt_token", return_value="test-page-token")
+    @patch("social_publishing.facebook.requests.post")
+    @patch("social_publishing.facebook.requests.get")
+    def test_facebook_publish_validates_and_uses_only_the_selected_page(
+        self, mock_get, mock_post, _mock_decrypt
+    ):
+        account = SimpleNamespace(
+            pk=71,
+            platform=SocialPlatform.FACEBOOK,
+            is_connected=True,
+            external_account_id="selected-page-71",
+            access_token_encrypted="encrypted",
+        )
+        mock_get.return_value = Mock(ok=True)
+        mock_get.return_value.json.return_value = {"id": "selected-page-71"}
+        mock_post.return_value = Mock(ok=True)
+        mock_post.return_value.json.return_value = {"id": "facebook-video-71", "post_id": "post-71"}
+
+        result = publish_page_video(
+            account, video_url="https://media.example/video.mp4", description="Caption"
+        )
+
+        self.assertEqual(result, {"video_id": "facebook-video-71", "post_id": "post-71"})
+        self.assertEqual(
+            mock_get.call_args.args[0],
+            "https://graph.facebook.com/v25.0/selected-page-71",
+        )
+        self.assertEqual(
+            mock_post.call_args.args[0],
+            "https://graph.facebook.com/v25.0/selected-page-71/videos",
+        )
+        self.assertNotIn("/me/accounts", mock_get.call_args.args[0])
+
+    @patch("social_publishing.facebook.decrypt_token", return_value="test-page-token")
+    @patch("social_publishing.facebook.requests.post")
+    @patch("social_publishing.facebook.requests.get")
+    def test_facebook_page_identity_mismatch_never_falls_back_or_posts(
+        self, mock_get, mock_post, _mock_decrypt
+    ):
+        account = SimpleNamespace(
+            pk=72,
+            platform=SocialPlatform.FACEBOOK,
+            is_connected=True,
+            external_account_id="selected-page-72",
+            access_token_encrypted="encrypted",
+        )
+        mock_get.return_value = Mock(ok=True)
+        mock_get.return_value.json.return_value = {"id": "another-page"}
+
+        with self.assertRaises(FacebookPublishingError) as caught:
+            publish_page_video(account, video_url="https://media.example/video.mp4")
+
+        self.assertEqual(caught.exception.error_code, "page_identity_mismatch")
+        mock_post.assert_not_called()
+
     def test_provider_aliases_are_normalized(self):
         self.assertEqual(normalize_owner_role("service_provider"), "provider")
         self.assertEqual(normalize_owner_role("installer"), "provider")
@@ -2271,3 +2339,212 @@ class ArolanaOnlySocialPublicationDeletionTests(TestCase):
                 format="json",
             )
         self.assertEqual(response.status_code, 403)
+
+
+@override_settings(
+    SOCIAL_PUBLISHING_ENABLED=True,
+    SOCIAL_PUBLISHING_FACEBOOK_PUBLISHING_ENABLED=True,
+)
+class FacebookDeferredPublicationTests(TestCase):
+    def setUp(self):
+        from products.models import Category, Product, ProductVideo
+
+        self.vendor = get_user_model().objects.create_user(
+            username="facebook-publisher", email="facebook-publisher@example.com"
+        )
+        category = Category.objects.create(
+            name="Facebook publishing", slug="facebook-publishing", is_active=True
+        )
+        product = Product.objects.create(
+            vendor=self.vendor, category=category, sku="FACEBOOK-1",
+            name="Facebook Product", slug="facebook-product", description="Video",
+            price="100.00", stock_quantity=1, approval_status="pending", is_active=False,
+        )
+        self.video = ProductVideo.objects.create(
+            product=product, title="Facebook video", source="youtube",
+            youtube_video_id="facebook-video", moderation_status="pending", is_active=True,
+        )
+        self.account = SocialAccount.objects.create(
+            user=self.vendor, owner_role="vendor", platform=SocialPlatform.FACEBOOK,
+            status=SocialConnectionStatus.CONNECTED, external_account_id="facebook-page-1",
+            account_name="Vendor Facebook Page", access_token_encrypted="encrypted-page-token",
+            scopes=["pages_show_list", "pages_read_engagement", "pages_manage_posts"],
+        )
+        self.upload = SimpleUploadedFile("facebook.mp4", b"video", content_type="video/mp4")
+        self.lease = TemporaryVideoLease.objects.create(
+            owner_user=self.vendor, owner_role="vendor", storage_key="facebook/test.mp4",
+            original_filename="facebook.mp4", expires_at=timezone.now() + timedelta(days=1),
+        )
+
+    @patch("social_publishing.publisher.stage_video_for_social")
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_selection_creates_one_pending_audit_record_without_facebook_call(self, mock_access, mock_stage):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_stage.return_value = self.lease
+        with patch("social_publishing.publisher.publish_page_video") as mock_publish:
+            publication = prepare_uploaded_video_for_facebook(
+                user=self.vendor, owner_role="vendor", content_object=self.video,
+                uploaded_file=self.upload, caption="Approved product video",
+            )
+            duplicate = prepare_uploaded_video_for_facebook(
+                user=self.vendor, owner_role="vendor", content_object=self.video,
+                uploaded_file=self.upload, caption="Approved product video",
+            )
+        self.assertEqual(publication.pk, duplicate.pk)
+        self.assertEqual(publication.status, PublicationStatus.PENDING)
+        self.assertEqual(publication.platform, SocialPlatform.FACEBOOK)
+        self.assertEqual(publication.social_account, self.account)
+        self.assertEqual(SocialPublication.objects.filter(platform=SocialPlatform.FACEBOOK).count(), 1)
+        self.assertEqual(mock_stage.call_count, 1)
+        mock_publish.assert_not_called()
+
+    @patch("social_publishing.publisher.cleanup_video_lease")
+    @patch("social_publishing.publisher.publish_page_video")
+    @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/facebook.mp4")
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_approved_video_releases_once_and_records_facebook_video_id(
+        self, mock_access, _mock_url, mock_publish, mock_cleanup
+    ):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_publish.return_value = {"video_id": "facebook-video-91", "post_id": "page_91"}
+        self.video.moderation_status = "approved"
+        self.video.save(update_fields=["moderation_status"])
+        publication = SocialPublication.objects.create(
+            owner_user=self.vendor, owner_role="vendor", social_account=self.account,
+            platform=SocialPlatform.FACEBOOK, content_object=self.video,
+            status=PublicationStatus.PENDING, deferred_video_lease=self.lease,
+            request_metadata={"caption": "Approved product video", "awaiting_moderation": True},
+        )
+        result = continue_deferred_facebook_publication(publication)
+        duplicate = continue_deferred_facebook_publication(result)
+        self.assertEqual(result.status, PublicationStatus.PUBLISHED)
+        self.assertEqual(result.external_id, "facebook-video-91")
+        self.assertEqual(result.response_metadata["facebook_post_id"], "page_91")
+        self.assertEqual(duplicate.pk, result.pk)
+        mock_publish.assert_called_once()
+        mock_cleanup.assert_called_once_with(self.lease)
+
+    @patch("social_publishing.publisher.publish_page_video", side_effect=RuntimeError("provider token=secret"))
+    @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/facebook.mp4")
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_facebook_failure_marks_only_publication_failed_not_approval(self, mock_access, _mock_url, _mock_publish):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        self.video.moderation_status = "approved"
+        self.video.save(update_fields=["moderation_status"])
+        publication = SocialPublication.objects.create(
+            owner_user=self.vendor, owner_role="vendor", social_account=self.account,
+            platform=SocialPlatform.FACEBOOK, content_object=self.video,
+            status=PublicationStatus.PENDING, deferred_video_lease=self.lease,
+        )
+        results = release_pending_facebook_publications([self.video])
+        publication.refresh_from_db()
+        self.video.refresh_from_db()
+        self.assertEqual(results[0].status, PublicationStatus.FAILED)
+        self.assertEqual(self.video.moderation_status, "approved")
+        self.assertNotIn("secret", publication.error_message)
+
+    def test_vendor_templates_expose_connected_facebook_destination_not_coming_soon(self):
+        for name in ("vendor_add_product.html", "vendor_product_detail.html"):
+            template = Path(settings.BASE_DIR, "templates/dashboard", name).read_text()
+            self.assertIn("Facebook", template)
+            self.assertIn("facebook/videos/prepare/", template)
+            self.assertIn("accounts/facebook/connect/", template)
+        self.assertNotIn("<strong>Facebook</strong><span class=\"text-xs font-black\">Coming soon", Path(settings.BASE_DIR, "templates/dashboard/vendor_add_product.html").read_text())
+
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_unconnected_facebook_page_is_rejected_with_safe_audit_state(self, mock_access):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        self.account.delete()
+        with self.assertRaises(FacebookPublicationError) as caught:
+            prepare_uploaded_video_for_facebook(
+                user=self.vendor, owner_role="vendor", content_object=self.video,
+                uploaded_file=self.upload,
+            )
+        self.assertEqual(caught.exception.code, "facebook_not_connected")
+        publication = SocialPublication.objects.get(platform=SocialPlatform.FACEBOOK)
+        self.assertEqual(publication.status, PublicationStatus.FAILED)
+        self.assertNotIn("token", publication.error_message.lower())
+
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_connected_page_without_posting_scope_requires_reconnect(self, mock_access):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        self.account.scopes = ["pages_show_list", "pages_read_engagement"]
+        self.account.save(update_fields=["scopes"])
+        with self.assertRaises(FacebookPublicationError) as caught:
+            prepare_uploaded_video_for_facebook(
+                user=self.vendor, owner_role="vendor", content_object=self.video,
+                uploaded_file=self.upload,
+            )
+        self.assertEqual(caught.exception.code, "facebook_publish_permission_required")
+
+    @patch("social_publishing.publisher.stage_video_for_social")
+    @patch("social_publishing.publisher.social_publishing_access")
+    @patch("social_publishing.api_views._role_available", return_value=True)
+    def test_api_persists_one_pending_facebook_selection_and_returns_safe_status(
+        self, _mock_role_available, mock_access, mock_stage
+    ):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_stage.return_value = self.lease
+        client = APIClient()
+        client.force_authenticate(user=self.vendor)
+        url = reverse("social_publishing:facebook_video_prepare")
+        request_data = {
+            "role": "vendor",
+            "content_type": "products.productvideo",
+            "object_id": str(self.video.pk),
+            "video": SimpleUploadedFile("facebook.mp4", b"video", content_type="video/mp4"),
+            "caption": "Facebook caption",
+        }
+        response = client.post(url, request_data, format="multipart")
+        duplicate = client.post(
+            url,
+            {
+                **request_data,
+                "video": SimpleUploadedFile("facebook-again.mp4", b"video", content_type="video/mp4"),
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 202, response.data)
+        self.assertEqual(duplicate.status_code, 202, duplicate.data)
+        self.assertEqual(response.data["status"], PublicationStatus.PENDING)
+        self.assertTrue(response.data["awaiting_moderation"])
+        self.assertNotIn("access_token", response.data)
+        self.assertEqual(
+            SocialPublication.objects.filter(platform=SocialPlatform.FACEBOOK).count(), 1
+        )
+        self.assertEqual(mock_stage.call_count, 1)
+
+    @patch("social_publishing.api_views._role_available", return_value=True)
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_api_rejects_unconnected_facebook_page_with_safe_error(
+        self, mock_access, _mock_role_available
+    ):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        self.account.delete()
+        client = APIClient()
+        client.force_authenticate(user=self.vendor)
+        response = client.post(
+            reverse("social_publishing:facebook_video_prepare"),
+            {
+                "role": "vendor",
+                "content_type": "products.productvideo",
+                "object_id": str(self.video.pk),
+                "video": SimpleUploadedFile("facebook.mp4", b"video", content_type="video/mp4"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data["error_code"], "facebook_not_connected")
+        self.assertNotIn("token", str(response.data).lower())
+
+    @patch("social_publishing.publisher.release_pending_facebook_publications")
+    def test_product_video_approval_schedules_facebook_release(self, mock_release):
+        from social_publishing.moderation import approve_product_video
+
+        reviewer = get_user_model().objects.create_user(
+            username="facebook-reviewer", email="facebook-reviewer@example.com", is_staff=True
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            approve_product_video(self.video, reviewer)
+        mock_release.assert_called_once()

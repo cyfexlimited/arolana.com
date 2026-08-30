@@ -738,14 +738,14 @@
                     </div>
                     {% endif %}
 
-                    {% if instagram_publications %}
+                    {% if social_publications %}
                     <div class="vendor-plan-card" style="margin-bottom:16px;">
-                        <strong class="vendor-edit-label">Existing Instagram publication</strong>
-                        {% for publication in instagram_publications %}
+                        <strong class="vendor-edit-label">Existing social publications</strong>
+                        {% for publication in social_publications %}
                         <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:9px;padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;">
-                            <span>Product video #{{ publication.object_id }}</span>
+                            <span>{{ publication.platform_label }} · Product video #{{ publication.object_id }}</span>
                             <strong>{{ publication.status_label }}</strong>
-                            {% if publication.permalink %}<a href="{{ publication.permalink }}" target="_blank" rel="noopener" class="vendor-edit-btn vendor-edit-btn-light">View on Instagram</a>{% endif %}
+                            {% if publication.permalink %}<a href="{{ publication.permalink }}" target="_blank" rel="noopener" class="vendor-edit-btn vendor-edit-btn-light">View on {{ publication.platform_label }}</a>{% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -832,7 +832,7 @@
                                         Publishing Destinations
                                     </strong>
                                     <p class="vendor-edit-help" style="margin-top:4px;">
-                                        One upload is permanently hosted on YouTube. Instagram is optional.
+                                        One upload is permanently hosted on YouTube. Choose optional social distribution.
                                     </p>
                                 </div>
 
@@ -859,8 +859,14 @@
                                     </span>
                                 </label>
 
+                                <label
+                                    class="vendor-edit-label"
+                                    style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:12px;border:1px solid #bfdbfe;border-radius:14px;background:#fff;">
+                                    <input type="checkbox" id="publishProductVideoToFacebook" style="width:auto;" disabled>
+                                    <span>Facebook <small style="display:block;color:#64748b;font-weight:700;">Optional Page video destination</small></span>
+                                </label>
+
                                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px;">
-                                    <div style="display:flex;justify-content:space-between;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;color:#94a3b8;"><strong>Facebook</strong><small>Coming soon</small></div>
                                     <div style="display:flex;justify-content:space-between;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;color:#94a3b8;"><strong>TikTok</strong><small>Coming soon</small></div>
                                     <div style="display:flex;justify-content:space-between;border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px;color:#94a3b8;"><strong>LinkedIn</strong><small>Coming soon</small></div>
                                 </div>
@@ -870,6 +876,7 @@
                                     class="vendor-edit-help">
                                     Checking Instagram connection...
                                 </div>
+                                <div id="facebookConnectionStatus" class="vendor-edit-help">Checking Facebook Page connection...</div>
 
                                 <div
                                     id="instagramOptions"
@@ -911,6 +918,7 @@
                                     <i class="fab fa-instagram"></i>
                                     <span>Connect Instagram</span>
                                 </button>
+                                <button type="button" id="connectFacebookForProductVideo" class="vendor-edit-btn vendor-edit-btn-secondary" style="display:none;margin-top:12px;"><i class="fab fa-facebook"></i><span>Connect Facebook Page</span></button>
 
                                 <div
                                     id="instagramPublishStatus"
@@ -1273,14 +1281,19 @@
     const statusBox = document.getElementById("youtubeUploadStatus");
     const buttonText = document.getElementById("youtubeUploadButtonText");
     const instagramCheckbox = document.getElementById("publishProductVideoToInstagram");
+    const facebookCheckbox = document.getElementById("publishProductVideoToFacebook");
     const instagramConnectionStatus = document.getElementById("instagramConnectionStatus");
+    const facebookConnectionStatus = document.getElementById("facebookConnectionStatus");
     const instagramOptions = document.getElementById("instagramOptions");
     const instagramCaption = document.getElementById("instagramCaption");
     const instagramCaptionCount = document.getElementById("instagramCaptionCount");
     const instagramShareToFeed = document.getElementById("instagramShareToFeed");
     const instagramStatus = document.getElementById("instagramPublishStatus");
     const connectInstagramButton = document.getElementById("connectInstagramForProductVideo");
+    const connectFacebookButton = document.getElementById("connectFacebookForProductVideo");
     let instagramAccountConnected = false;
+    let facebookAccountConnected = false;
+    let facebookPublishingEnabled = false;
     let uploadedProductVideoId = null;
     let uploadInFlight = false;
     const progressContainer = document.getElementById("productVideoPublishingWorkspace");
@@ -1332,6 +1345,8 @@
         if (connectInstagramButton) {
             connectInstagramButton.style.display = enabled && !instagramAccountConnected ? "inline-flex" : "none";
         }
+        if (facebookCheckbox) facebookCheckbox.disabled = !(facebookAccountConnected && facebookPublishingEnabled);
+        if (connectFacebookButton) connectFacebookButton.style.display = facebookAccountConnected && facebookPublishingEnabled ? "none" : "inline-flex";
     }
 
     async function loadInstagramStatus() {
@@ -1350,7 +1365,12 @@
             const instagram = (data.platforms || []).find(function (item) {
                 return item.platform === "instagram";
             });
+            const facebook = (data.platforms || []).find(function (item) {
+                return item.platform === "facebook";
+            });
             instagramAccountConnected = Boolean(instagram && instagram.connected);
+            facebookAccountConnected = Boolean(facebook && facebook.connected);
+            facebookPublishingEnabled = Boolean(facebook && facebook.publishing_ready);
             const connectLabel = connectInstagramButton && connectInstagramButton.querySelector("span");
             if (instagramAccountConnected) {
                 instagramConnectionStatus.textContent =
@@ -1369,8 +1389,27 @@
                 if (connectLabel) connectLabel.textContent = needsReconnect ? "Reconnect Instagram" : "Connect Instagram";
                 instagramConnectionStatus.style.color = "#b91c1c";
             }
+            if (facebookConnectionStatus) {
+                if (facebookAccountConnected && facebookPublishingEnabled) {
+                    facebookConnectionStatus.textContent = "Facebook Page connected" + (facebook.account_name ? ": " + facebook.account_name : ".");
+                    facebookConnectionStatus.style.color = "#15803d";
+                } else if (facebookAccountConnected) {
+                    facebookConnectionStatus.textContent = "Facebook Page connected. Reconnect to grant Facebook publishing permission.";
+                    facebookConnectionStatus.style.color = "#475569";
+                    const facebookLabel = connectFacebookButton && connectFacebookButton.querySelector("span");
+                    if (facebookLabel) facebookLabel.textContent = "Reconnect Facebook Page";
+                } else {
+                    const expired = facebook && (facebook.status === "expired" || facebook.status === "error");
+                    facebookConnectionStatus.textContent = expired ? "Expired — reconnect Facebook Page before publishing." : "Connection required — connect a Facebook Page before publishing.";
+                    facebookConnectionStatus.style.color = "#b91c1c";
+                    const facebookLabel = connectFacebookButton && connectFacebookButton.querySelector("span");
+                    if (facebookLabel) facebookLabel.textContent = expired ? "Reconnect Facebook Page" : "Connect Facebook Page";
+                }
+            }
         } catch (_error) {
             instagramAccountConnected = false;
+            facebookAccountConnected = false;
+            facebookPublishingEnabled = false;
             instagramConnectionStatus.textContent =
                 "Could not check Instagram connection right now.";
             instagramConnectionStatus.style.color = "#b91c1c";
@@ -1404,6 +1443,25 @@
         } catch (_error) {
             setInstagramStatus("Could not start Instagram connection.", "error");
             connectInstagramButton.disabled = false;
+        }
+    }
+
+    async function connectFacebook() {
+        if (!connectFacebookButton) return;
+        connectFacebookButton.disabled = true;
+        try {
+            const response = await fetch("/api/social-publishing/accounts/facebook/connect/", {
+                method: "POST",
+                headers: {"Content-Type": "application/json", "X-CSRFToken": getCsrfToken(), "Accept": "application/json"},
+                body: JSON.stringify({role: "vendor", return_url: window.location.href}),
+                credentials: "same-origin"
+            });
+            const data = await response.json();
+            if (!response.ok || !data.authorization_url) throw new Error();
+            window.location.assign(data.authorization_url);
+        } catch (_error) {
+            setInstagramStatus("Could not start Facebook connection.", "error");
+            connectFacebookButton.disabled = false;
         }
     }
 
@@ -1465,9 +1523,27 @@
         return data;
     }
 
+    async function prepareFacebookPublication(file, productVideoId) {
+        const formData = new FormData();
+        formData.append("role", "vendor");
+        formData.append("content_type", "products.productvideo");
+        formData.append("object_id", String(productVideoId));
+        formData.append("video", file);
+        formData.append("caption", (titleInput && titleInput.value) || "{{ product.name|escapejs }}");
+        const response = await fetch("/api/social-publishing/facebook/videos/prepare/", {
+            method: "POST", headers: {"X-CSRFToken": getCsrfToken(), "Accept": "application/json"}, body: formData, credentials: "same-origin"
+        });
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        if (!contentType.includes("application/json")) throw new Error("Facebook preparation failed.");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Facebook preparation failed.");
+        return data;
+    }
+
     if (instagramCheckbox) {
         instagramCheckbox.addEventListener("change", updateInstagramOptions);
     }
+    if (connectFacebookButton) connectFacebookButton.addEventListener("click", connectFacebook);
 
     if (instagramCaption && instagramCaptionCount) {
         instagramCaption.addEventListener("input", function () {
@@ -1506,6 +1582,11 @@
                 "Connect or reconnect Instagram before publishing this video.",
                 "error"
             );
+            updateInstagramOptions();
+            return;
+        }
+        if (facebookCheckbox && facebookCheckbox.checked && !facebookAccountConnected) {
+            setInstagramStatus("Connect or reconnect a Facebook Page before publishing.", "error");
             updateInstagramOptions();
             return;
         }
@@ -1593,31 +1674,37 @@
                 progress && progress.update("YouTube upload complete.");
             }
 
+            const selectedDestinations = [
+                instagramCheckbox && instagramCheckbox.checked ? "Instagram" : "",
+                facebookCheckbox && facebookCheckbox.checked ? "Facebook" : ""
+            ].filter(Boolean);
             showStatus(
-                instagramCheckbox && instagramCheckbox.checked
-                    ? "Video uploaded to YouTube. Preparing Instagram publication..."
+                selectedDestinations.length
+                    ? `Video uploaded to YouTube. Preparing ${selectedDestinations.join(" + ")} publication...`
                     : "Video uploaded to YouTube successfully and submitted for Arolana review.",
                 "success"
             );
 
+            const destinationOutcomes = [];
             if (instagramCheckbox && instagramCheckbox.checked) {
                 progress && progress.update("Preparing Instagram publication…");
-                const publication = await publishToInstagram(file, productVideoId);
-                if (publication && publication.status === "pending") {
-                    showStatus("YouTube: Published. Instagram: Pending Arolana approval.", "info");
-                    progress && progress.finish("YouTube complete. Instagram is pending Arolana approval.");
-                    videoInput.value = "";
-                    uploadedProductVideoId = null;
-                    return;
-                }
-                showStatus(
-                    "Video uploaded to YouTube and published to Instagram.",
-                    "success"
-                );
-                progress && progress.finish("YouTube and Instagram publishing completed.");
-            } else {
-                progress && progress.finish("YouTube upload complete. Product video submitted for Arolana approval.");
+                try { destinationOutcomes.push(["Instagram", await publishToInstagram(file, productVideoId)]); }
+                catch (_error) { destinationOutcomes.push(["Instagram", null]); }
             }
+            if (facebookCheckbox && facebookCheckbox.checked) {
+                progress && progress.update("Preparing Facebook publication…");
+                try { destinationOutcomes.push(["Facebook", await prepareFacebookPublication(file, productVideoId)]); }
+                catch (_error) { destinationOutcomes.push(["Facebook", null]); }
+            }
+            const failedDestinations = destinationOutcomes.filter(([, result]) => !result).map(([platform]) => platform);
+            const pendingDestinations = destinationOutcomes.filter(([, result]) => result && result.status === "pending").map(([platform]) => platform);
+            const destinationMessage = failedDestinations.length
+                ? `YouTube: Published. ${failedDestinations.join(" + ")}: Failed — retry will not upload YouTube again.`
+                : pendingDestinations.length
+                    ? `YouTube: Published. ${pendingDestinations.join(" + ")}: Pending Arolana approval.`
+                    : "YouTube upload complete. Product video submitted for Arolana approval.";
+            showStatus(destinationMessage, failedDestinations.length ? "error" : "success");
+            progress && progress.finish(destinationMessage);
 
             if (buttonText) {
                 buttonText.textContent = "Video Uploaded";
@@ -1628,19 +1715,23 @@
 
         } catch (error) {
 
+            const selectedDestinations = [
+                instagramCheckbox && instagramCheckbox.checked ? "Instagram" : "",
+                facebookCheckbox && facebookCheckbox.checked ? "Facebook" : ""
+            ].filter(Boolean).join(" + ") || "Social publishing";
             showStatus(
                 uploadedProductVideoId
-                        ? "YouTube: Published. Instagram: Failed — retry will not upload YouTube again."
+                        ? `YouTube: Published. ${selectedDestinations}: Failed — retry will not upload YouTube again.`
                         : (error.message || "Video publishing failed."),
                 "error"
             );
             progress && progress.fail(uploadedProductVideoId
-                ? "YouTube is published. Instagram preparation failed; retry uses the saved video."
+                ? `YouTube is published. ${selectedDestinations} preparation failed; retry uses the saved video.`
                 : "The product video could not be uploaded.");
 
             if (buttonText) {
                 buttonText.textContent = uploadedProductVideoId
-                    ? "Retry Instagram Publishing"
+                    ? `Retry ${selectedDestinations} Publishing`
                     : "Upload Video to YouTube";
             }
         } finally {

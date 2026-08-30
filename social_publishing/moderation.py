@@ -15,20 +15,30 @@ def _release_after_commit(model, object_ids):
         return
 
     def release():
-        from .publisher import release_pending_instagram_publications
+        from .publisher import (
+            release_pending_facebook_publications,
+            release_pending_instagram_publications,
+        )
 
-        try:
-            release_pending_instagram_publications(model.objects.filter(pk__in=object_ids))
-        except Exception as exc:
-            # Approval has already committed. Never turn a successful moderation
-            # decision into an HTTP 500 because an external release failed.
-            logger.error(
-                "Deferred Instagram moderation release failed model=%s object_ids=%s "
-                "exception_class=%s",
-                model._meta.label_lower,
-                object_ids,
-                type(exc).__name__,
-            )
+        content_objects = model.objects.filter(pk__in=object_ids)
+        for platform, release_pending in (
+            ("Instagram", release_pending_instagram_publications),
+            ("Facebook", release_pending_facebook_publications),
+        ):
+            try:
+                release_pending(content_objects)
+            except Exception as exc:
+                # Approval has already committed. Never turn a successful
+                # moderation decision into an HTTP 500 because external
+                # distribution failed.
+                logger.error(
+                    "Deferred %s moderation release failed model=%s object_ids=%s "
+                    "exception_class=%s",
+                    platform,
+                    model._meta.label_lower,
+                    object_ids,
+                    type(exc).__name__,
+                )
 
     # ``robust=True`` is a final guard around the best-effort callback. The
     # callback also catches internally so this remains safe on Django versions

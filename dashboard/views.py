@@ -1745,28 +1745,32 @@ def vendor_product_detail(request, product_id):
 
     product_video_type = ContentType.objects.get_for_model(ProductVideo, for_concrete_model=False)
     product_video_ids = list(product.additional_videos.values_list('id', flat=True))
-    instagram_publications = list(
+    social_publications = list(
         SocialPublication.objects.filter(
             owner_user=request.user,
             owner_role='vendor',
-            platform=SocialPlatform.INSTAGRAM,
+            platform__in=[SocialPlatform.INSTAGRAM, SocialPlatform.FACEBOOK],
             content_type=product_video_type,
             object_id__in=product_video_ids,
         ).order_by('-updated_at')
     )
     from urllib.parse import urlparse
-    instagram_publication_rows = []
-    for publication in instagram_publications:
+    social_publication_rows = []
+    for publication in social_publications:
         parsed = urlparse(publication.external_url or '')
         hostname = (parsed.hostname or '').lower()
         safe_permalink = (
             publication.external_url
             if parsed.scheme == 'https'
-            and (hostname == 'instagram.com' or hostname.endswith('.instagram.com'))
+            and (
+                (publication.platform == SocialPlatform.INSTAGRAM and (hostname == 'instagram.com' or hostname.endswith('.instagram.com')))
+                or (publication.platform == SocialPlatform.FACEBOOK and (hostname == 'facebook.com' or hostname.endswith('.facebook.com')))
+            )
             else ''
         )
-        instagram_publication_rows.append({
+        social_publication_rows.append({
             'object_id': publication.object_id,
+            'platform_label': publication.get_platform_display(),
             'status_label': publication.get_status_display(),
             'permalink': safe_permalink,
         })
@@ -1779,7 +1783,7 @@ def vendor_product_detail(request, product_id):
         'product_images': product_images,
         'variants': variants,
         'reviews': reviews,
-        'instagram_publications': instagram_publication_rows,
+        'social_publications': social_publication_rows,
         'total_reviews': reviews.count(),
         'avg_rating': reviews.aggregate(avg=Avg('rating'))['avg'] or 0,
         'subscription_limits': user_subscription_limits(request.user),

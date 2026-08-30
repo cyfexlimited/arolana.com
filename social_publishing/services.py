@@ -119,3 +119,21 @@ def platform_connection_enabled(platform):
     if platform == SocialPlatform.FACEBOOK:
         return bool(getattr(settings, "SOCIAL_PUBLISHING_FACEBOOK_CONNECTION_ENABLED", False))
     return bool(getattr(settings, f"SOCIAL_PUBLISHING_{platform.upper()}_ENABLED", False))
+
+
+def facebook_page_publishing_ready(account):
+    """Whether a connected Page has the minimum stored grant to publish."""
+    if (
+        not account
+        or account.platform != SocialPlatform.FACEBOOK
+        or not account.is_connected
+        or not account.external_account_id
+        or not account.access_token_encrypted
+    ):
+        return False
+    scopes = account.scopes or []
+    if isinstance(scopes, str):
+        scopes = scopes.replace(",", " ").split()
+    return "pages_manage_posts" in {
+        str(scope or "").strip().lower() for scope in scopes
+    }

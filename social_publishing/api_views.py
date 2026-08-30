@@ -16,9 +16,15 @@ from .connection_security import audit_connection
 from .crypto import decrypt_token
 from .models import PublicationStatus, SocialAccount, SocialPlatform, SocialPublication
 from .oauth import platform_config, revoke_facebook_access
-from .publisher import InstagramPublicationError, publish_uploaded_video_to_instagram
-from .serializers import InstagramVideoPublicationSerializer
+from .publisher import (
+    FacebookPublicationError,
+    InstagramPublicationError,
+    prepare_uploaded_video_for_facebook,
+    publish_uploaded_video_to_instagram,
+)
+from .serializers import FacebookVideoPublicationSerializer, InstagramVideoPublicationSerializer
 from .services import (
+    facebook_page_publishing_ready,
     normalize_owner_role,
     platform_connection_enabled,
     platform_enabled,
@@ -98,6 +104,19 @@ def _publication_payload(publication):
     }
 
 
+def _facebook_publication_payload(publication):
+    return {
+        "publication_id": publication.pk,
+        "status": publication.status,
+        "facebook_video_id": publication.external_id or "",
+        "facebook_permalink": publication.external_url or "",
+        "awaiting_moderation": bool(
+            publication.status == "pending"
+            and (publication.request_metadata or {}).get("awaiting_moderation")
+        ),
+    }
+
+
 _PUBLIC_PUBLISHING_ERRORS = {
     "social_publishing_access_denied": (
         status.HTTP_403_FORBIDDEN,
@@ -147,6 +166,26 @@ def _public_publishing_error(exc):
     return public_code, detail, response_status
 
 
+_PUBLIC_FACEBOOK_ERRORS = {
+    "social_publishing_access_denied": (status.HTTP_403_FORBIDDEN, "Social publishing is not available for this account."),
+    "facebook_publishing_disabled": (status.HTTP_409_CONFLICT, "Facebook publishing is not enabled."),
+    "facebook_not_connected": (status.HTTP_409_CONFLICT, "A connected Facebook Page is required."),
+    "facebook_reauthorization_required": (status.HTTP_409_CONFLICT, "The connected Facebook Page requires reauthorization."),
+    "facebook_publish_permission_required": (status.HTTP_409_CONFLICT, "Reconnect the Facebook Page to grant publishing permission."),
+    "already_published": (status.HTTP_409_CONFLICT, "This content has already been published to Facebook."),
+    "publish_in_progress": (status.HTTP_409_CONFLICT, "This content is already being published to Facebook."),
+    "invalid_content_object": (status.HTTP_400_BAD_REQUEST, "The selected content is invalid."),
+}
+
+
+def _public_facebook_error(exc):
+    public_code = exc.code if exc.code in _PUBLIC_FACEBOOK_ERRORS else "facebook_publish_failed"
+    response_status, detail = _PUBLIC_FACEBOOK_ERRORS.get(
+        public_code, (status.HTTP_502_BAD_GATEWAY, "Facebook publishing could not be prepared.")
+    )
+    return public_code, detail, response_status
+
+
 def _platform_payload(platform, label, account=None):
     if platform == SocialPlatform.YOUTUBE:
         return {
@@ -170,6 +209,14 @@ def _platform_payload(platform, label, account=None):
         "platform": platform,
         "label": label,
         "available": platform_connection_enabled(platform),
+        "publishing_enabled": platform_enabled(platform),
+        "publishing_ready": (
+            platform_enabled(platform)
+            and (
+                platform != SocialPlatform.FACEBOOK
+                or facebook_page_publishing_ready(account)
+            )
+        ),
         "configured": configured,
         "connected": bool(account and account.is_connected),
         "status": account.status if account else "not_connected",
@@ -347,3 +394,37 @@ def publish_instagram_video(request):
         status.HTTP_202_ACCEPTED if publication.status == "pending" else status.HTTP_201_CREATED
     )
     return Response(_publication_payload(publication), status=response_status)
+
+
+@api_view(["POST"])
+@authentication_classes(
+    [SessionAuthentication, BasicAuthentication, StaffMobileTokenAuthentication]
+)
+@permission_classes([IsAuthenticated])
+def prepare_facebook_video_publication(request):
+    """Persist a moderation-gated Facebook Page publication intent."""
+    serializer = FacebookVideoPublicationSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    try:
+        owner_role = _publishing_role(request, data.get("role"))
+        content_object = _resolve_publication_content(
+            user=request.user,
+            owner_role=owner_role,
+            content_reference=data["content_type"],
+            object_id=data["object_id"],
+        )
+        publication = prepare_uploaded_video_for_facebook(
+            user=request.user,
+            owner_role=owner_role,
+            content_object=content_object,
+            uploaded_file=data["video"],
+            caption=data["caption"],
+        )
+    except FacebookPublicationError as exc:
+        public_code, detail, response_status = _public_facebook_error(exc)
+        payload = {"detail": detail, "error_code": public_code}
+        if exc.publication is not None:
+            payload.update(_facebook_publication_payload(exc.publication))
+        return Response(payload, status=response_status)
+    return Response(_facebook_publication_payload(publication), status=status.HTTP_202_ACCEPTED)

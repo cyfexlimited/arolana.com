@@ -214,7 +214,7 @@ class VendorAddProductVideoPublishingTests(TestCase):
         instagram_request = template.index('/api/social-publishing/instagram/videos/publish/')
         self.assertLess(retained_assignment, instagram_request)
         self.assertIn('error.code==="primary_handoff_missing"', template)
-        self.assertIn("YouTube: Published. Instagram: Failed", template)
+        self.assertIn("YouTube: Published. ${selectedDestinations}: Failed", template)
         self.assertIn("Primary upload response could not be confirmed", template)
 
 
@@ -303,7 +303,7 @@ class VendorEditProductPublishingTests(TestCase):
         template = Path(settings.BASE_DIR, "templates/dashboard/vendor_product_detail.html").read_text()
         self.assertEqual(template.count('id="uploadProductVideoToYouTube"'), 1)
         self.assertIn("arolana-publishing-progress.js", template)
-        self.assertIn("Existing Instagram publication", template)
+        self.assertIn("Existing social publications", template)
         self.assertIn('form.querySelector(\'input[name="csrfmiddlewaretoken"]\')', template)
         self.assertNotIn('getCookie("csrftoken")', template)
         self.assertIn("Uploading video to Arolana", template)

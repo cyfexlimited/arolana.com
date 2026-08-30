@@ -32,3 +32,19 @@ class InstagramVideoPublicationSerializer(serializers.Serializer):
         if not content_type.startswith("video/"):
             raise serializers.ValidationError("Upload a valid video file.")
         return video
+
+
+class FacebookVideoPublicationSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=("vendor", "provider", "admin"), required=False)
+    content_type = serializers.ChoiceField(
+        choices=("products.productvideo", "installers.serviceprojectmedia")
+    )
+    object_id = serializers.IntegerField(min_value=1)
+    video = serializers.FileField(allow_empty_file=False)
+    caption = serializers.CharField(required=False, allow_blank=True, max_length=2200, default="")
+
+    def validate_video(self, video):
+        content_type = str(getattr(video, "content_type", "") or "").lower()
+        if not content_type.startswith("video/"):
+            raise serializers.ValidationError("Upload a valid video file.")
+        return video

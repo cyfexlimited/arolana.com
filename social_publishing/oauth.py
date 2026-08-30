@@ -213,16 +213,19 @@ def platform_config(platform):
         )
 
     if platform == SocialPlatform.FACEBOOK:
+        facebook_scopes = _split_scopes(
+            getattr(settings, "SOCIAL_PUBLISHING_FACEBOOK_SCOPES", ""),
+            ("pages_show_list", "pages_read_engagement", "pages_manage_posts"),
+        )
+        if "pages_manage_posts" not in {scope.lower() for scope in facebook_scopes}:
+            facebook_scopes = (*facebook_scopes, "pages_manage_posts")
         return OAuthPlatformConfig(
             platform=platform,
             client_id=str(getattr(settings, "SOCIAL_PUBLISHING_META_APP_ID", "") or "").strip(),
             client_secret=str(getattr(settings, "SOCIAL_PUBLISHING_META_APP_SECRET", "") or "").strip(),
             authorization_url=f"https://www.facebook.com/{meta_version}/dialog/oauth",
             token_url=f"https://graph.facebook.com/{meta_version}/oauth/access_token",
-            scopes=_split_scopes(
-                getattr(settings, "SOCIAL_PUBLISHING_FACEBOOK_SCOPES", ""),
-                ("pages_show_list", "pages_read_engagement"),
-            ),
+            scopes=facebook_scopes,
         )
 
     if platform == SocialPlatform.TIKTOK:
