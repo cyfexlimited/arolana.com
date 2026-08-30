@@ -105,6 +105,7 @@ class SocialPublishingRoleTests(SimpleTestCase):
             mock_post.call_args.args[0],
             "https://graph.facebook.com/v25.0/selected-page-71/videos",
         )
+        self.assertEqual(mock_post.call_args.kwargs["data"]["description"], "Caption")
         self.assertNotIn("/me/accounts", mock_get.call_args.args[0])
 
     @patch("social_publishing.facebook.decrypt_token", return_value="test-page-token")
@@ -2436,7 +2437,7 @@ class FacebookDeferredPublicationTests(TestCase):
             owner_user=self.vendor, owner_role="vendor", social_account=self.account,
             platform=SocialPlatform.FACEBOOK, content_object=self.video,
             status=PublicationStatus.PENDING, deferred_video_lease=self.lease,
-            request_metadata={"caption": "Approved product video", "awaiting_moderation": True},
+            request_metadata={"caption": "Facebook-only caption", "awaiting_moderation": True},
         )
         result = continue_deferred_facebook_publication(publication)
         duplicate = continue_deferred_facebook_publication(result)
@@ -2445,7 +2446,35 @@ class FacebookDeferredPublicationTests(TestCase):
         self.assertEqual(result.response_metadata["facebook_post_id"], "page_91")
         self.assertEqual(duplicate.pk, result.pk)
         mock_publish.assert_called_once()
+        self.assertEqual(mock_publish.call_args.kwargs["description"], "Facebook-only caption")
         mock_cleanup.assert_called_once_with(self.lease)
+
+    @patch("social_publishing.publisher.stage_video_for_social")
+    @patch("social_publishing.publisher.social_publishing_access")
+    def test_facebook_caption_is_independent_from_instagram_caption(self, mock_access, mock_stage):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_stage.return_value = self.lease
+        instagram_account = SocialAccount.objects.create(
+            user=self.vendor,
+            owner_role="vendor",
+            platform=SocialPlatform.INSTAGRAM,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="vendor-instagram-caption",
+            access_token_encrypted="encrypted-instagram-token",
+        )
+        instagram = SocialPublication.objects.create(
+            owner_user=self.vendor, owner_role="vendor", social_account=instagram_account,
+            platform=SocialPlatform.INSTAGRAM, content_object=self.video,
+            status=PublicationStatus.PENDING,
+            request_metadata={"caption": "Instagram-only caption", "share_to_feed": True},
+        )
+        facebook = prepare_uploaded_video_for_facebook(
+            user=self.vendor, owner_role="vendor", content_object=self.video,
+            uploaded_file=self.upload, caption="Facebook-only caption",
+        )
+        self.assertEqual(instagram.request_metadata["caption"], "Instagram-only caption")
+        self.assertEqual(facebook.request_metadata["caption"], "Facebook-only caption")
+        self.assertNotEqual(instagram.request_metadata["caption"], facebook.request_metadata["caption"])
 
     @patch("social_publishing.publisher.publish_page_video", side_effect=RuntimeError("provider token=secret"))
     @patch("social_publishing.publisher.get_video_delivery_url", return_value="https://media.example/facebook.mp4")
@@ -2539,6 +2568,29 @@ class FacebookDeferredPublicationTests(TestCase):
             SocialPublication.objects.filter(platform=SocialPlatform.FACEBOOK).count(), 1
         )
         self.assertEqual(mock_stage.call_count, 1)
+
+    @patch("social_publishing.publisher.stage_video_for_social")
+    @patch("social_publishing.publisher.social_publishing_access")
+    @patch("social_publishing.api_views._role_available", return_value=True)
+    def test_api_accepts_an_empty_facebook_caption(self, _mock_role_available, mock_access, mock_stage):
+        mock_access.return_value = SimpleNamespace(allowed=True, reason="")
+        mock_stage.return_value = self.lease
+        client = APIClient()
+        client.force_authenticate(user=self.vendor)
+        response = client.post(
+            reverse("social_publishing:facebook_video_prepare"),
+            {
+                "role": "vendor",
+                "content_type": "products.productvideo",
+                "object_id": str(self.video.pk),
+                "video": SimpleUploadedFile("facebook-empty.mp4", b"video", content_type="video/mp4"),
+                "caption": "",
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 202, response.data)
+        publication = SocialPublication.objects.get(platform=SocialPlatform.FACEBOOK)
+        self.assertEqual(publication.request_metadata["caption"], "")
 
     @patch("social_publishing.api_views._role_available", return_value=True)
     @patch("social_publishing.publisher.social_publishing_access")

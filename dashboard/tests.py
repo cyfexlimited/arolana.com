@@ -216,6 +216,10 @@ class VendorAddProductVideoPublishingTests(TestCase):
         self.assertIn('error.code==="primary_handoff_missing"', template)
         self.assertIn("YouTube: Published. ${selectedDestinations}: Failed", template)
         self.assertIn("Primary upload response could not be confirmed", template)
+        self.assertIn('id="addProductFacebookCaption"', template)
+        self.assertIn("Optional caption for your Facebook Page video.", template)
+        self.assertIn('facebookCaption.value', template)
+        self.assertNotIn('prepareDestination("facebook","/api/social-publishing/facebook/videos/prepare/",form.querySelector', template)
 
 
 class VendorEditProductPublishingTests(TestCase):
@@ -308,6 +312,9 @@ class VendorEditProductPublishingTests(TestCase):
         self.assertNotIn('getCookie("csrftoken")', template)
         self.assertIn("Uploading video to Arolana", template)
         self.assertIn("YouTube upload complete.", template)
+        self.assertIn('id="facebookCaption"', template)
+        self.assertIn("Write a Facebook caption...", template)
+        self.assertIn('formData.append("caption", facebookCaption ? facebookCaption.value : "")', template)
 
     @patch("products.views.youtube_upload_video", side_effect=RuntimeError("provider secret detail"))
     @patch("products.views.user_subscription_limits", return_value={"can_upload_video": True})

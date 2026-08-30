@@ -910,6 +910,15 @@
                                     </label>
                                 </div>
 
+                                <div id="facebookOptions" style="display:none;margin-top:12px;">
+                                    <label class="vendor-edit-label" for="facebookCaption">Facebook caption</label>
+                                    <textarea id="facebookCaption" rows="4" maxlength="2200" class="vendor-edit-textarea" placeholder="Write a Facebook caption..."></textarea>
+                                    <div class="vendor-edit-help" style="display:flex;justify-content:space-between;gap:12px;">
+                                        <span>Optional caption for your Facebook Page video.</span>
+                                        <span id="facebookCaptionCount">0 / 2200</span>
+                                    </div>
+                                </div>
+
                                 <button
                                     type="button"
                                     id="connectInstagramForProductVideo"
@@ -1285,8 +1294,11 @@
     const instagramConnectionStatus = document.getElementById("instagramConnectionStatus");
     const facebookConnectionStatus = document.getElementById("facebookConnectionStatus");
     const instagramOptions = document.getElementById("instagramOptions");
+    const facebookOptions = document.getElementById("facebookOptions");
     const instagramCaption = document.getElementById("instagramCaption");
     const instagramCaptionCount = document.getElementById("instagramCaptionCount");
+    const facebookCaption = document.getElementById("facebookCaption");
+    const facebookCaptionCount = document.getElementById("facebookCaptionCount");
     const instagramShareToFeed = document.getElementById("instagramShareToFeed");
     const instagramStatus = document.getElementById("instagramPublishStatus");
     const connectInstagramButton = document.getElementById("connectInstagramForProductVideo");
@@ -1342,6 +1354,9 @@
         const enabled = Boolean(instagramCheckbox && instagramCheckbox.checked);
         if (instagramOptions) {
             instagramOptions.style.display = enabled && instagramAccountConnected ? "block" : "none";
+        }
+        if (facebookOptions) {
+            facebookOptions.style.display = facebookCheckbox && facebookCheckbox.checked && facebookAccountConnected && facebookPublishingEnabled && facebookPermissionReady ? "block" : "none";
         }
         if (connectInstagramButton) {
             connectInstagramButton.style.display = enabled && !instagramAccountConnected ? "inline-flex" : "none";
@@ -1535,7 +1550,7 @@
         formData.append("content_type", "products.productvideo");
         formData.append("object_id", String(productVideoId));
         formData.append("video", file);
-        formData.append("caption", (titleInput && titleInput.value) || "{{ product.name|escapejs }}");
+        formData.append("caption", facebookCaption ? facebookCaption.value : "");
         const response = await fetch("/api/social-publishing/facebook/videos/prepare/", {
             method: "POST", headers: {"X-CSRFToken": getCsrfToken(), "Accept": "application/json"}, body: formData, credentials: "same-origin"
         });
@@ -1549,12 +1564,20 @@
     if (instagramCheckbox) {
         instagramCheckbox.addEventListener("change", updateInstagramOptions);
     }
+    if (facebookCheckbox) {
+        facebookCheckbox.addEventListener("change", updateInstagramOptions);
+    }
     if (connectFacebookButton) connectFacebookButton.addEventListener("click", connectFacebook);
 
     if (instagramCaption && instagramCaptionCount) {
         instagramCaption.addEventListener("input", function () {
             instagramCaptionCount.textContent =
                 String(instagramCaption.value.length) + " / 2200";
+        });
+    }
+    if (facebookCaption && facebookCaptionCount) {
+        facebookCaption.addEventListener("input", function () {
+            facebookCaptionCount.textContent = String(facebookCaption.value.length) + " / 2200";
         });
     }
 
