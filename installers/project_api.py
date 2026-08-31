@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -11,7 +12,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from products.models import Product
-from core.youtube_service import upload_video as youtube_upload_video
+from core.youtube_service import (
+    YouTubeUploadError,
+    safe_upload_error_details,
+    upload_video as youtube_upload_video,
+)
 from core.private_upload_validation import (
     validate_project_document_upload,
     validate_project_video_upload,
@@ -44,6 +49,40 @@ from .serializers import (
     ServiceProjectWriteSerializer,
 )
 from .services import notify_staff_service_quote
+
+
+logger = logging.getLogger(__name__)
+
+
+class _ProviderYouTubeUploadFailure(Exception):
+    """Unwind the media transaction while retaining only safe diagnostics."""
+
+    def __init__(self, exc):
+        self.exc = exc
+        super().__init__(exc.__class__.__name__)
+
+
+def _provider_youtube_upload_failure_response(exc, *, provider_user_id=None, project_id=None):
+    details = safe_upload_error_details(exc)
+    logger.warning(
+        "Provider mobile YouTube upload failed stage=%s code=%s exception_class=%s "
+        "http_status=%s provider_user_id=%s project_id=%s",
+        details["stage"],
+        details["code"],
+        exc.__class__.__name__,
+        getattr(exc, "http_status", None),
+        provider_user_id,
+        project_id,
+    )
+    return Response(
+        {
+            "success": False,
+            "youtube_upload_requested": True,
+            "youtube_upload_succeeded": False,
+            "youtube_error": details,
+        },
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 class ProjectPagination(PageNumberPagination):
@@ -542,14 +581,25 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
                     )
                     media_stage = _normalized_project_stage(stage, media_type, is_cover=is_cover)
                     if media_type == ServiceProjectMedia.TYPE_VIDEO:
-                        validate_project_video_upload(upload)
-                        if max_video_size_mb >= 0 and (
-                            max_video_size_mb == 0
-                            or int(getattr(upload, "size", 0) or 0) > max_video_size_mb * 1024 * 1024
-                        ):
-                            raise DjangoValidationError(
-                                f"This video exceeds your plan's {max_video_size_mb} MB project video limit."
-                            )
+                        try:
+                            validate_project_video_upload(upload)
+                            if max_video_size_mb >= 0 and (
+                                max_video_size_mb == 0
+                                or int(getattr(upload, "size", 0) or 0) > max_video_size_mb * 1024 * 1024
+                            ):
+                                raise DjangoValidationError(
+                                    f"This video exceeds your plan's {max_video_size_mb} MB project video limit."
+                                )
+                        except DjangoValidationError as exc:
+                            if publish_youtube:
+                                raise _ProviderYouTubeUploadFailure(
+                                    YouTubeUploadError(
+                                        "The selected video could not be prepared for YouTube.",
+                                        stage="validation",
+                                        code="youtube_validation_failed",
+                                    )
+                                ) from exc
+                            raise
                     elif media_type == ServiceProjectMedia.TYPE_DOCUMENT:
                         validate_project_document_upload(upload)
 
@@ -575,8 +625,8 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
                                     description=project.description or project.short_summary or "",
                                     privacy_status="unlisted",
                                 )
-                            except Exception:
-                                raise DjangoValidationError("YouTube video upload could not be completed.")
+                            except Exception as exc:
+                                raise _ProviderYouTubeUploadFailure(exc) from exc
                             media.external_video_url = youtube_result["url"]
                         else:
                             media.video = upload
@@ -610,6 +660,12 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
                         media.thumbnail = thumbnail
                     media.save()
                     created.append(media)
+        except _ProviderYouTubeUploadFailure as failure:
+            return _provider_youtube_upload_failure_response(
+                failure.exc,
+                provider_user_id=provider.user_id,
+                project_id=project.id,
+            )
         except DjangoValidationError as exc:
             detail = getattr(exc, "message_dict", None) or getattr(exc, "messages", None) or str(exc)
             return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)

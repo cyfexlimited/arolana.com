@@ -4,7 +4,14 @@ from unittest.mock import Mock, patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 
-from core.youtube_service import SCOPE, get_video_embeddability, upload_video
+from core.youtube_service import (
+    SCOPE,
+    YouTubeUploadError,
+    get_video_embeddability,
+    refresh_access_token,
+    safe_upload_error_details,
+    upload_video,
+)
 
 
 def response(*, status_code=200, payload=None, headers=None):
@@ -107,8 +114,72 @@ class YouTubeEmbeddabilityTests(SimpleTestCase):
             payload={"id": "abc123xyz90", "status": {"embeddable": False}}
         )
 
-        with self.assertRaisesRegex(RuntimeError, "embedding configuration problem"):
+        with self.assertRaises(YouTubeUploadError) as raised:
             upload_video(
                 SimpleUploadedFile("video.mp4", b"video", content_type="video/mp4"),
                 title="Arolana test",
             )
+        self.assertEqual(raised.exception.stage, "video_upload")
+        self.assertEqual(raised.exception.code, "youtube_upload_failed")
+
+    @patch("core.youtube_service.requests.post")
+    def test_token_refresh_failure_is_structured_and_hides_provider_body(self, mock_post):
+        mock_post.return_value = response(
+            status_code=400,
+            payload={"error": "access_token=provider-secret"},
+        )
+
+        with self.assertRaises(YouTubeUploadError) as raised:
+            refresh_access_token("refresh-token")
+
+        self.assertEqual(raised.exception.stage, "token_refresh")
+        self.assertEqual(raised.exception.code, "youtube_token_refresh_failed")
+        self.assertEqual(str(raised.exception), "Could not refresh the Arolana YouTube connection.")
+        self.assertNotIn("provider-secret", str(raised.exception))
+
+    @patch("core.youtube_service.requests.post")
+    @patch("core.youtube_service.refresh_access_token", return_value="access")
+    def test_upload_initialization_failure_is_structured_and_hides_provider_body(
+        self, _refresh, mock_post
+    ):
+        mock_post.return_value = response(
+            status_code=500,
+            payload={"error": "Authorization: Bearer provider-secret"},
+        )
+
+        with self.assertRaises(YouTubeUploadError) as raised:
+            upload_video(SimpleUploadedFile("video.mp4", b"video", content_type="video/mp4"), title="Test")
+
+        self.assertEqual(safe_upload_error_details(raised.exception), {
+            "stage": "upload_initialization",
+            "code": "youtube_upload_init_failed",
+            "message": "Could not start the YouTube upload.",
+        })
+        self.assertNotIn("provider-secret", str(raised.exception))
+
+    @patch("core.youtube_service.requests.put")
+    @patch("core.youtube_service.requests.post")
+    @patch("core.youtube_service.refresh_access_token", return_value="access")
+    def test_video_upload_failure_is_structured_and_hides_provider_body(
+        self, _refresh, mock_post, mock_put
+    ):
+        mock_post.return_value = response(headers={"Location": "https://upload.example/session"})
+        mock_put.return_value = response(
+            status_code=500,
+            payload={"error": "access_token=provider-secret"},
+        )
+
+        with self.assertRaises(YouTubeUploadError) as raised:
+            upload_video(SimpleUploadedFile("video.mp4", b"video", content_type="video/mp4"), title="Test")
+
+        self.assertEqual(raised.exception.stage, "video_upload")
+        self.assertEqual(raised.exception.code, "youtube_upload_failed")
+        self.assertNotIn("provider-secret", str(raised.exception))
+
+    @patch("core.youtube_service.refresh_access_token", return_value="access")
+    def test_empty_video_is_a_safe_validation_failure(self, _refresh):
+        with self.assertRaises(YouTubeUploadError) as raised:
+            upload_video(SimpleUploadedFile("video.mp4", b"", content_type="video/mp4"), title="Test")
+
+        self.assertEqual(raised.exception.stage, "validation")
+        self.assertEqual(raised.exception.code, "youtube_validation_failed")

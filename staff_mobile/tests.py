@@ -7,10 +7,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from accounts.models import User, UserOTP
+from core.youtube_service import YouTubeUploadError
 from installers.models import ServiceProviderProfile
 from notifications.models import Notification
 from products.models import Category, Product, ProductVideo, ProductVideoComment
 from staff_mobile.models import StaffMobileToken
+from social_publishing.models import SocialPublication
 from vendors.models import VendorProfile
 
 
@@ -446,6 +448,68 @@ class StaffProductVideoApiTests(TestCase):
         self.assertEqual(video.vendor, self.vendor)
         self.assertEqual(video.product, self.product)
         self.assertEqual(video.youtube_video_id, "creation-video-id")
+
+    @patch("staff_mobile.views.youtube_upload_video")
+    def test_vendor_product_video_upload_failures_are_safe_and_create_no_social_intent(self, youtube_upload):
+        cases = (
+            ("validation", "youtube_validation_failed", "The selected video could not be prepared for YouTube."),
+            ("token_refresh", "youtube_token_refresh_failed", "Could not refresh the Arolana YouTube connection."),
+            ("upload_initialization", "youtube_upload_init_failed", "Could not start the YouTube upload."),
+            ("video_upload", "youtube_upload_failed", "YouTube could not complete the video upload."),
+            ("unknown", "youtube_unknown_error", "YouTube upload failed. Please try again."),
+        )
+        for index, (stage, code, message) in enumerate(cases):
+            with self.subTest(stage=stage):
+                youtube_upload.side_effect = (
+                    RuntimeError("access_token=provider-secret")
+                    if stage == "unknown"
+                    else YouTubeUploadError(message, stage=stage, code=code, http_status=500)
+                )
+                response = self.client.post(
+                    "/api/staff/vendor/product-videos/",
+                    data={
+                        "product_id": str(self.product.id),
+                        "title": f"Failed seller video {index}",
+                        "source": "local",
+                        "video": SimpleUploadedFile(
+                            f"failed-{index}.mp4", b"\x00\x00\x00\x18ftypmp42", content_type="video/mp4"
+                        ),
+                    },
+                    HTTP_AUTHORIZATION=f"Bearer {self.vendor_session.token}",
+                )
+                self.assertEqual(response.status_code, 502, response.content)
+                payload = response.json()
+                self.assertEqual(payload["youtube_upload_requested"], True)
+                self.assertEqual(payload["youtube_upload_succeeded"], False)
+                self.assertEqual(payload["youtube_error"], {"stage": stage, "code": code, "message": message})
+                self.assertNotIn("provider-secret", response.content.decode())
+                self.assertFalse(ProductVideo.objects.filter(title=f"Failed seller video {index}").exists())
+                self.assertFalse(SocialPublication.objects.exists())
+
+    @patch("staff_mobile.views.youtube_upload_video")
+    def test_vendor_product_creation_media_youtube_failure_is_safe_and_creates_no_video(self, youtube_upload):
+        youtube_upload.side_effect = YouTubeUploadError(
+            "Could not start the YouTube upload.",
+            stage="upload_initialization",
+            code="youtube_upload_init_failed",
+            http_status=503,
+        )
+        response = self.client.post(
+            f"/api/staff/vendor/products/{self.product.id}/media/",
+            data={
+                "media_type": "local_video",
+                "file": SimpleUploadedFile("failed-create.mp4", b"\x00\x00\x00\x18ftypmp42", content_type="video/mp4"),
+            },
+            HTTP_AUTHORIZATION=f"Bearer {self.vendor_session.token}",
+        )
+        self.assertEqual(response.status_code, 502, response.content)
+        self.assertEqual(response.json()["youtube_error"], {
+            "stage": "upload_initialization",
+            "code": "youtube_upload_init_failed",
+            "message": "Could not start the YouTube upload.",
+        })
+        self.assertFalse(ProductVideo.objects.filter(product=self.product).exists())
+        self.assertFalse(SocialPublication.objects.exists())
 
     def test_admin_can_hide_video_comment(self):
         video = ProductVideo.objects.create(

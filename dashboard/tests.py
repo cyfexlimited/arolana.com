@@ -11,6 +11,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
+from core.youtube_service import YouTubeUploadError
 from products.models import Category, Product, ProductVideo
 from social_publishing.models import PublicationStatus, SocialPublication
 from vendors.models import VendorProfile
@@ -130,6 +131,28 @@ class VendorAddProductVideoPublishingTests(TestCase):
         self.category = Category.objects.create(name="Creation Video", slug="creation-video")
         self.client.force_login(self.user)
 
+    def _post_local_video(self, *, name="Web Product With Failed Video"):
+        return self.client.post(
+            "/dashboard/vendor/product/add/",
+            {
+                "product_mode": "new_product",
+                "name": name,
+                "description": "The product is retained if YouTube cannot upload its video.",
+                "price": Decimal("100.00"),
+                "stock_quantity": "2",
+                "category": str(self.category.id),
+                "condition": "brand_new",
+                "video_type": "local",
+                "local_video": SimpleUploadedFile(
+                    "failed-upload.mp4",
+                    b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom",
+                    content_type="video/mp4",
+                ),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
     @patch("dashboard.views._inspect_vendor_product_uploads", return_value=[])
     @patch("dashboard.views.require_verified_kyc", return_value=None)
     @patch("dashboard.views.youtube_upload_video")
@@ -208,6 +231,95 @@ class VendorAddProductVideoPublishingTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(ProductVideo.objects.filter(vendor=self.profile).count(), 3)
 
+    @patch("dashboard.views._inspect_vendor_product_uploads", return_value=[])
+    @patch("dashboard.views.require_verified_kyc", return_value=None)
+    @patch("dashboard.views.youtube_upload_video")
+    @patch("dashboard.views.user_subscription_limits")
+    def test_ajax_creation_returns_safe_youtube_failure_details_without_social_intents(
+        self, subscription_limits, youtube_upload, _kyc, _uploads
+    ):
+        subscription_limits.return_value = {
+            "max_products": -1,
+            "featured_products": -1,
+            "can_upload_video": True,
+            "can_upload_pdf": True,
+            "max_images_per_product": 10,
+            "max_variants_per_product": 10,
+        }
+        cases = (
+            (
+                "validation",
+                "youtube_validation_failed",
+                "The selected video could not be prepared for YouTube.",
+            ),
+            (
+                "token_refresh",
+                "youtube_token_refresh_failed",
+                "Could not refresh the Arolana YouTube connection.",
+            ),
+            (
+                "upload_initialization",
+                "youtube_upload_init_failed",
+                "Could not start the YouTube upload.",
+            ),
+            (
+                "video_upload",
+                "youtube_upload_failed",
+                "YouTube could not complete the video upload.",
+            ),
+        )
+
+        for index, (stage, code, message) in enumerate(cases):
+            with self.subTest(stage=stage):
+                youtube_upload.side_effect = YouTubeUploadError(
+                    message,
+                    stage=stage,
+                    code=code,
+                    http_status=500,
+                )
+                response = self._post_local_video(name=f"Failed Video {index}")
+
+                self.assertEqual(response.status_code, 201, response.content)
+                payload = response.json()
+                self.assertTrue(payload["success"])
+                self.assertTrue(payload["youtube_upload_requested"])
+                self.assertFalse(payload["youtube_upload_succeeded"])
+                self.assertIsNone(payload["product_video_id"])
+                self.assertEqual(
+                    payload["youtube_error"],
+                    {"stage": stage, "code": code, "message": message},
+                )
+                self.assertNotIn("500", str(payload["youtube_error"]))
+                self.assertFalse(ProductVideo.objects.filter(product_id=payload["product_id"]).exists())
+                self.assertFalse(SocialPublication.objects.exists())
+
+    @patch("dashboard.views._inspect_vendor_product_uploads", return_value=[])
+    @patch("dashboard.views.require_verified_kyc", return_value=None)
+    @patch("dashboard.views.youtube_upload_video", side_effect=RuntimeError("access_token=secret-provider-body"))
+    @patch("dashboard.views.user_subscription_limits")
+    def test_ajax_creation_hides_unclassified_youtube_exception_text(
+        self, subscription_limits, _youtube_upload, _kyc, _uploads
+    ):
+        subscription_limits.return_value = {
+            "max_products": -1, "featured_products": -1,
+            "can_upload_video": True, "can_upload_pdf": True,
+            "max_images_per_product": 10, "max_variants_per_product": 10,
+        }
+        with self.assertLogs("dashboard.views", level="WARNING") as logs:
+            response = self._post_local_video(name="Generic YouTube Failure")
+
+        self.assertEqual(response.status_code, 201, response.content)
+        payload = response.json()
+        self.assertEqual(payload["youtube_error"], {
+            "stage": "unknown",
+            "code": "youtube_unknown_error",
+            "message": "YouTube upload failed. Please try again.",
+        })
+        self.assertNotIn("secret-provider-body", response.content.decode())
+        self.assertNotIn("secret-provider-body", "\n".join(logs.output))
+        self.assertFalse(ProductVideo.objects.filter(product_id=payload["product_id"]).exists())
+        self.assertFalse(SocialPublication.objects.exists())
+
     def test_add_product_frontend_retains_id_before_instagram_request(self):
         template = Path(settings.BASE_DIR, "templates/dashboard/vendor_add_product.html").read_text()
         retained_assignment = template.index("retainedVideoId=returnedVideoId")
@@ -216,6 +328,9 @@ class VendorAddProductVideoPublishingTests(TestCase):
         self.assertIn('error.code==="primary_handoff_missing"', template)
         self.assertIn("YouTube: Published. ${selectedDestinations}: Failed", template)
         self.assertIn("Primary upload response could not be confirmed", template)
+        self.assertIn("failure.youtubeError=data.youtube_error||null", template)
+        self.assertIn("YouTube upload failed:", template)
+        self.assertIn("YouTube upload failed. Please try again.", template)
         self.assertIn('id="addProductFacebookCaption"', template)
         self.assertIn("Optional caption for your Facebook Page video.", template)
         self.assertIn('facebookCaption.value', template)

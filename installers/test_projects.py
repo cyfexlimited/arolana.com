@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
+from core.youtube_service import YouTubeUploadError
 from .models import (
     ServiceCategory,
     ServiceMarketplaceHomepageSection,
@@ -467,6 +468,43 @@ class ProjectNetworkTests(TestCase):
         media = ServiceProjectMedia.objects.get(pk=response.json()["media"][0]["id"])
         self.assertEqual(media.external_video_url, youtube_upload.return_value["url"])
         self.assertFalse(media.video)
+
+    @patch("installers.project_api.youtube_upload_video")
+    def test_provider_mobile_youtube_failures_are_safe_and_create_no_media_or_social_intent(self, youtube_upload):
+        cases = (
+            ("validation", "youtube_validation_failed", "The selected video could not be prepared for YouTube."),
+            ("token_refresh", "youtube_token_refresh_failed", "Could not refresh the Arolana YouTube connection."),
+            ("upload_initialization", "youtube_upload_init_failed", "Could not start the YouTube upload."),
+            ("video_upload", "youtube_upload_failed", "YouTube could not complete the video upload."),
+            ("unknown", "youtube_unknown_error", "YouTube upload failed. Please try again."),
+        )
+        session = StaffMobileToken.issue("provider", user=self.user)
+        for index, (stage, code, message) in enumerate(cases):
+            with self.subTest(stage=stage):
+                youtube_upload.side_effect = (
+                    RuntimeError("Authorization: Bearer provider-secret")
+                    if stage == "unknown"
+                    else YouTubeUploadError(message, stage=stage, code=code, http_status=500)
+                )
+                response = self.client.post(
+                    reverse("provider_api:provider_project_media", args=[self.project.id]),
+                    {
+                        "media_type": ServiceProjectMedia.TYPE_VIDEO,
+                        "publish_youtube": "true",
+                        "publish_instagram": "true",
+                        "video": tiny_mp4(f"youtube-failure-{index}.mp4"),
+                    },
+                    HTTP_AUTHORIZATION=f"Bearer {session.token}",
+                    HTTP_ACCEPT="application/json",
+                )
+                self.assertEqual(response.status_code, 400, response.content)
+                payload = response.json()
+                self.assertEqual(payload["youtube_upload_requested"], True)
+                self.assertEqual(payload["youtube_upload_succeeded"], False)
+                self.assertEqual(payload["youtube_error"], {"stage": stage, "code": code, "message": message})
+                self.assertNotIn("provider-secret", response.content.decode())
+                self.assertFalse(ServiceProjectMedia.objects.filter(external_video_url__icontains="youtube-failure").exists())
+                self.assertFalse(SocialPublication.objects.exists())
 
     @patch("installers.views.youtube_upload_video")
     def test_provider_web_video_uses_youtube_primary_host_when_selected(self, youtube_upload):

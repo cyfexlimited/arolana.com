@@ -863,7 +863,7 @@ document.getElementById('videoType').addEventListener('change', function() {
         }
         const data=await response.json();
         if(!response.ok||!data.success||data.youtube_upload_succeeded===false){
-          const failure=new Error("youtube_failed");failure.code="youtube_failed";throw failure;
+          const failure=new Error("youtube_failed");failure.code="youtube_failed";failure.youtubeError=data.youtube_error||null;throw failure;
         }
         const returnedVideoId=Number(data.product_video_id||0);
         if(!returnedVideoId){
@@ -889,7 +889,7 @@ document.getElementById('videoType').addEventListener('change', function() {
             ?`YouTube: Published. ${selectedDestinations}: Not started — the saved video ID was not returned. Reload the product before retrying.`
             :error.code==="primary_response_unconfirmed"
               ?`Primary upload response could not be confirmed. ${selectedDestinations} was not started. Check the saved product before retrying.`
-              :`YouTube: Failed. ${selectedDestinations}: Not started.`;
+              :`YouTube upload failed: ${typeof error?.youtubeError?.message==="string"&&error.youtubeError.message?error.youtubeError.message:"YouTube upload failed. Please try again."} ${selectedDestinations}: Not started.`;
       show(message,"error");
       progress&&progress.fail(message);
     }finally{submit.disabled=false;}

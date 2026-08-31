@@ -22,7 +22,10 @@ import logging
 import random
 import string
 
-from core.youtube_service import upload_video as youtube_upload_video
+from core.youtube_service import (
+    safe_upload_error_details,
+    upload_video as youtube_upload_video,
+)
 from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand, VendorProductOffer, ProductCatalogRequest
 from core.models import VendorQuoteMessage, VendorQuoteRequest
 from core.quote_services import (
@@ -1153,6 +1156,7 @@ def vendor_add_product(request):
             created_product_video_id = None
             youtube_upload_requested = False
             youtube_upload_succeeded = False
+            youtube_error = None
             product_mode = request.POST.get('product_mode', 'new_product')
             max_products = subscription_limits['max_products']
             product_limit_reached = max_products != -1 and current_product_count >= max_products
@@ -1382,10 +1386,18 @@ def vendor_add_product(request):
                         )
 
                     except Exception as exc:
-                        messages.error(
-                            request,
-                            f'YouTube video upload failed: {exc}'
+                        youtube_error = safe_upload_error_details(exc)
+                        logger.warning(
+                            "Vendor YouTube upload failed stage=%s code=%s "
+                            "exception_class=%s http_status=%s vendor_user_id=%s product_id=%s",
+                            youtube_error["stage"],
+                            youtube_error["code"],
+                            exc.__class__.__name__,
+                            getattr(exc, "http_status", None),
+                            request.user.pk,
+                            product.pk,
                         )
+                        messages.error(request, youtube_error["message"])
 
                 main_image = request.FILES.get('main_image')
                 if main_image:
@@ -1494,6 +1506,7 @@ def vendor_add_product(request):
                         'product_video_id': created_product_video_id,
                         'youtube_upload_requested': youtube_upload_requested,
                         'youtube_upload_succeeded': youtube_upload_succeeded,
+                        'youtube_error': youtube_error,
                         'redirect_url': reverse('dashboard:vendor_product_detail', args=[product.id]),
                     }, status=201)
                 return redirect('dashboard:vendor_product_detail', product_id=product.id)
@@ -1505,6 +1518,7 @@ def vendor_add_product(request):
                     'product_video_id': created_product_video_id,
                     'youtube_upload_requested': youtube_upload_requested,
                     'youtube_upload_succeeded': youtube_upload_succeeded,
+                    'youtube_error': youtube_error,
                     'redirect_url': reverse('dashboard:vendor_products'),
                 }, status=201)
             return redirect('dashboard:vendor_products')

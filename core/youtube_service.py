@@ -31,6 +31,32 @@ SCOPE = " ".join(
     )
 )
 
+
+class YouTubeUploadError(RuntimeError):
+    """A sanitized, structured failure from the primary YouTube upload path."""
+
+    def __init__(self, message, *, stage="unknown", code="youtube_unknown_error", http_status=None):
+        super().__init__(message)
+        self.stage = stage
+        self.code = code
+        self.http_status = http_status
+
+
+def safe_upload_error_details(exc):
+    """Return only presentation-safe upload diagnostics for an AJAX response."""
+    if isinstance(exc, YouTubeUploadError):
+        return {
+            "stage": exc.stage,
+            "code": exc.code,
+            "message": str(exc),
+        }
+    return {
+        "stage": "unknown",
+        "code": "youtube_unknown_error",
+        "message": "YouTube upload failed. Please try again.",
+    }
+
+
 def _youtube_safe_description(value):
     """
     Convert Arolana/CKEditor HTML into clean plain text suitable
@@ -184,24 +210,40 @@ def exchange_code(code, request=None):
 
 
 def refresh_access_token(refresh_token):
-    response = requests.post(
-        TOKEN_URL,
-        data={
-            "client_id": settings.YOUTUBE_CLIENT_ID,
-            "client_secret": settings.YOUTUBE_CLIENT_SECRET,
-            "refresh_token": refresh_token,
-            "grant_type": "refresh_token",
-        },
-        timeout=30,
-    )
+    try:
+        response = requests.post(
+            TOKEN_URL,
+            data={
+                "client_id": settings.YOUTUBE_CLIENT_ID,
+                "client_secret": settings.YOUTUBE_CLIENT_SECRET,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            },
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise YouTubeUploadError(
+            "Could not refresh the Arolana YouTube connection.",
+            stage="token_refresh",
+            code="youtube_token_refresh_failed",
+        ) from exc
 
     if not response.ok:
-        raise RuntimeError(
-            f"YouTube access-token refresh failed "
-            f"({response.status_code}): {response.text}"
+        raise YouTubeUploadError(
+            "Could not refresh the Arolana YouTube connection.",
+            stage="token_refresh",
+            code="youtube_token_refresh_failed",
+            http_status=response.status_code,
         )
-
-    return response.json()["access_token"]
+    try:
+        return response.json()["access_token"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise YouTubeUploadError(
+            "Could not refresh the Arolana YouTube connection.",
+            stage="token_refresh",
+            code="youtube_token_refresh_failed",
+            http_status=response.status_code,
+        ) from exc
 
 
 def upload_video(
@@ -225,10 +267,10 @@ def upload_video(
     ).strip()
 
     if not configured() or not refresh_token:
-        raise RuntimeError(
-            "YouTube is not connected. Configure "
-            "YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, "
-            "and YOUTUBE_REFRESH_TOKEN."
+        raise YouTubeUploadError(
+            "Could not refresh the Arolana YouTube connection.",
+            stage="token_refresh",
+            code="youtube_token_refresh_failed",
         )
 
     # ---------------------------------------------------------
@@ -295,9 +337,10 @@ def upload_video(
     )
 
     if size <= 0:
-        raise RuntimeError(
-            "YouTube upload failed: video file is empty or "
-            "its size could not be determined."
+        raise YouTubeUploadError(
+            "The selected video could not be prepared for YouTube.",
+            stage="validation",
+            code="youtube_validation_failed",
         )
 
     # ---------------------------------------------------------
@@ -337,24 +380,36 @@ def upload_video(
         "X-Upload-Content-Length": str(size),
     }
 
-    response = requests.post(
-        session_url,
-        headers=headers,
-        data=json.dumps(metadata),
-        timeout=30,
-    )
+    try:
+        response = requests.post(
+            session_url,
+            headers=headers,
+            data=json.dumps(metadata),
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise YouTubeUploadError(
+            "Could not start the YouTube upload.",
+            stage="upload_initialization",
+            code="youtube_upload_init_failed",
+        ) from exc
 
     if not response.ok:
-        raise RuntimeError(
-            "YouTube resumable upload initialization failed "
-            f"({response.status_code}): {response.text}"
+        raise YouTubeUploadError(
+            "Could not start the YouTube upload.",
+            stage="upload_initialization",
+            code="youtube_upload_init_failed",
+            http_status=response.status_code,
         )
 
     location = response.headers.get("Location")
 
     if not location:
-        raise RuntimeError(
-            "YouTube did not return a resumable upload URL."
+        raise YouTubeUploadError(
+            "Could not start the YouTube upload.",
+            stage="upload_initialization",
+            code="youtube_upload_init_failed",
+            http_status=response.status_code,
         )
 
     # ---------------------------------------------------------
@@ -376,30 +431,40 @@ def upload_video(
     # 7. Upload actual video
     # ---------------------------------------------------------
 
-    upload_response = requests.put(
-        location,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": content_type,
-            "Content-Length": str(size),
-        },
-        data=file_object,
-        timeout=1800,
-    )
+    try:
+        upload_response = requests.put(
+            location,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": content_type,
+                "Content-Length": str(size),
+            },
+            data=file_object,
+            timeout=1800,
+        )
+    except requests.RequestException as exc:
+        raise YouTubeUploadError(
+            "YouTube could not complete the video upload.",
+            stage="video_upload",
+            code="youtube_upload_failed",
+        ) from exc
 
     if not upload_response.ok:
-        raise RuntimeError(
-            "YouTube video upload failed "
-            f"({upload_response.status_code}): "
-            f"{upload_response.text}"
+        raise YouTubeUploadError(
+            "YouTube could not complete the video upload.",
+            stage="video_upload",
+            code="youtube_upload_failed",
+            http_status=upload_response.status_code,
         )
 
     try:
         payload = upload_response.json()
     except ValueError:
-        raise RuntimeError(
-            "YouTube upload completed but returned "
-            "an invalid JSON response."
+        raise YouTubeUploadError(
+            "YouTube could not complete the video upload.",
+            stage="video_upload",
+            code="youtube_upload_failed",
+            http_status=upload_response.status_code,
         )
 
     video_id = str(
@@ -407,9 +472,11 @@ def upload_video(
     ).strip()
 
     if not video_id:
-        raise RuntimeError(
-            "YouTube upload completed without returning "
-            "a video ID."
+        raise YouTubeUploadError(
+            "YouTube could not complete the video upload.",
+            stage="video_upload",
+            code="youtube_upload_failed",
+            http_status=upload_response.status_code,
         )
 
     returned_status = payload.get("status") or {}
@@ -419,8 +486,11 @@ def upload_video(
             "Arolana YouTube upload returned non-embeddable status video_id=%s",
             video_id,
         )
-        raise RuntimeError(
-            "YouTube uploaded the video but reported an embedding configuration problem."
+        raise YouTubeUploadError(
+            "YouTube could not complete the video upload.",
+            stage="video_upload",
+            code="youtube_upload_failed",
+            http_status=upload_response.status_code,
         )
 
     # ---------------------------------------------------------

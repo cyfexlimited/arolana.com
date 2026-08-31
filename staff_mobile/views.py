@@ -1,4 +1,5 @@
 import json
+import logging
 import urllib.request
 from datetime import timedelta
 from io import BytesIO
@@ -18,7 +19,11 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
-from core.youtube_service import upload_video as youtube_upload_video
+from core.youtube_service import (
+    YouTubeUploadError,
+    safe_upload_error_details,
+    upload_video as youtube_upload_video,
+)
 from core.content_i18n import translated_field, translated_key
 from deliveries.models import DeliveryRequest, DeliveryLocationPing, RiderPayout, RiderProfile, RiderWallet
 from deliveries.models import DeliveryVehicle, DeliveryZone
@@ -94,6 +99,9 @@ except Exception:
 from .models import RiderCredential, StaffMobileToken
 
 
+logger = logging.getLogger(__name__)
+
+
 def _json_body(request):
     try:
         return json.loads(request.body.decode("utf-8") or "{}")
@@ -111,6 +119,30 @@ def _clean_phone(value):
 
 def _error(message, status=400):
     return JsonResponse({"success": False, "message": str(message)}, status=status)
+
+
+def _youtube_upload_failure_response(exc, *, user_id=None, product_id=None, status=502):
+    """Return the shared, safe YouTube failure contract for staff mobile."""
+    details = safe_upload_error_details(exc)
+    logger.warning(
+        "Staff mobile YouTube upload failed stage=%s code=%s exception_class=%s "
+        "http_status=%s user_id=%s product_id=%s",
+        details["stage"],
+        details["code"],
+        exc.__class__.__name__,
+        getattr(exc, "http_status", None),
+        user_id,
+        product_id,
+    )
+    return JsonResponse(
+        {
+            "success": False,
+            "youtube_upload_requested": True,
+            "youtube_upload_succeeded": False,
+            "youtube_error": details,
+        },
+        status=status,
+    )
 
 
 SUBSCRIPTION_UPGRADE_MESSAGE = "Your current subscription does not allow this feature. Please upgrade your plan."
@@ -2896,7 +2928,16 @@ def vendor_product_videos_api(request):
         )
 
         if upload_error:
-            return upload_error
+            return _youtube_upload_failure_response(
+                YouTubeUploadError(
+                    "The selected video could not be prepared for YouTube.",
+                    stage="validation",
+                    code="youtube_validation_failed",
+                ),
+                user_id=profile.user_id,
+                product_id=product.id,
+                status=400,
+            )
 
         # ------------------------------------------------------------
         # CRITICAL:
@@ -2915,9 +2956,10 @@ def vendor_product_videos_api(request):
             )
 
         except Exception as exc:
-            return _error(
-                f"YouTube video upload failed: {exc}",
-                status=502,
+            return _youtube_upload_failure_response(
+                exc,
+                user_id=profile.user_id,
+                product_id=product.id,
             )
 
         # ------------------------------------------------------------
@@ -3240,9 +3282,10 @@ def vendor_product_media_api(request, product_id):
                 privacy_status=visibility,
             )
         except Exception as exc:
-            return _error(
-                f"YouTube video upload failed: {exc}",
-                status=502,
+            return _youtube_upload_failure_response(
+                exc,
+                user_id=profile.user_id,
+                product_id=product.id,
             )
 
         product.video_type = "youtube"
