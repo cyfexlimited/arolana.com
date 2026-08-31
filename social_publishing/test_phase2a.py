@@ -114,7 +114,7 @@ class FacebookPageConnectionTests(TestCase):
 
     def test_one_page_still_requires_explicit_selection_and_connects_selected_page(self):
         response = self.callback([{"id": "page-1", "name": "Arolana Page", "tasks": ["CREATE_CONTENT"],
-                                   "access_token": "page-token"}])
+                                   "access_token": "page-token", "profile_picture_url": "https://cdn.example/page.jpg"}])
         self.assertRedirects(response, response.url, fetch_redirect_response=False)
         self.assertIn("/facebook/select/", response.url)
         selection = parse_qs(urlparse(response.url).query)["selection"][0]
@@ -128,6 +128,7 @@ class FacebookPageConnectionTests(TestCase):
         self.assertEqual(account.external_account_id, "page-1")
         self.assertEqual(decrypt_token(account.access_token_encrypted), "page-token")
         self.assertIn("pages_manage_posts", account.scopes)
+        self.assertEqual(account.platform_metadata["profile_picture_url"], "https://cdn.example/page.jpg")
 
     def test_multiple_pages_never_silently_select_first_and_cross_selection_is_rejected(self):
         response = self.callback([

@@ -316,6 +316,7 @@ def oauth_callback(request, platform):
             for page in pages:
                 safe_pages.append({
                     "id": page["id"], "name": page["name"], "tasks": page.get("tasks", []),
+                    "profile_picture_url": page.get("profile_picture_url", ""),
                     "authorizing_user_id": facebook_identity["id"],
                     "access_token_encrypted": encrypt_token(page["access_token"]),
                 })
@@ -438,6 +439,7 @@ def facebook_select_page(request):
             "scopes": state.pending_scopes,
             "platform_metadata": {
                 "destination_type": "facebook_page", "tasks": selected.get("tasks", []),
+                "profile_picture_url": str(selected.get("profile_picture_url") or ""),
                 "authorizing_user_id": selected.get("authorizing_user_id", ""),
             },
             "last_error": "",

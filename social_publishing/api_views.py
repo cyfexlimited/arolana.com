@@ -229,11 +229,9 @@ def _platform_payload(platform, label, account=None):
         "account_name": account.account_name if account else "",
         "account_username": account.account_username if account else "",
         "external_account_id": account.external_account_id if account else "",
-        "profile_picture_url": (
-            str((account.platform_metadata or {}).get("profile_picture_url") or "")
-            if account and platform == SocialPlatform.INSTAGRAM
-            else ""
-        ),
+        # Identity is captured at OAuth/Page-selection time.  Never refresh it
+        # from Meta in a normal authenticated GET.
+        "profile_picture_url": str((account.platform_metadata or {}).get("profile_picture_url") or "") if account else "",
     }
     if platform == SocialPlatform.FACEBOOK:
         # Keep the Page's stored Meta grant distinct from the global publishing

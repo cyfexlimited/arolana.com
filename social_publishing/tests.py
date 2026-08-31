@@ -55,6 +55,7 @@ from .oauth import (
     INSTAGRAM_TOKEN_KIND_KEY,
     InstagramTokenLifecycleError,
     exchange_instagram_long_lived_token,
+    discover_facebook_pages,
     refresh_instagram_account_if_needed,
     refresh_instagram_long_lived_token,
     resolve_instagram_identity,
@@ -410,6 +411,25 @@ class InstagramConnectedIdentityTests(SimpleTestCase):
         self.assertEqual(identity["external_account_id"], "fallback-id")
         self.assertEqual(identity["account_name"], "Instagram Professional Account")
 
+    @patch("social_publishing.oauth.requests.get")
+    def test_facebook_page_discovery_retains_safe_https_picture_url(self, mock_get):
+        mock_get.return_value = Mock(
+            ok=True,
+            json=Mock(return_value={"data": [{
+                "id": "page-identity-1",
+                "name": "Arolana Page",
+                "tasks": ["CREATE_CONTENT"],
+                "access_token": "page-token-must-not-return",
+                "picture": {"data": {"url": "https://cdn.example/page-avatar.jpg"}},
+            }]}),
+        )
+
+        pages = discover_facebook_pages("user-token-must-not-return")
+
+        self.assertEqual(pages[0]["profile_picture_url"], "https://cdn.example/page-avatar.jpg")
+        self.assertNotIn("user-token-must-not-return", str(pages))
+        self.assertIn("picture{url}", mock_get.call_args.kwargs["params"]["fields"])
+
 
 @override_settings(
     SOCIAL_PUBLISHING_ENABLED=True,
@@ -576,6 +596,56 @@ class InstagramConnectedIdentityUITests(TestCase):
         self.assertEqual(response.status_code, 200)
         mock_verify.assert_not_called()
         self.assertNotIn("api-token-must-not-render", str(response.data))
+
+    @override_settings(
+        SOCIAL_PUBLISHING_FACEBOOK_CONNECTION_ENABLED=True,
+        SOCIAL_PUBLISHING_META_APP_ID="meta-app-id",
+        SOCIAL_PUBLISHING_META_APP_SECRET="meta-app-secret",
+    )
+    @patch("social_publishing.oauth.requests.get")
+    def test_facebook_page_identity_is_safe_in_web_and_status_api_without_meta_get(self, mock_get):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.FACEBOOK,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="146473939532920",
+            account_name="Ifexes Store",
+            access_token_encrypted="encrypted-facebook-token-must-not-render",
+            platform_metadata={"profile_picture_url": "https://cdn.example/ifexes.jpg"},
+        )
+
+        page = self.client.get(reverse("social_publishing_web:accounts"), {"role": "admin"})
+        status = self.client.get(reverse("social_publishing:accounts_status"), {"role": "admin"})
+        facebook = next(item for item in status.data["platforms"] if item["platform"] == "facebook")
+
+        self.assertContains(page, "Ifexes Store")
+        self.assertContains(page, "Facebook Page")
+        self.assertContains(page, "https://cdn.example/ifexes.jpg")
+        self.assertNotContains(page, "encrypted-facebook-token-must-not-render")
+        self.assertEqual(facebook["profile_picture_url"], "https://cdn.example/ifexes.jpg")
+        self.assertNotIn("encrypted-facebook-token-must-not-render", str(status.data))
+        mock_get.assert_not_called()
+
+    @override_settings(
+        SOCIAL_PUBLISHING_FACEBOOK_CONNECTION_ENABLED=True,
+        SOCIAL_PUBLISHING_META_APP_ID="meta-app-id",
+        SOCIAL_PUBLISHING_META_APP_SECRET="meta-app-secret",
+    )
+    def test_facebook_page_without_picture_uses_safe_web_fallback(self):
+        SocialAccount.objects.create(
+            user=self.user,
+            owner_role="admin",
+            platform=SocialPlatform.FACEBOOK,
+            status=SocialConnectionStatus.CONNECTED,
+            external_account_id="146473939532920",
+            account_name="Ifexes Store",
+        )
+
+        response = self.client.get(reverse("social_publishing_web:accounts"), {"role": "admin"})
+
+        self.assertContains(response, "sp-account-avatar-fallback")
+        self.assertContains(response, "Ifexes Store")
 
 
 @override_settings(

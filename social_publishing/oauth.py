@@ -441,7 +441,10 @@ def discover_facebook_pages(access_token):
     try:
         response = requests.get(
             f"https://graph.facebook.com/{version}/me/accounts",
-            params={"fields": "id,name,access_token,tasks", "access_token": access_token},
+            # Fetch the selected Page's display identity while Meta is already
+            # returning the Page token.  This data is persisted at selection
+            # time; ordinary account-status reads never contact Meta.
+            params={"fields": "id,name,picture{url},access_token,tasks", "access_token": access_token},
             timeout=30,
         )
     except requests.RequestException as exc:
@@ -467,11 +470,19 @@ def discover_facebook_pages(access_token):
         tasks = {str(task).upper() for task in (row.get("tasks") or [])}
         if not page_id or not page_token or not tasks.intersection({"CREATE_CONTENT", "MANAGE"}):
             continue
+        picture = row.get("picture") or {}
+        picture_data = picture.get("data") if isinstance(picture, dict) else {}
+        picture_url = str(
+            picture_data.get("url") if isinstance(picture_data, dict) else ""
+        ).strip()
+        if picture_url and urlsplit(picture_url).scheme.lower() != "https":
+            picture_url = ""
         pages.append({
             "id": page_id,
             "name": str(row.get("name") or "Facebook Page")[:255],
             "tasks": sorted(tasks),
             "access_token": page_token,
+            "profile_picture_url": picture_url,
         })
     return pages
 
