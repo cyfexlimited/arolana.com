@@ -25,6 +25,7 @@ from orders.models import Order, OrderItem
 from orders.services import attribute_paid_order_for_ads
 from products.models import Category, Product, ProductVideo, VendorProductOffer, VideoCommerceEvent
 from vendors.models import VendorProfile
+from staff_mobile.models import StaffMobileToken
 
 from .adapters import v2_recommendation_adapter
 from .frontend import recommendation_shelf
@@ -1400,6 +1401,342 @@ class AdsV2FoundationTests(TestCase):
         response = self.client.post(reverse("ads_api:management_connected_account_connect", args=["google"]))
 
         self.assertEqual(response.status_code, 401)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_staff_mobile_bearer_can_read_only_its_owner_scoped_connected_accounts(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        other_identity = AdvertiserIdentity.objects.create(
+            owner_type=AdvertiserIdentity.OWNER_VENDOR,
+            vendor=self.other_vendor,
+            user=self.other_vendor_user,
+            display_name="Other Vendor",
+        )
+        ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=other_identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="other-customer",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+
+        response = self.client.get(
+            reverse("ads_api:management_connected_accounts"),
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        account_ids = [
+            account["external_account_id"]
+            for shell in response.json()["accounts"]
+            for account in shell["accounts"]
+        ]
+        self.assertNotIn("other-customer", account_ids)
+        self.assertEqual(identity.owner_type, AdvertiserIdentity.OWNER_VENDOR)
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_GOOGLE_CONNECTION_ENABLED=True,
+        ADS_GOOGLE_CLIENT_ID="google-client",
+        ADS_GOOGLE_CLIENT_SECRET="google-secret",
+    )
+    def test_staff_mobile_google_connect_creates_state_bound_to_mobile_session(self):
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+
+        response = self.client.post(
+            reverse("ads_api:management_connected_account_connect", args=["google"]),
+            data=json.dumps({"mobile_oauth": True}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        state = AdvertisingOAuthState.objects.get()
+        self.assertEqual(state.user_id, self.vendor_user.pk)
+        self.assertEqual(state.session_key, "")
+        self.assertEqual(state.metadata["mobile_staff_session_id"], session.pk)
+        self.assertEqual(state.metadata["mobile_return_url"], "arolanastaffmobile://ads-connected-accounts")
+        self.assertNotIn(session.token, response.content.decode("utf-8"))
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_staff_mobile_google_selection_is_owner_scoped_and_uses_existing_select_contract(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        pending = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="pending:staff-mobile-selection",
+            status=ExternalAdvertisingAccount.STATUS_PENDING,
+            metadata={"discovered_accounts": [{"external_account_id": "6711004233", "display_name": "Google Test"}]},
+        )
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+
+        response = self.client.post(
+            reverse("ads_api:management_connected_account_select", args=["google"]),
+            data=json.dumps({"connection_id": pending.pk, "external_account_id": "6711004233"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, ExternalAdvertisingAccount.STATUS_CONNECTED)
+        self.assertEqual(pending.external_account_id, "6711004233")
+        self.assertNotIn(session.token, response.content.decode("utf-8"))
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_GOOGLE_CONNECTION_ENABLED=True)
+    def test_staff_mobile_google_callback_failure_returns_safe_app_error_without_credentials(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+        state = AdvertisingOAuthState.objects.create(
+            provider="google",
+            state="mobile-state-without-code",
+            user=self.vendor_user,
+            advertiser_identity=identity,
+            session_key="",
+            expires_at=timezone.now() + timedelta(minutes=5),
+            metadata={
+                "mobile_staff_session_id": session.pk,
+                "mobile_return_url": "arolanastaffmobile://ads-connected-accounts",
+            },
+        )
+
+        response = self.client.get(
+            reverse("ads_api:management_connected_account_callback", args=["google"]),
+            {"state": state.state},
+            HTTP_ACCEPT="text/html",
+        )
+
+        self.assertEqual(response.status_code, 302, response.content)
+        self.assertEqual(
+            response["Location"],
+            "arolanastaffmobile://ads-connected-accounts?provider=google&oauth_error=connection_failed",
+        )
+        self.assertNotIn(session.token, response["Location"])
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_GOOGLE_CONNECTION_ENABLED=True,
+        ADS_GOOGLE_CLIENT_ID="google-client",
+        ADS_GOOGLE_CLIENT_SECRET="google-secret",
+        ADS_GOOGLE_DEVELOPER_TOKEN="developer-token",
+        ADS_GOOGLE_LOGIN_CUSTOMER_ID="",
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_staff_mobile_google_callback_returns_to_fixed_app_scheme_with_pending_selection(self, mock_post, mock_get):
+        class Response:
+            status_code = 200
+
+            def __init__(self, payload):
+                self.payload = payload
+
+            def json(self):
+                return self.payload
+
+        def google_post(url, **_kwargs):
+            if url == "https://oauth2.googleapis.com/token":
+                return Response({
+                    "access_token": "access-secret-token",
+                    "refresh_token": "refresh-secret-token",
+                    "expires_in": 3600,
+                    "scope": "https://www.googleapis.com/auth/adwords",
+                })
+            return Response({"results": [{"customerClient": {
+                "clientCustomer": "customers/6711004233",
+                "descriptiveName": "Arolana Ads Test Client",
+                "manager": False,
+                "status": "ENABLED",
+                "level": 0,
+            }}]})
+
+        mock_post.side_effect = google_post
+        mock_get.return_value = Response({"resourceNames": ["customers/6711004233"]})
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+        connect = self.client.post(
+            reverse("ads_api:management_connected_account_connect", args=["google"]),
+            data=json.dumps({"mobile_oauth": True}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        self.assertEqual(connect.status_code, 200, connect.content)
+        state = AdvertisingOAuthState.objects.get()
+
+        callback = self.client.get(
+            reverse("ads_api:management_connected_account_callback", args=["google"]),
+            {"state": state.state, "code": "oauth-code"},
+            HTTP_ACCEPT="text/html",
+        )
+
+        self.assertEqual(callback.status_code, 302, callback.content)
+        self.assertTrue(callback["Location"].startswith("arolanastaffmobile://ads-connected-accounts?"))
+        self.assertIn("provider=google", callback["Location"])
+        self.assertIn("connection_id=", callback["Location"])
+        self.assertNotIn("access-secret-token", callback["Location"])
+        self.assertNotIn("refresh-secret-token", callback["Location"])
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_GOOGLE_CONNECTION_ENABLED=True)
+    def test_staff_mobile_callback_rejects_expired_state_without_creating_or_updating_connection(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+        state = AdvertisingOAuthState.objects.create(
+            provider="google",
+            state="expired-mobile-oauth-state",
+            user=self.vendor_user,
+            advertiser_identity=identity,
+            session_key="",
+            expires_at=timezone.now() - timedelta(seconds=1),
+            metadata={
+                "mobile_staff_session_id": session.pk,
+                "mobile_return_url": "arolanastaffmobile://ads-connected-accounts",
+            },
+        )
+        before_count = ExternalAdvertisingAccount.objects.count()
+
+        response = self.client.get(
+            reverse("ads_api:management_connected_account_callback", args=["google"]),
+            {"state": state.state, "code": "oauth-code"},
+            HTTP_ACCEPT="text/html",
+        )
+
+        self.assertEqual(response.status_code, 302, response.content)
+        self.assertIn("oauth_error=connection_failed", response["Location"])
+        self.assertEqual(ExternalAdvertisingAccount.objects.count(), before_count)
+        state.refresh_from_db()
+        self.assertIsNone(state.used_at)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_GOOGLE_CONNECTION_ENABLED=True)
+    def test_staff_mobile_callback_rejects_inactive_token_without_creating_or_updating_connection(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+        session.is_active = False
+        session.save(update_fields=["is_active", "updated_at"])
+        state = AdvertisingOAuthState.objects.create(
+            provider="google",
+            state="inactive-token-mobile-oauth-state",
+            user=self.vendor_user,
+            advertiser_identity=identity,
+            session_key="",
+            expires_at=timezone.now() + timedelta(minutes=5),
+            metadata={
+                "mobile_staff_session_id": session.pk,
+                "mobile_return_url": "arolanastaffmobile://ads-connected-accounts",
+            },
+        )
+        before_count = ExternalAdvertisingAccount.objects.count()
+
+        response = self.client.get(
+            reverse("ads_api:management_connected_account_callback", args=["google"]),
+            {"state": state.state, "code": "oauth-code"},
+            HTTP_ACCEPT="text/html",
+        )
+
+        self.assertEqual(response.status_code, 401, response.content)
+        self.assertEqual(ExternalAdvertisingAccount.objects.count(), before_count)
+        state.refresh_from_db()
+        self.assertIsNone(state.used_at)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_GOOGLE_CONNECTION_ENABLED=True)
+    def test_staff_mobile_callback_rejects_token_for_different_user_without_creating_connection(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        other_session = StaffMobileToken.issue(
+            role=StaffMobileToken.ROLE_VENDOR,
+            user=self.other_vendor_user,
+        )
+        state = AdvertisingOAuthState.objects.create(
+            provider="google",
+            state="wrong-user-mobile-oauth-state",
+            user=self.vendor_user,
+            advertiser_identity=identity,
+            session_key="",
+            expires_at=timezone.now() + timedelta(minutes=5),
+            metadata={
+                "mobile_staff_session_id": other_session.pk,
+                "mobile_return_url": "arolanastaffmobile://ads-connected-accounts",
+            },
+        )
+        before_count = ExternalAdvertisingAccount.objects.count()
+
+        response = self.client.get(
+            reverse("ads_api:management_connected_account_callback", args=["google"]),
+            {"state": state.state, "code": "oauth-code"},
+            HTTP_ACCEPT="text/html",
+        )
+
+        self.assertEqual(response.status_code, 401, response.content)
+        self.assertEqual(ExternalAdvertisingAccount.objects.count(), before_count)
+        state.refresh_from_db()
+        self.assertIsNone(state.used_at)
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_GOOGLE_CONNECTION_ENABLED=True,
+        ADS_GOOGLE_CLIENT_ID="google-client",
+        ADS_GOOGLE_CLIENT_SECRET="google-secret",
+        ADS_GOOGLE_DEVELOPER_TOKEN="developer-token",
+        ADS_GOOGLE_LOGIN_CUSTOMER_ID="",
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_staff_mobile_callback_consumed_state_cannot_repeat_exchange_or_connection(self, mock_post, mock_get):
+        class Response:
+            status_code = 200
+
+            def __init__(self, payload):
+                self.payload = payload
+
+            def json(self):
+                return self.payload
+
+        def google_post(url, **_kwargs):
+            if url == "https://oauth2.googleapis.com/token":
+                return Response({
+                    "access_token": "access-secret-token",
+                    "refresh_token": "refresh-secret-token",
+                    "expires_in": 3600,
+                    "scope": "https://www.googleapis.com/auth/adwords",
+                })
+            return Response({"results": [{"customerClient": {
+                "clientCustomer": "customers/6711004233",
+                "descriptiveName": "Arolana Ads Test Client",
+                "manager": False,
+                "status": "ENABLED",
+                "level": 0,
+            }}]})
+
+        mock_post.side_effect = google_post
+        mock_get.return_value = Response({"resourceNames": ["customers/6711004233"]})
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+        connect = self.client.post(
+            reverse("ads_api:management_connected_account_connect", args=["google"]),
+            data=json.dumps({"mobile_oauth": True}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        self.assertEqual(connect.status_code, 200, connect.content)
+        state = AdvertisingOAuthState.objects.get()
+
+        first_callback = self.client.get(
+            reverse("ads_api:management_connected_account_callback", args=["google"]),
+            {"state": state.state, "code": "oauth-code"},
+            HTTP_ACCEPT="text/html",
+        )
+        self.assertEqual(first_callback.status_code, 302, first_callback.content)
+        created_count = ExternalAdvertisingAccount.objects.count()
+        provider_calls_after_first_callback = mock_post.call_count
+
+        replay = self.client.get(
+            reverse("ads_api:management_connected_account_callback", args=["google"]),
+            {"state": state.state, "code": "oauth-code"},
+            HTTP_ACCEPT="text/html",
+        )
+
+        self.assertEqual(replay.status_code, 302, replay.content)
+        self.assertIn("oauth_error=connection_failed", replay["Location"])
+        self.assertEqual(ExternalAdvertisingAccount.objects.count(), created_count)
+        self.assertEqual(mock_post.call_count, provider_calls_after_first_callback)
+        state.refresh_from_db()
+        self.assertIsNotNone(state.used_at)
 
     @override_settings(
         ADS_ADVERTISER_DASHBOARD_ENABLED=True,

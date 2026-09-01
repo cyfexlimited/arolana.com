@@ -2,11 +2,12 @@ import json
 import logging
 from decimal import Decimal
 from datetime import datetime
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import IntegrityError, transaction
-from django.http import JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.decorators.http import require_GET
@@ -22,6 +23,7 @@ from .models import (
     AdvertisingCredential,
     AdEvent,
     AdvertisingConnectionAuditLog,
+    AdvertisingOAuthState,
     CampaignAsset,
     ExternalAdvertisingAccount,
 )
@@ -75,6 +77,13 @@ CLIENT_SURFACE_FLAGS = {
     "mobile_web": "ADS_RECOMMENDATION_V2_MOBILE_WEB_ENABLED",
     "app": "ADS_RECOMMENDATION_V2_APP_ENABLED",
 }
+MOBILE_ADS_OAUTH_RETURN_URL = "arolanastaffmobile://ads-connected-accounts"
+
+
+class StaffMobileOAuthRedirect(HttpResponseRedirect):
+    """Allow only Arolana's registered native callback scheme."""
+
+    allowed_schemes = ["http", "https", "ftp", "arolanastaffmobile"]
 
 
 def _feature_disabled_response():
@@ -93,9 +102,85 @@ def _wants_browser_html(request):
     return "text/html" in str(request.headers.get("Accept") or "").lower()
 
 
+def _staff_mobile_ads_session(request):
+    """Resolve the existing staff-mobile bearer session for Ads V2 only."""
+    cached = getattr(request, "_ads_mobile_session", None)
+    if cached is not None:
+        return cached
+    header = str(request.headers.get("Authorization") or "")
+    scheme, _, raw_token = header.partition(" ")
+    if scheme.lower() != "bearer" or not raw_token.strip():
+        request._ads_mobile_session = None
+        return None
+    from staff_mobile.models import StaffMobileToken
+
+    session = (
+        StaffMobileToken.objects.select_related("user")
+        .filter(
+            token=raw_token.strip(),
+            is_active=True,
+            user__is_active=True,
+            role__in=[StaffMobileToken.ROLE_VENDOR, StaffMobileToken.ROLE_PROVIDER],
+        )
+        .first()
+    )
+    request._ads_mobile_session = session
+    return session
+
+
 def _authenticated_user(request):
     user = getattr(request, "user", None)
-    return user if user and user.is_authenticated else None
+    if user and user.is_authenticated:
+        return user
+    mobile_session = _staff_mobile_ads_session(request)
+    if mobile_session and mobile_session.user:
+        # Ads management continues to use the normal advertiser ownership
+        # resolver; the bearer token only supplies the authenticated user.
+        request.user = mobile_session.user
+        return mobile_session.user
+    return None
+
+
+def _mobile_oauth_session_for_state(provider, state_value):
+    """Return the active mobile session bound to this opaque OAuth state."""
+    if not state_value:
+        return None
+    oauth_state = (
+        AdvertisingOAuthState.objects.select_related("user")
+        .filter(provider=provider, state=state_value)
+        .first()
+    )
+    session_id = (oauth_state.metadata or {}).get("mobile_staff_session_id") if oauth_state else None
+    if not isinstance(session_id, int):
+        return None
+    from staff_mobile.models import StaffMobileToken
+
+    session = (
+        StaffMobileToken.objects.select_related("user")
+        .filter(
+            pk=session_id,
+            is_active=True,
+            user__is_active=True,
+            role__in=[StaffMobileToken.ROLE_VENDOR, StaffMobileToken.ROLE_PROVIDER],
+        )
+        .first()
+    )
+    if not session or not session.user_id or session.user_id != oauth_state.user_id:
+        return None
+    return session
+
+
+def _mobile_oauth_redirect(oauth_state, **params):
+    """Return only the fixed staff-app callback scheme stored at initiation."""
+    if not oauth_state or (oauth_state.metadata or {}).get("mobile_return_url") != MOBILE_ADS_OAUTH_RETURN_URL:
+        return None
+    safe_params = {key: str(value)[:120] for key, value in params.items() if value not in (None, "")}
+    return f"{MOBILE_ADS_OAUTH_RETURN_URL}?{urlencode(safe_params)}"
+
+
+def _mobile_oauth_redirect_response(oauth_state, **params):
+    target = _mobile_oauth_redirect(oauth_state, **params)
+    return StaffMobileOAuthRedirect(target) if target else None
 
 
 def _management_identity(request):
@@ -667,11 +752,31 @@ def management_connected_account_connect(request, provider):
     identity, error = _management_identity(request)
     if error:
         return error
+    data = _json_management_body(request)
+    mobile_session = _staff_mobile_ads_session(request) if data.get("mobile_oauth") is True else None
+    if data.get("mobile_oauth") is True and not mobile_session:
+        return JsonResponse({"success": False, "error": "authentication_required"}, status=401)
     try:
         adapter = provider_for(provider)
         if not adapter.configured():
             raise ProviderConfigurationError("provider_not_configured")
-        oauth_state = create_oauth_state(request, identity, provider)
+        oauth_state = create_oauth_state(
+            request,
+            identity,
+            provider,
+            # Native WebBrowser cannot carry the app's bearer token through the
+            # Google redirect. Bind the state to its active server-side mobile
+            # session instead of weakening the existing browser-session path.
+            metadata=(
+                {
+                    "mobile_staff_session_id": mobile_session.pk,
+                    "mobile_return_url": MOBILE_ADS_OAUTH_RETURN_URL,
+                }
+                if mobile_session
+                else None
+            ),
+            session_key="" if mobile_session else None,
+        )
         authorization_url = adapter.get_authorization_url(request, oauth_state)
     except ProviderConfigurationError as exc:
         return _provider_error_response(exc, status=503)
@@ -690,10 +795,16 @@ def management_connected_account_callback(request, provider):
     if not _dashboard_enabled():
         return _dashboard_disabled_response()
     user = _authenticated_user(request)
+    state_value = request.GET.get("state", "")
+    mobile_session = None
+    if not user:
+        mobile_session = _mobile_oauth_session_for_state(provider, state_value)
+        if mobile_session:
+            user = mobile_session.user
+            request.user = user
     if not user:
         return JsonResponse({"success": False, "error": "authentication_required"}, status=401)
 
-    state_value = request.GET.get("state", "")
     code = request.GET.get("code", "")
     failure_stage = "state_validation"
     oauth_state = None
@@ -744,10 +855,16 @@ def management_connected_account_callback(request, provider):
             )
     except AdvertiserAccessError as exc:
         audit_connection(provider, AdvertisingConnectionAuditLog.EVENT_AUTHORIZATION_FAILED, user, status="forbidden")
+        mobile_redirect = _mobile_oauth_redirect_response(oauth_state, provider=provider, oauth_error="authorization_failed")
+        if mobile_redirect:
+            return mobile_redirect
         if _wants_browser_html(request):
             return redirect("/ads/marketing/connected-accounts/?oauth_error=authorization_failed")
         return JsonResponse({"success": False, "error": str(exc)}, status=403)
     except ProviderConfigurationError as exc:
+        mobile_redirect = _mobile_oauth_redirect_response(oauth_state, provider=provider, oauth_error="provider_not_configured")
+        if mobile_redirect:
+            return mobile_redirect
         if _wants_browser_html(request):
             return redirect("/ads/marketing/connected-accounts/?oauth_error=provider_not_configured")
         return _provider_error_response(exc, status=503)
@@ -780,10 +897,21 @@ def management_connected_account_callback(request, provider):
             message=str(exc),
             metadata=details,
         )
+        mobile_redirect = _mobile_oauth_redirect_response(oauth_state, provider=provider, oauth_error="connection_failed")
+        if mobile_redirect:
+            return mobile_redirect
         if _wants_browser_html(request):
             return redirect("/ads/marketing/connected-accounts/?oauth_error=connection_failed")
         return _provider_error_response(exc, status=400)
 
+    mobile_redirect = _mobile_oauth_redirect_response(
+        oauth_state,
+        provider=provider,
+        connection_id=pending_account.pk,
+        status=ExternalAdvertisingAccount.STATUS_PENDING,
+    )
+    if mobile_redirect:
+        return mobile_redirect
     if _wants_browser_html(request):
         request.session["ads_pending_account_selection"] = {
             "provider": provider,

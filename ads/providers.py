@@ -992,17 +992,20 @@ def provider_for(provider):
         raise ProviderConfigurationError("unsupported_provider") from exc
 
 
-def create_oauth_state(request, advertiser_identity, provider):
-    if not request.session.session_key:
-        request.session.create()
+def create_oauth_state(request, advertiser_identity, provider, *, metadata=None, session_key=None):
+    if session_key is None:
+        if not request.session.session_key:
+            request.session.create()
+        session_key = request.session.session_key
     state = AdvertisingOAuthState.objects.create(
         provider=provider,
         state=secrets.token_urlsafe(48),
         user=request.user,
         advertiser_identity=advertiser_identity,
-        session_key=request.session.session_key,
+        session_key=session_key,
         expires_at=timezone.now() + timedelta(minutes=10),
         redirect_uri=provider_for(provider).redirect_uri(request),
+        metadata=metadata or {},
     )
     audit_connection(provider, AdvertisingConnectionAuditLog.EVENT_CONNECTION_INITIATED, request.user, advertiser_identity)
     return state
