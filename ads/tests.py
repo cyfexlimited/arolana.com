@@ -49,7 +49,14 @@ from .models import (
 from .credentials import CredentialEncryptionError, credential_encryption_service
 from .execution import OBJECTIVE_MAPPING, external_campaign_execution_service
 from .ownership import AdvertiserOwnershipResolver
-from .providers import ProviderAPIError, ProviderAuthorizationError, audit_connection, provider_for, validate_oauth_state
+from .providers import (
+    ProviderAPIError,
+    ProviderAuthorizationError,
+    audit_connection,
+    provider_for,
+    save_credential_tokens,
+    validate_oauth_state,
+)
 from .reporting import advertiser_reporting_service
 from .services import AdService
 from .attribution import commerce_attribution_service
@@ -1770,6 +1777,149 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(response.json()["error"], "duplicate_external_account")
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_google_reconnect_merges_pending_credential_into_existing_same_advertiser_account(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        existing = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="6711004233",
+            display_name="Old Google Account",
+            status=ExternalAdvertisingAccount.STATUS_REAUTHORIZATION_REQUIRED,
+        )
+        existing_account_id = existing.pk
+        save_credential_tokens(
+            existing,
+            ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            {"access_token": "stale-access-token", "refresh_token": "existing-refresh-token", "expires_in": 3600},
+        )
+        pending = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="pending:reconnect",
+            display_name="Google pending account selection",
+            status=ExternalAdvertisingAccount.STATUS_PENDING,
+            metadata={
+                "discovered_accounts": [
+                    {
+                        "external_account_id": "6711004233",
+                        "display_name": "Arolana Ads Test Client",
+                        "currency": "USD",
+                        "timezone": "Africa/Lagos",
+                    }
+                ]
+            },
+        )
+        save_credential_tokens(
+            pending,
+            ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            {"access_token": "fresh-access-token", "refresh_token": "fresh-refresh-token", "expires_in": 3600},
+        )
+        self.client.force_login(self.vendor_user)
+
+        response = self.client.post(
+            reverse("ads_api:management_connected_account_select", args=["google"]),
+            data=json.dumps({"connection_id": pending.pk, "external_account_id": "6711004233"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["account"]["id"], existing_account_id)
+        existing.refresh_from_db()
+        self.assertEqual(existing.pk, existing_account_id)
+        self.assertEqual(existing.status, ExternalAdvertisingAccount.STATUS_CONNECTED)
+        self.assertEqual(existing.display_name, "Arolana Ads Test Client")
+        self.assertEqual(existing.metadata["currency"], "USD")
+        credential = existing.credential
+        self.assertEqual(credential_encryption_service.decrypt(credential.encrypted_access_token), "fresh-access-token")
+        self.assertEqual(credential_encryption_service.decrypt(credential.encrypted_refresh_token), "fresh-refresh-token")
+        self.assertFalse(ExternalAdvertisingAccount.objects.filter(pk=pending.pk).exists())
+        self.assertNotIn("fresh-access-token", response.content.decode("utf-8"))
+        self.assertNotIn("fresh-refresh-token", response.content.decode("utf-8"))
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_google_reconnect_preserves_existing_refresh_token_when_pending_connection_has_none(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        existing = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="6711004233",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+        save_credential_tokens(
+            existing,
+            ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            {"access_token": "old-access-token", "refresh_token": "existing-refresh-token", "expires_in": 3600},
+        )
+        pending = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="pending:refresh-preservation",
+            status=ExternalAdvertisingAccount.STATUS_PENDING,
+            metadata={"discovered_accounts": [{"external_account_id": "6711004233", "display_name": "Google Test"}]},
+        )
+        save_credential_tokens(
+            pending,
+            ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            {"access_token": "fresh-access-token", "expires_in": 3600},
+        )
+        self.client.force_login(self.vendor_user)
+
+        response = self.client.post(
+            reverse("ads_api:management_connected_account_select", args=["google"]),
+            data=json.dumps({"connection_id": pending.pk, "external_account_id": "6711004233"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        existing.refresh_from_db()
+        self.assertEqual(credential_encryption_service.decrypt(existing.credential.encrypted_access_token), "fresh-access-token")
+        self.assertEqual(
+            credential_encryption_service.decrypt(existing.credential.encrypted_refresh_token),
+            "existing-refresh-token",
+        )
+        self.assertFalse(ExternalAdvertisingAccount.objects.filter(pk=pending.pk).exists())
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_google_reconnect_repeat_returns_safe_pending_not_found_instead_of_integrity_error(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        existing = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="6711004233",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+        pending = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            external_account_id="pending:repeat",
+            status=ExternalAdvertisingAccount.STATUS_PENDING,
+            metadata={"discovered_accounts": [{"external_account_id": "6711004233", "display_name": "Google Test"}]},
+        )
+        save_credential_tokens(
+            pending,
+            ExternalAdvertisingAccount.CHANNEL_GOOGLE,
+            {"access_token": "fresh-access-token", "refresh_token": "fresh-refresh-token", "expires_in": 3600},
+        )
+        self.client.force_login(self.vendor_user)
+        payload = json.dumps({"connection_id": pending.pk, "external_account_id": "6711004233"})
+
+        first = self.client.post(
+            reverse("ads_api:management_connected_account_select", args=["google"]),
+            data=payload,
+            content_type="application/json",
+        )
+        second = self.client.post(
+            reverse("ads_api:management_connected_account_select", args=["google"]),
+            data=payload,
+            content_type="application/json",
+        )
+
+        self.assertEqual(first.status_code, 200, first.content)
+        self.assertEqual(first.json()["account"]["id"], existing.pk)
+        self.assertEqual(second.status_code, 404, second.content)
+        self.assertEqual(second.json()["error"], "pending_connection_not_found")
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     def test_disconnect_revokes_credential_usability_and_retains_audit(self):
         identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
         account = ExternalAdvertisingAccount.objects.create(
@@ -1841,6 +1991,136 @@ class AdsV2FoundationTests(TestCase):
         mock_post.return_value = Response(401, {})
         with self.assertRaises(ProviderAuthorizationError):
             provider_for("google").refresh_credentials(refreshed)
+        account.refresh_from_db()
+        self.assertEqual(account.status, ExternalAdvertisingAccount.STATUS_REAUTHORIZATION_REQUIRED)
+
+    @override_settings(
+        ADS_GOOGLE_CONNECTION_ENABLED=True,
+        ADS_GOOGLE_CLIENT_ID="google-client",
+        ADS_GOOGLE_CLIENT_SECRET="google-secret",
+        ADS_GOOGLE_DEVELOPER_TOKEN="developer-token",
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.requests.post")
+    def test_expired_google_access_token_is_refreshable_and_auto_refreshed(self, mock_post):
+        class Response:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"access_token": "refreshed-access", "expires_in": 3600}
+
+        _, _, account = self._execution_campaign()
+        credential = account.credential
+        credential.access_token_expires_at = timezone.now() - timedelta(minutes=1)
+        credential.refresh_token_expires_at = timezone.now() + timedelta(days=30)
+        credential.save(
+            update_fields=[
+                "access_token_expires_at",
+                "refresh_token_expires_at",
+                "updated_at",
+            ]
+        )
+        expected_refresh_expiry = credential.refresh_token_expires_at
+        mock_post.return_value = Response()
+
+        provider = provider_for("google")
+        self.assertEqual(
+            provider.get_connection_status(account),
+            ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+
+        refreshed = provider._credential(SimpleNamespace(external_account=account))
+
+        self.assertEqual(
+            credential_encryption_service.decrypt(refreshed.encrypted_access_token),
+            "refreshed-access",
+        )
+        self.assertEqual(
+            credential_encryption_service.decrypt(refreshed.encrypted_refresh_token),
+            "refresh",
+        )
+        self.assertEqual(refreshed.refresh_token_expires_at, expected_refresh_expiry)
+        mock_post.assert_called_once()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_expired_google_access_token_without_refresh_token_remains_expired(self):
+        _, _, account = self._execution_campaign()
+        credential = account.credential
+        credential.encrypted_refresh_token = None
+        credential.access_token_expires_at = timezone.now() - timedelta(minutes=1)
+        credential.save(update_fields=["encrypted_refresh_token", "access_token_expires_at", "updated_at"])
+
+        provider = provider_for("google")
+        self.assertEqual(
+            provider.get_connection_status(account),
+            ExternalAdvertisingAccount.STATUS_EXPIRED,
+        )
+        with self.assertRaisesMessage(ProviderAuthorizationError, "credential_expired"):
+            provider._credential(SimpleNamespace(external_account=account))
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.post")
+    def test_expired_google_refresh_token_requires_reauthorization_without_refresh_attempt(self, mock_post):
+        _, _, account = self._execution_campaign()
+        credential = account.credential
+        credential.refresh_token_expires_at = timezone.now() - timedelta(minutes=1)
+        credential.save(update_fields=["refresh_token_expires_at", "updated_at"])
+
+        provider = provider_for("google")
+        self.assertEqual(
+            provider.get_connection_status(account),
+            ExternalAdvertisingAccount.STATUS_REAUTHORIZATION_REQUIRED,
+        )
+        with self.assertRaisesMessage(ProviderAuthorizationError, "refresh_token_expired"):
+            provider._credential(SimpleNamespace(external_account=account))
+        mock_post.assert_not_called()
+        account.refresh_from_db()
+        self.assertEqual(account.status, ExternalAdvertisingAccount.STATUS_REAUTHORIZATION_REQUIRED)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_revoked_google_credential_is_not_refreshable(self):
+        _, _, account = self._execution_campaign()
+        credential = account.credential
+        credential.revoked_at = timezone.now()
+        credential.save(update_fields=["revoked_at", "updated_at"])
+
+        provider = provider_for("google")
+        self.assertEqual(
+            provider.get_connection_status(account),
+            ExternalAdvertisingAccount.STATUS_REVOKED,
+        )
+        with self.assertRaisesMessage(ProviderAuthorizationError, "credential_revoked"):
+            provider._credential(SimpleNamespace(external_account=account))
+
+    @override_settings(
+        ADS_GOOGLE_CONNECTION_ENABLED=True,
+        ADS_GOOGLE_CLIENT_ID="google-client",
+        ADS_GOOGLE_CLIENT_SECRET="google-secret",
+        ADS_GOOGLE_DEVELOPER_TOKEN="developer-token",
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.requests.post")
+    def test_refresh_failure_is_safe_and_requires_reauthorization(self, mock_post):
+        class Response:
+            status_code = 400
+
+            @staticmethod
+            def json():
+                return {"error": "invalid_grant", "access_token": "must-not-leak"}
+
+        _, _, account = self._execution_campaign()
+        credential = account.credential
+        credential.access_token_expires_at = timezone.now() - timedelta(minutes=1)
+        credential.save(update_fields=["access_token_expires_at", "updated_at"])
+        mock_post.return_value = Response()
+
+        with self.assertRaises(ProviderAuthorizationError) as raised:
+            provider_for("google")._credential(SimpleNamespace(external_account=account))
+
+        self.assertEqual(str(raised.exception), "refresh_failed")
+        self.assertNotIn("invalid_grant", str(raised.exception))
+        self.assertNotIn("must-not-leak", str(raised.exception))
         account.refresh_from_db()
         self.assertEqual(account.status, ExternalAdvertisingAccount.STATUS_REAUTHORIZATION_REQUIRED)
 
@@ -1940,6 +2220,11 @@ class AdsV2FoundationTests(TestCase):
         credential = account.credential
         credential.access_token_expires_at = timezone.now() - timedelta(minutes=1)
         credential.save(update_fields=["access_token_expires_at", "updated_at"])
+        refreshable = external_campaign_execution_service.validate_campaign(campaign, "google", account, require_publish_ready=True)
+        self.assertNotIn("credential_expired", refreshable.errors)
+
+        credential.encrypted_refresh_token = None
+        credential.save(update_fields=["encrypted_refresh_token", "updated_at"])
         expired = external_campaign_execution_service.validate_campaign(campaign, "google", account, require_publish_ready=True)
         self.assertIn("credential_expired", expired.errors)
 

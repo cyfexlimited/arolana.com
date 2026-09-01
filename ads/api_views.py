@@ -19,6 +19,7 @@ from .execution import external_campaign_execution_service
 from .models import (
     AdCampaign,
     AdChannelExecution,
+    AdvertisingCredential,
     AdEvent,
     AdvertisingConnectionAuditLog,
     CampaignAsset,
@@ -834,33 +835,106 @@ def management_connected_account_select(request, provider):
         return JsonResponse({"success": False, "error": "missing_external_account_id"}, status=400)
     try:
         connection_id = int(data.get("connection_id"))
-        account = ExternalAdvertisingAccount.objects.get(
-            pk=connection_id,
-            advertiser_identity=identity,
-            channel=provider,
-            status=ExternalAdvertisingAccount.STATUS_PENDING,
-        )
-    except (TypeError, ValueError, ExternalAdvertisingAccount.DoesNotExist):
+    except (TypeError, ValueError):
         return JsonResponse({"success": False, "error": "pending_connection_not_found"}, status=404)
 
-    discovered = account.metadata.get("discovered_accounts", [])
-    selected = next((item for item in discovered if str(item.get("external_account_id")) == selected_id), None)
-    if not selected:
-        return JsonResponse({"success": False, "error": "external_account_not_discovered"}, status=400)
+    try:
+        with transaction.atomic():
+            # Lock the short-lived OAuth shell first. Do not join its optional
+            # credential relation here: PostgreSQL cannot lock nullable outer joins.
+            pending_account = ExternalAdvertisingAccount.objects.select_for_update().get(
+                pk=connection_id,
+                advertiser_identity=identity,
+                channel=provider,
+                status=ExternalAdvertisingAccount.STATUS_PENDING,
+            )
+            discovered = pending_account.metadata.get("discovered_accounts", [])
+            selected = next(
+                (item for item in discovered if str(item.get("external_account_id")) == selected_id),
+                None,
+            )
+            if not selected:
+                return JsonResponse({"success": False, "error": "external_account_not_discovered"}, status=400)
 
-    duplicate = ExternalAdvertisingAccount.objects.filter(channel=provider, external_account_id=selected_id).exclude(
-        advertiser_identity=identity
-    ).exclude(status__in=[ExternalAdvertisingAccount.STATUS_DISCONNECTED, ExternalAdvertisingAccount.STATUS_REVOKED]).exists()
-    if duplicate:
+            active_accounts = ExternalAdvertisingAccount.objects.select_for_update().filter(
+                channel=provider,
+                external_account_id=selected_id,
+            ).exclude(
+                status__in=[
+                    ExternalAdvertisingAccount.STATUS_DISCONNECTED,
+                    ExternalAdvertisingAccount.STATUS_REVOKED,
+                ]
+            ).exclude(pk=pending_account.pk)
+            existing_account = active_accounts.first()
+            if existing_account and existing_account.advertiser_identity_id != identity.pk:
+                audit_connection(
+                    provider,
+                    AdvertisingConnectionAuditLog.EVENT_AUTHORIZATION_FAILED,
+                    request.user,
+                    identity,
+                    status="duplicate_external_account",
+                )
+                return JsonResponse({"success": False, "error": "duplicate_external_account"}, status=400)
+
+            selected_metadata = _safe_metadata(selected)
+            now = timezone.now()
+            if existing_account:
+                # This is a reconnect. Keep the established account identity and
+                # atomically replace its credential with the newly authorized one.
+                pending_credential = AdvertisingCredential.objects.select_for_update().filter(
+                    external_account=pending_account
+                ).first()
+                if not pending_credential or not pending_credential.encrypted_access_token:
+                    return JsonResponse({"success": False, "error": "pending_credential_not_found"}, status=409)
+
+                existing_credential = AdvertisingCredential.objects.select_for_update().filter(
+                    external_account=existing_account
+                ).first()
+                if existing_credential is None:
+                    existing_credential = AdvertisingCredential(external_account=existing_account, provider=provider)
+
+                existing_credential.provider = pending_credential.provider
+                existing_credential.encrypted_access_token = pending_credential.encrypted_access_token
+                # Google can omit refresh_token on a later authorization. Retain a
+                # valid existing encrypted refresh credential in that case.
+                if pending_credential.encrypted_refresh_token:
+                    existing_credential.encrypted_refresh_token = pending_credential.encrypted_refresh_token
+                    existing_credential.refresh_token_expires_at = pending_credential.refresh_token_expires_at
+                existing_credential.access_token_expires_at = pending_credential.access_token_expires_at
+                existing_credential.credential_version = pending_credential.credential_version
+                existing_credential.scopes = pending_credential.scopes or existing_credential.scopes
+                existing_credential.revoked_at = None
+                existing_credential.metadata = pending_credential.metadata or existing_credential.metadata
+                existing_credential.save()
+
+                existing_account.display_name = selected.get("display_name", "")[:200]
+                existing_account.status = ExternalAdvertisingAccount.STATUS_CONNECTED
+                existing_account.connected_at = now
+                existing_account.metadata = selected_metadata
+                existing_account.save(update_fields=["display_name", "status", "connected_at", "metadata", "updated_at"])
+                # The credential is now on the established row; deleting the shell
+                # also removes its encrypted duplicate through the one-to-one FK.
+                pending_account.delete()
+                account = existing_account
+            else:
+                pending_account.external_account_id = selected_id
+                pending_account.display_name = selected.get("display_name", "")[:200]
+                pending_account.status = ExternalAdvertisingAccount.STATUS_CONNECTED
+                pending_account.connected_at = now
+                pending_account.metadata = selected_metadata
+                pending_account.save(
+                    update_fields=["external_account_id", "display_name", "status", "connected_at", "metadata", "updated_at"]
+                )
+                account = pending_account
+    except ExternalAdvertisingAccount.DoesNotExist:
+        return JsonResponse({"success": False, "error": "pending_connection_not_found"}, status=404)
+    except IntegrityError:
+        # A concurrent initial connection won the active-account constraint.
+        # Keep the database invariant and return a controlled response instead
+        # of surfacing a database exception to the browser.
         audit_connection(provider, AdvertisingConnectionAuditLog.EVENT_AUTHORIZATION_FAILED, request.user, identity, status="duplicate_external_account")
-        return JsonResponse({"success": False, "error": "duplicate_external_account"}, status=400)
+        return JsonResponse({"success": False, "error": "duplicate_external_account"}, status=409)
 
-    account.external_account_id = selected_id
-    account.display_name = selected.get("display_name", "")[:200]
-    account.status = ExternalAdvertisingAccount.STATUS_CONNECTED
-    account.connected_at = timezone.now()
-    account.metadata = _safe_metadata(selected)
-    account.save(update_fields=["external_account_id", "display_name", "status", "connected_at", "metadata", "updated_at"])
     request.session.pop("ads_pending_account_selection", None)
     audit_connection(provider, AdvertisingConnectionAuditLog.EVENT_ACCOUNT_SELECTED, request.user, identity, account, status=account.status)
     return JsonResponse({"success": True, "account": _safe_external_account(account)})

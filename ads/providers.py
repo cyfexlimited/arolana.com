@@ -141,34 +141,77 @@ class AdvertisingProviderAdapter:
         data["_safe_token_summary"] = summary
         return data
 
-    def refresh_credentials(self, credential):
-        refresh_token = credential_encryption_service.decrypt(credential.encrypted_refresh_token)
-        if not refresh_token:
-            self._mark_refresh_failed(credential.external_account)
-            raise ProviderAuthorizationError("missing_refresh_token")
-        response = requests.post(
-            self.token_url,
-            data={
-                "grant_type": "refresh_token",
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "refresh_token": refresh_token,
-            },
-            timeout=20,
-        )
-        if response.status_code >= 400:
-            self._mark_refresh_failed(credential.external_account)
-            raise ProviderAuthorizationError("refresh_failed")
-        data = response.json()
-        updated_credential = save_credential_tokens(credential.external_account, self.provider, data, scopes=credential.scopes)
-        audit_connection(
-            self.provider,
-            AdvertisingConnectionAuditLog.EVENT_TOKEN_REFRESHED,
-            external_account=credential.external_account,
-            advertiser_identity=credential.external_account.advertiser_identity,
-            status="connected",
-        )
-        return updated_credential
+    def refresh_credentials(self, credential, *, only_if_expired=False):
+        """Refresh one credential without losing a rotated/omitted refresh token.
+
+        The row lock makes concurrent expired-access-token requests converge on a
+        single refresh.  A second request that acquires the lock after the first
+        one will reuse the newly persisted access token instead of refreshing
+        again.
+        """
+        external_account = credential.external_account
+        try:
+            with transaction.atomic():
+                credential = (
+                    AdvertisingCredential.objects.select_for_update()
+                    .select_related("external_account", "external_account__advertiser_identity")
+                    .get(pk=credential.pk)
+                )
+                external_account = credential.external_account
+                if credential.revoked_at:
+                    raise ProviderAuthorizationError("credential_revoked")
+                if self._refresh_token_expired(credential):
+                    raise ProviderAuthorizationError("refresh_token_expired")
+                if (
+                    only_if_expired
+                    and credential.access_token_expires_at
+                    and credential.access_token_expires_at > timezone.now()
+                ):
+                    return credential
+
+                refresh_token = credential_encryption_service.decrypt(credential.encrypted_refresh_token)
+                if not refresh_token:
+                    raise ProviderAuthorizationError("missing_refresh_token")
+                try:
+                    response = requests.post(
+                        self.token_url,
+                        data={
+                            "grant_type": "refresh_token",
+                            "client_id": self.client_id,
+                            "client_secret": self.client_secret,
+                            "refresh_token": refresh_token,
+                        },
+                        timeout=20,
+                    )
+                except requests.RequestException as exc:
+                    raise ProviderAuthorizationError("refresh_failed") from exc
+                if response.status_code >= 400:
+                    raise ProviderAuthorizationError("refresh_failed")
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise ProviderAuthorizationError("refresh_failed") from exc
+                if not data.get("access_token"):
+                    raise ProviderAuthorizationError("refresh_failed")
+
+                updated_credential = save_credential_tokens(
+                    external_account,
+                    self.provider,
+                    data,
+                    scopes=credential.scopes,
+                )
+                audit_connection(
+                    self.provider,
+                    AdvertisingConnectionAuditLog.EVENT_TOKEN_REFRESHED,
+                    external_account=external_account,
+                    advertiser_identity=external_account.advertiser_identity,
+                    status="connected",
+                )
+                return updated_credential
+        except ProviderAuthorizationError as exc:
+            if str(exc) in {"refresh_token_expired", "missing_refresh_token", "refresh_failed"}:
+                self._mark_refresh_failed(external_account)
+            raise
 
     def revoke_credentials(self, credential):
         credential.revoked_at = timezone.now()
@@ -199,9 +242,29 @@ class AdvertisingProviderAdapter:
             return external_account.status
         if not credential or credential.revoked_at:
             return ExternalAdvertisingAccount.STATUS_REVOKED
-        if credential.access_token_expires_at and credential.access_token_expires_at <= timezone.now():
+        if self._refresh_token_expired(credential):
+            return ExternalAdvertisingAccount.STATUS_REAUTHORIZATION_REQUIRED
+        if (
+            credential.access_token_expires_at
+            and credential.access_token_expires_at <= timezone.now()
+            and not self._has_usable_refresh_token(credential)
+        ):
             return ExternalAdvertisingAccount.STATUS_EXPIRED
         return ExternalAdvertisingAccount.STATUS_CONNECTED
+
+    @staticmethod
+    def _refresh_token_expired(credential):
+        return bool(
+            credential.refresh_token_expires_at
+            and credential.refresh_token_expires_at <= timezone.now()
+        )
+
+    def _has_usable_refresh_token(self, credential):
+        return bool(
+            credential.encrypted_refresh_token
+            and not credential.revoked_at
+            and not self._refresh_token_expired(credential)
+        )
 
     def _bearer_headers(self, credential):
         return {"Authorization": f"Bearer {credential_encryption_service.decrypt(credential.encrypted_access_token)}"}
@@ -321,8 +384,13 @@ class GoogleAdsProvider(AdvertisingProviderAdapter):
             raise ProviderAuthorizationError("missing_credential")
         if credential.revoked_at:
             raise ProviderAuthorizationError("credential_revoked")
+        if self._refresh_token_expired(credential):
+            self._mark_refresh_failed(credential.external_account)
+            raise ProviderAuthorizationError("refresh_token_expired")
         if credential.access_token_expires_at and credential.access_token_expires_at <= timezone.now():
-            raise ProviderAuthorizationError("credential_expired")
+            if not self._has_usable_refresh_token(credential):
+                raise ProviderAuthorizationError("credential_expired")
+            return self.refresh_credentials(credential, only_if_expired=True)
         return credential
 
     def list_ad_accounts(self, credential):
@@ -988,7 +1056,11 @@ def save_credential_tokens(external_account, provider, token_data, scopes=None):
     if refresh_token:
         credential.encrypted_refresh_token = credential_encryption_service.encrypt(refresh_token)
     credential.access_token_expires_at = timezone.now() + timedelta(seconds=int(expires_in)) if expires_in else None
-    credential.refresh_token_expires_at = timezone.now() + timedelta(seconds=int(refresh_expires_in)) if refresh_expires_in else None
+    # Google commonly omits refresh_token (and its expiry) on a refresh grant.
+    # Preserve the already encrypted refresh credential and its recorded expiry
+    # rather than clearing either from a partial token response.
+    if refresh_expires_in is not None:
+        credential.refresh_token_expires_at = timezone.now() + timedelta(seconds=int(refresh_expires_in))
     credential.scopes = scopes or token_data.get("scope", [])
     if isinstance(credential.scopes, str):
         credential.scopes = credential.scopes.replace(",", " ").split()

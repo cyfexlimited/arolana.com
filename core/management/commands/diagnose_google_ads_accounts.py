@@ -1,4 +1,5 @@
 import json
+import re
 
 import requests
 from django.conf import settings
@@ -25,6 +26,16 @@ class Command(BaseCommand):
         credential = getattr(account, "credential", None)
         if not credential or credential.revoked_at:
             raise CommandError("A usable encrypted Google credential was not found.")
+        self.stdout.write(
+            json.dumps(
+                {
+                    "oauth_refresh_configuration": self._oauth_refresh_configuration(
+                        credential
+                    )
+                },
+                sort_keys=True,
+            )
+        )
         developer_token = str(getattr(settings, "ADS_GOOGLE_DEVELOPER_TOKEN", "") or "")
         if not developer_token:
             raise CommandError("ADS_GOOGLE_DEVELOPER_TOKEN is not configured.")
@@ -117,9 +128,31 @@ class Command(BaseCommand):
         }
         self.stdout.write(json.dumps({"in_memory_refresh_token_response": summary}, sort_keys=True))
         if response.status_code >= 400 or not payload.get("access_token"):
-            self.stdout.write(json.dumps({"error": self._safe_error(payload)}, sort_keys=True))
+            self.stdout.write(
+                json.dumps(
+                    {"oauth_error": self._safe_oauth_error(payload)},
+                    sort_keys=True,
+                )
+            )
             raise CommandError("In-memory access-token refresh failed.")
         return payload["access_token"]
+
+    @staticmethod
+    def _oauth_refresh_configuration(credential):
+        """Expose only boolean configuration state for a token diagnostic."""
+        return {
+            "oauth_client_id_configured": bool(
+                str(getattr(settings, "ADS_GOOGLE_CLIENT_ID", "") or "").strip()
+            ),
+            "oauth_client_secret_configured": bool(
+                str(getattr(settings, "ADS_GOOGLE_CLIENT_SECRET", "") or "").strip()
+            ),
+            "encrypted_refresh_token_present": bool(
+                getattr(credential, "encrypted_refresh_token", None)
+            ),
+            "token_endpoint": "https://oauth2.googleapis.com/token",
+            "uses_ads_google_oauth_client_configuration": True,
+        }
 
     @staticmethod
     def _json(response):
@@ -158,3 +191,22 @@ class Command(BaseCommand):
         if details:
             safe["details"] = details
         return safe
+
+    @staticmethod
+    def _safe_oauth_error(payload):
+        """Normalize OAuth token-endpoint errors without retaining credentials."""
+        data = payload if isinstance(payload, dict) else {}
+        error_code = re.sub(r"[^a-z0-9_-]", "", str(data.get("error") or "").lower())[:120]
+        description = str(data.get("error_description") or "")[:1000]
+        description = re.sub(r"[\r\n\t]+", " ", description)
+        description = re.sub(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+", "[redacted]", description)
+        description = re.sub(
+            r"(?i)\b(?:access[_ -]?token|refresh[_ -]?token|client[_ -]?secret|"
+            r"authorization[_ -]?code|oauth[_ -]?state)\s*[:=]\s*[^\s,;]+",
+            "[redacted]",
+            description,
+        )
+        return {
+            "code": error_code or "oauth_token_refresh_failed",
+            "description": description[:240] or "Google OAuth token refresh was rejected.",
+        }
