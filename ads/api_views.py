@@ -197,8 +197,14 @@ def _management_identity(request):
 
 
 def _json_management_body(request):
-    if request.POST:
+    content_type = (request.content_type or "").lower()
+
+    if content_type in {
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
+    }:
         return request.POST
+
     data = _json_body(request)
     return {} if data is None else data
 

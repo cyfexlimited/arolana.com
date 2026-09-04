@@ -311,7 +311,7 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
     connection_flag = "ADS_META_CONNECTION_ENABLED"
     authorization_base_url = "https://www.facebook.com/v24.0/dialog/oauth"
     token_url = "https://graph.facebook.com/v24.0/oauth/access_token"
-    default_scopes = ["ads_read", "business_management", "pages_show_list", "instagram_basic"]
+    default_scopes = ["ads_read", "business_management", "pages_show_list", "instagram_business_basic"]
 
     def scope_string(self):
         return ",".join(self.default_scopes)
