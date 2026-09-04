@@ -1003,7 +1003,7 @@ def create_oauth_state(request, advertiser_identity, provider, *, metadata=None,
         user=request.user,
         advertiser_identity=advertiser_identity,
         session_key=session_key,
-        expires_at=timezone.now() + timedelta(minutes=10),
+        expires_at=timezone.now() + timedelta(minutes=30),
         redirect_uri=provider_for(provider).redirect_uri(request),
         metadata=metadata or {},
     )
