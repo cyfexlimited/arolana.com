@@ -1,8 +1,35 @@
 {% extends "ads/marketing/base.html" %}
 {% block ads_title %}Connected Accounts{% endblock %}
 {% block ads_content %}
-{% if request.GET.oauth == "connected" %}<section class="ads-mkt-card" role="status"><strong>Connected</strong><p class="ads-mkt-muted">The selected Google Ads account is now connected.</p></section>{% endif %}
-{% if request.GET.oauth_error %}<section class="ads-mkt-card" role="alert" style="border-color:#fecaca"><strong>Google connection could not be completed</strong><p class="ads-mkt-muted">No account was connected. Try again or reauthorize the Google account.</p></section>{% endif %}
+{% if request.GET.oauth == "connected" %}
+<section class="ads-mkt-card" role="status">
+  <strong>Connected</strong>
+  <p class="ads-mkt-muted">
+    {% if request.GET.provider == "meta" %}
+      The selected Meta advertising account is now connected.
+    {% elif request.GET.provider == "google" %}
+      The selected Google Ads account is now connected.
+    {% else %}
+      The selected advertising account is now connected.
+    {% endif %}
+  </p>
+</section>
+{% endif %}
+
+{% if request.GET.oauth_error %}
+<section class="ads-mkt-card" role="alert" style="border-color:#fecaca">
+  {% if request.GET.provider == "meta" %}
+    <strong>Meta connection could not be completed</strong>
+    <p class="ads-mkt-muted">No account was connected. Try again or reauthorize the Meta account.</p>
+  {% elif request.GET.provider == "google" %}
+    <strong>Google connection could not be completed</strong>
+    <p class="ads-mkt-muted">No account was connected. Try again or reauthorize the Google account.</p>
+  {% else %}
+    <strong>Advertising account connection could not be completed</strong>
+    <p class="ads-mkt-muted">No account was connected. Try again or reauthorize the account.</p>
+  {% endif %}
+</section>
+{% endif %}
 <section class="ads-mkt-grid">
   {% for account in accounts %}
     <article class="ads-mkt-card">
@@ -47,7 +74,11 @@ document.querySelectorAll(".ads-oauth-connect-form").forEach(function(form){
       if(!response.ok||!payload.authorization_url){throw new Error("connection_start_failed");}
       window.location.assign(payload.authorization_url);
     } catch (_error) {
-      error.textContent="Google connection could not be started. Check the provider configuration and try again.";
+      error.textContent = provider === "meta"
+        ? "Meta connection could not be started. Check the provider configuration and try again."
+        : provider === "google"
+          ? "Google connection could not be started. Check the provider configuration and try again."
+          : "Advertising account connection could not be started. Check the provider configuration and try again.";
       error.hidden=false; button.disabled=false;
     }
   });

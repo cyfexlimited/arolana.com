@@ -38,7 +38,7 @@
       class="ads-account-selection-form"
       data-provider="{{ provider }}"
       data-select-url="{% url 'ads_api:management_connected_account_select' provider %}"
-      data-return-url="{% url 'ads:marketing_connected_accounts' %}?oauth=connected"
+      data-return-url="{% url 'ads:marketing_connected_accounts' %}?oauth=connected&provider={{ provider|urlencode }}"
     >
       {% csrf_token %}
 
