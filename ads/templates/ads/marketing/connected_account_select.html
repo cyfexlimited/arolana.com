@@ -1,51 +1,208 @@
 {% extends "ads/marketing/base.html" %}
-{% block ads_title %}Confirm Google Ads account{% endblock %}
+
+{% block ads_title %}
+  {% if provider == "meta" %}
+    Confirm Meta advertising account
+  {% else %}
+    Confirm Google Ads account
+  {% endif %}
+{% endblock %}
+
 {% block ads_content %}
 <section class="ads-mkt-card">
-  <h2>Select the Google Ads account to connect</h2>
-  <p class="ads-mkt-muted">Review the customer ID carefully. Arolana will not attach an account until you confirm it.</p>
+
+  {% if provider == "meta" %}
+    <h2>Select the Meta advertising account to connect</h2>
+    <p class="ads-mkt-muted">
+      Review the ad account ID carefully. Arolana will not attach an account until you confirm it.
+    </p>
+  {% else %}
+    <h2>Select the Google Ads account to connect</h2>
+    <p class="ads-mkt-muted">
+      Review the customer ID carefully. Arolana will not attach an account until you confirm it.
+    </p>
+  {% endif %}
+
   {% if selection_error %}
+
     <p role="alert">{{ selection_error }}</p>
-    <a class="ads-mkt-btn secondary" href="{% url 'ads:marketing_connected_accounts' %}">Back to Connected Accounts</a>
+
+    <a class="ads-mkt-btn secondary"
+       href="{% url 'ads:marketing_connected_accounts' %}">
+      Back to Connected Accounts
+    </a>
+
   {% elif discovered_accounts %}
-    <form class="ads-account-selection-form" data-select-url="{% url 'ads_api:management_connected_account_select' provider %}" data-return-url="{% url 'ads:marketing_connected_accounts' %}?oauth=connected">
+
+    <form
+      class="ads-account-selection-form"
+      data-provider="{{ provider }}"
+      data-select-url="{% url 'ads_api:management_connected_account_select' provider %}"
+      data-return-url="{% url 'ads:marketing_connected_accounts' %}?oauth=connected"
+    >
       {% csrf_token %}
+
       <input type="hidden" name="connection_id" value="{{ connection_id }}">
+
       <div class="ads-mkt-list">
+
         {% for account in discovered_accounts %}
           <label class="ads-mkt-row">
-            <span class="ads-mkt-row-main"><strong>{{ account.display_name|default:"Google Ads account" }}</strong><input type="radio" name="external_account_id" value="{{ account.external_account_id }}" required></span>
-            <span class="ads-mkt-muted">Customer ID: {{ account.external_account_id }}</span>
-            {% if account.currency %}<span class="ads-mkt-muted">Currency: {{ account.currency }}</span>{% endif %}
-            {% if account.timezone %}<span class="ads-mkt-muted">Timezone: {{ account.timezone }}</span>{% endif %}
+
+            <span class="ads-mkt-row-main">
+              <strong>
+                {% if account.display_name %}
+                  {{ account.display_name }}
+                {% elif provider == "meta" %}
+                  Meta advertising account
+                {% else %}
+                  Google Ads account
+                {% endif %}
+              </strong>
+
+              <input type="radio" name="external_account_id" value="{{ account.external_account_id }}" required>
+            </span>
+
+            {% if provider == "meta" %}
+              <span class="ads-mkt-muted">
+                Ad account ID: {{ account.external_account_id }}
+              </span>
+            {% else %}
+              <span class="ads-mkt-muted">
+                Customer ID: {{ account.external_account_id }}
+              </span>
+            {% endif %}
+
+            {% if account.currency %}
+              <span class="ads-mkt-muted">
+                Currency: {{ account.currency }}
+              </span>
+            {% endif %}
+
+            {% if account.timezone %}
+              <span class="ads-mkt-muted">
+                Timezone: {{ account.timezone }}
+              </span>
+            {% endif %}
+
           </label>
         {% endfor %}
+
       </div>
-      <p class="ads-mkt-muted" role="alert" data-selection-error hidden></p>
-      <div class="ads-mkt-sticky"><a class="ads-mkt-btn secondary" href="{% url 'ads:marketing_connected_accounts' %}">Cancel</a><button class="ads-mkt-btn" type="submit">Confirm account</button></div>
+
+      <p
+        class="ads-mkt-muted"
+        role="alert"
+        data-selection-error
+        hidden
+      ></p>
+
+      <div class="ads-mkt-sticky">
+        <a
+          class="ads-mkt-btn secondary"
+          href="{% url 'ads:marketing_connected_accounts' %}"
+        >
+          Cancel
+        </a>
+
+        <button class="ads-mkt-btn" type="submit">
+          Confirm account
+        </button>
+      </div>
+
     </form>
+
   {% else %}
-    <p role="alert">Google did not return any eligible Ads accounts for this login.</p>
-    <a class="ads-mkt-btn secondary" href="{% url 'ads:marketing_connected_accounts' %}">Back to Connected Accounts</a>
+
+    {% if provider == "meta" %}
+      <p role="alert">
+        Meta did not return any eligible advertising accounts for this login.
+      </p>
+    {% else %}
+      <p role="alert">
+        Google did not return any eligible Ads accounts for this login.
+      </p>
+    {% endif %}
+
+    <a
+      class="ads-mkt-btn secondary"
+      href="{% url 'ads:marketing_connected_accounts' %}"
+    >
+      Back to Connected Accounts
+    </a>
+
   {% endif %}
+
 </section>
+
 <script>
-var selectionForm=document.querySelector(".ads-account-selection-form");
-if(selectionForm){selectionForm.addEventListener("submit",async function(event){
-  event.preventDefault();
-  var selected=selectionForm.querySelector('[name="external_account_id"]:checked');
-  var error=selectionForm.querySelector("[data-selection-error]");
-  var button=selectionForm.querySelector('button[type="submit"]');
-  if(!selected){error.textContent="Select an account before continuing.";error.hidden=false;return;}
-  button.disabled=true;error.hidden=true;
-  try {
-    var response=await fetch(selectionForm.dataset.selectUrl,{method:"POST",headers:{"Accept":"application/json","Content-Type":"application/json","X-CSRFToken":selectionForm.querySelector('[name="csrfmiddlewaretoken"]').value},credentials:"same-origin",body:JSON.stringify({connection_id:Number(selectionForm.querySelector('[name="connection_id"]').value),external_account_id:selected.value})});
-    var payload=await response.json();
-    if(!response.ok||!payload.success){throw new Error("selection_failed");}
-    window.location.assign(selectionForm.dataset.returnUrl);
-  } catch (_error) {
-    error.textContent="This Google Ads account could not be connected. Verify access and try again.";error.hidden=false;button.disabled=false;
-  }
-});}
+var selectionForm = document.querySelector(".ads-account-selection-form");
+
+if (selectionForm) {
+  selectionForm.addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    var selected = selectionForm.querySelector(
+      '[name="external_account_id"]:checked'
+    );
+
+    var error = selectionForm.querySelector("[data-selection-error]");
+    var button = selectionForm.querySelector('button[type="submit"]');
+    var provider = selectionForm.dataset.provider;
+
+    if (!selected) {
+      error.textContent = "Select an account before continuing.";
+      error.hidden = false;
+      return;
+    }
+
+    button.disabled = true;
+    error.hidden = true;
+
+    try {
+      var response = await fetch(
+        selectionForm.dataset.selectUrl,
+        {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "X-CSRFToken": selectionForm.querySelector(
+              '[name="csrfmiddlewaretoken"]'
+            ).value
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            connection_id: Number(
+              selectionForm.querySelector('[name="connection_id"]').value
+            ),
+            external_account_id: selected.value
+          })
+        }
+      );
+
+      var payload = await response.json();
+
+      if (!response.ok || !payload.success) {
+        throw new Error("selection_failed");
+      }
+
+      window.location.assign(selectionForm.dataset.returnUrl);
+
+    } catch (_error) {
+
+      if (provider === "meta") {
+        error.textContent =
+          "This Meta advertising account could not be connected. Verify access and try again.";
+      } else {
+        error.textContent =
+          "This Google Ads account could not be connected. Verify access and try again.";
+      }
+
+      error.hidden = false;
+      button.disabled = false;
+    }
+  });
+}
 </script>
 {% endblock %}
