@@ -202,6 +202,14 @@ class ExternalCampaignExecutionService:
             base["campaign"]["networks"] = ["YOUTUBE", "DISCOVER", "GMAIL"]
         elif channel == "meta":
             base["campaign"]["surfaces"] = ["facebook", "instagram"]
+            base["ad_set"] = {
+                "name": f"{campaign.name} Ad Set",
+                "status": "PAUSED",
+                "placement_type": "AUTOMATIC",
+                "geo_targeting": list(campaign.geo_targeting)
+                if isinstance(campaign.geo_targeting, list)
+                else [],
+            }
         elif channel == "tiktok":
             base["ad_group"] = {"promotion_type": "WEBSITE", "placement_type": "PLACEMENT_TYPE_AUTOMATIC"}
         elif channel == "linkedin":

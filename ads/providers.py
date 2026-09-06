@@ -1,7 +1,8 @@
+import json
 import logging
 import re
 import secrets
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from dataclasses import dataclass, field
 from datetime import timedelta
 from urllib.parse import urlencode
@@ -422,6 +423,245 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
                 or "PAUSED"
             ),
             "readback": readback,
+        }
+
+    def build_ad_set_payload(self, execution, payload):
+        if not execution.external_campaign_id:
+            raise ProviderAPIError(
+                "missing_external_campaign_id",
+                stage="ad_set_payload",
+            )
+
+        campaign = execution.campaign
+        objective_settings = {
+            campaign.OBJECTIVE_PRODUCT_VISITS: ("LINK_CLICKS", "WEBSITE"),
+            campaign.OBJECTIVE_VIDEO_VIEWS: ("THRUPLAY", None),
+            campaign.OBJECTIVE_BRAND_AWARENESS: ("REACH", None),
+            campaign.OBJECTIVE_ENGAGEMENT: ("POST_ENGAGEMENT", None),
+        }
+        objective_setting = objective_settings.get(campaign.objective)
+        if not objective_setting:
+            raise ProviderAPIError(
+                "meta_ad_set_objective_requires_unsupported_conversion_data",
+                stage="ad_set_payload",
+            )
+
+        raw_geo_targets = campaign.geo_targeting
+        if not isinstance(raw_geo_targets, list):
+            raw_geo_targets = []
+        countries = []
+        for value in raw_geo_targets:
+            country = str(value or "").strip().upper()
+            if re.fullmatch(r"[A-Z]{2}", country) and country not in countries:
+                countries.append(country)
+        if not countries:
+            raise ProviderAPIError(
+                "meta_ad_set_geo_targeting_required",
+                stage="ad_set_payload",
+            )
+
+        if campaign.budget_type == "daily":
+            budget_field = "daily_budget"
+            budget_amount = campaign.daily_budget
+        elif campaign.budget_type in {"total", "lifetime"}:
+            budget_field = "lifetime_budget"
+            budget_amount = execution.budget_allocation or campaign.total_budget
+        else:
+            raise ProviderAPIError(
+                "meta_ad_set_budget_mode_unsupported",
+                stage="ad_set_payload",
+            )
+        try:
+            budget_minor_units = int(
+                (Decimal(str(budget_amount)) * 100).quantize(
+                    Decimal("1"),
+                    rounding=ROUND_HALF_UP,
+                )
+            )
+        except (InvalidOperation, TypeError, ValueError):
+            budget_minor_units = 0
+        if budget_minor_units <= 0:
+            raise ProviderAPIError(
+                "meta_ad_set_budget_required",
+                stage="ad_set_payload",
+            )
+
+        ad_set_input = payload.get("ad_set") or {}
+        ad_set_payload = {
+            "name": str(ad_set_input.get("name") or f"{campaign.name} Ad Set"),
+            "campaign_id": str(execution.external_campaign_id),
+            budget_field: str(budget_minor_units),
+            "billing_event": "IMPRESSIONS",
+            "optimization_goal": objective_setting[0],
+            "status": "PAUSED",
+            "targeting": json.dumps(
+                {
+                    "geo_locations": {"countries": countries},
+                    "publisher_platforms": ["facebook", "instagram"],
+                },
+                separators=(",", ":"),
+            ),
+        }
+        if objective_setting[1]:
+            ad_set_payload["destination_type"] = objective_setting[1]
+        if campaign.start_date:
+            ad_set_payload["start_time"] = campaign.start_date.isoformat()
+        if campaign.end_date:
+            ad_set_payload["end_time"] = campaign.end_date.isoformat()
+        elif budget_field == "lifetime_budget":
+            raise ProviderAPIError(
+                "meta_ad_set_lifetime_budget_requires_end_time",
+                stage="ad_set_payload",
+            )
+        return ad_set_payload
+
+    def create_ad_set(self, execution, payload, *, idempotency_key=None):
+        if execution.external_ad_group_id:
+            return self.fetch_ad_set(execution)
+
+        credential = getattr(execution.external_account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError(
+                "missing_credential",
+                stage="ad_set_create",
+            )
+        if credential.revoked_at:
+            raise ProviderAuthorizationError(
+                "credential_revoked",
+                stage="ad_set_create",
+            )
+
+        external_account_id = str(
+            execution.external_account.external_account_id or ""
+        ).strip().removeprefix("act_")
+        if not external_account_id:
+            raise ProviderAPIError(
+                "missing_external_account_id",
+                stage="ad_set_create",
+            )
+
+        response = requests.post(
+            f"https://graph.facebook.com/v24.0/act_{external_account_id}/adsets",
+            headers=self._bearer_headers(credential),
+            data=self.build_ad_set_payload(execution, payload),
+            timeout=20,
+        )
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError(
+                "meta_authorization_failed",
+                stage="ad_set_create",
+                http_status=response.status_code,
+            )
+        if response.status_code == 429:
+            raise ProviderAPIError(
+                "meta_rate_limited",
+                stage="ad_set_create",
+                http_status=response.status_code,
+            )
+        if response.status_code >= 400:
+            raise ProviderAPIError(
+                "meta_api_error",
+                stage="ad_set_create",
+                http_status=response.status_code,
+            )
+
+        external_ad_set_id = str(response.json().get("id") or "")
+        if not external_ad_set_id:
+            raise ProviderAPIError(
+                "meta_ad_set_create_missing_id",
+                stage="ad_set_create",
+            )
+        try:
+            readback = self.fetch_ad_set_by_id(
+                execution,
+                external_ad_set_id,
+                stage="ad_set_readback",
+            )
+        except (ProviderAPIError, ProviderAuthorizationError) as exc:
+            return {
+                "external_ad_group_id": external_ad_set_id,
+                "external_status": "PAUSED",
+                "readback": {},
+                "readback_error": str(exc),
+                "readback_error_stage": exc.stage or "ad_set_readback",
+                "readback_http_status": exc.http_status,
+            }
+        return {
+            "external_ad_group_id": external_ad_set_id,
+            "external_status": (
+                readback.get("effective_status")
+                or readback.get("status")
+                or "PAUSED"
+            ),
+            "readback": readback,
+        }
+
+    def fetch_ad_set(self, execution):
+        if not execution.external_ad_group_id:
+            raise ProviderAPIError(
+                "missing_external_ad_set_id",
+                stage="ad_set_read",
+            )
+        return self.fetch_ad_set_by_id(
+            execution,
+            execution.external_ad_group_id,
+        )
+
+    def fetch_ad_set_by_id(self, execution, external_ad_set_id, *, stage="ad_set_read"):
+        credential = getattr(execution.external_account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError("missing_credential", stage=stage)
+        if credential.revoked_at:
+            raise ProviderAuthorizationError("credential_revoked", stage=stage)
+
+        external_ad_set_id = str(external_ad_set_id or "")
+        if not external_ad_set_id:
+            raise ProviderAPIError("missing_external_ad_set_id", stage=stage)
+        response = requests.get(
+            f"https://graph.facebook.com/v24.0/{external_ad_set_id}",
+            headers=self._bearer_headers(credential),
+            params={
+                "fields": (
+                    "id,name,campaign_id,status,effective_status,billing_event,"
+                    "optimization_goal,destination_type,daily_budget,lifetime_budget,"
+                    "start_time,end_time,targeting"
+                )
+            },
+            timeout=20,
+        )
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError(
+                "meta_authorization_failed",
+                stage=stage,
+                http_status=response.status_code,
+            )
+        if response.status_code == 429:
+            raise ProviderAPIError(
+                "meta_rate_limited",
+                stage=stage,
+                http_status=response.status_code,
+            )
+        if response.status_code >= 400:
+            raise ProviderAPIError(
+                "meta_api_error",
+                stage=stage,
+                http_status=response.status_code,
+            )
+        data = response.json()
+        return {
+            "external_ad_group_id": str(data.get("id") or external_ad_set_id),
+            "name": data.get("name", ""),
+            "campaign_id": str(data.get("campaign_id") or ""),
+            "status": data.get("status", ""),
+            "effective_status": data.get("effective_status", ""),
+            "billing_event": data.get("billing_event", ""),
+            "optimization_goal": data.get("optimization_goal", ""),
+            "destination_type": data.get("destination_type", ""),
+            "daily_budget": data.get("daily_budget"),
+            "lifetime_budget": data.get("lifetime_budget"),
+            "start_time": data.get("start_time", ""),
+            "end_time": data.get("end_time", ""),
+            "targeting": data.get("targeting") or {},
         }
 
     def fetch_campaign(self, execution):

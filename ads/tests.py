@@ -3203,6 +3203,224 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(mock_get.call_count, 1)
         self.assertIn("/existing-987", mock_get.call_args.args[0])
 
+    def _meta_ad_set_fixture(
+        self,
+        *,
+        external_account_id="meta-test-account",
+        budget_type="lifetime",
+    ):
+        campaign, execution, payload = self._meta_campaign_creation_fixture(
+            external_account_id=external_account_id
+        )
+        campaign.budget_type = budget_type
+        campaign.daily_budget = Decimal("125.50") if budget_type == "daily" else None
+        campaign.total_budget = Decimal("500.00")
+        campaign.geo_targeting = ["ng"]
+        campaign.save(
+            update_fields=[
+                "budget_type",
+                "daily_budget",
+                "total_budget",
+                "geo_targeting",
+                "updated_at",
+            ]
+        )
+        execution.external_campaign_id = "meta-campaign-123"
+        execution.budget_allocation = Decimal("450.25")
+        execution.currency = "NGN"
+        payload = external_campaign_execution_service.build_external_payload(
+            campaign,
+            "meta",
+            execution.external_account,
+        )
+        return campaign, execution, payload
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_meta_ad_set_payload_maps_supported_campaign_data(self):
+        campaign, execution, payload = self._meta_ad_set_fixture()
+
+        ad_set = provider_for("meta").build_ad_set_payload(execution, payload)
+
+        self.assertEqual(ad_set["name"], f"{campaign.name} Ad Set")
+        self.assertEqual(ad_set["campaign_id"], "meta-campaign-123")
+        self.assertEqual(ad_set["lifetime_budget"], "45025")
+        self.assertNotIn("daily_budget", ad_set)
+        self.assertEqual(ad_set["billing_event"], "IMPRESSIONS")
+        self.assertEqual(ad_set["optimization_goal"], "LINK_CLICKS")
+        self.assertEqual(ad_set["destination_type"], "WEBSITE")
+        self.assertEqual(ad_set["status"], "PAUSED")
+        self.assertEqual(ad_set["start_time"], campaign.start_date.isoformat())
+        self.assertEqual(ad_set["end_time"], campaign.end_date.isoformat())
+        self.assertEqual(
+            json.loads(ad_set["targeting"]),
+            {
+                "geo_locations": {"countries": ["NG"]},
+                "publisher_platforms": ["facebook", "instagram"],
+            },
+        )
+        self.assertNotIn("age_min", ad_set)
+        self.assertNotIn("age_max", ad_set)
+        self.assertNotIn("currency", ad_set)
+        self.assertEqual(execution.currency, "NGN")
+        self.assertEqual(payload["ad_set"]["placement_type"], "AUTOMATIC")
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_meta_ad_set_payload_maps_daily_budget(self):
+        _campaign, execution, payload = self._meta_ad_set_fixture(budget_type="daily")
+
+        ad_set = provider_for("meta").build_ad_set_payload(execution, payload)
+
+        self.assertEqual(ad_set["daily_budget"], "12550")
+        self.assertNotIn("lifetime_budget", ad_set)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.post")
+    def test_meta_ad_set_requires_supported_stored_geography(self, mock_post):
+        campaign, execution, payload = self._meta_ad_set_fixture()
+        campaign.geo_targeting = ["Lagos", {"country": "NG"}, ""]
+
+        with self.assertRaises(ProviderAPIError) as raised:
+            provider_for("meta").create_ad_set(execution, payload)
+
+        self.assertEqual(str(raised.exception), "meta_ad_set_geo_targeting_required")
+        self.assertEqual(raised.exception.stage, "ad_set_payload")
+        mock_post.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_ad_set_create_maps_http_errors(self, mock_post, mock_get):
+        _campaign, execution, payload = self._meta_ad_set_fixture()
+        cases = (
+            (401, ProviderAuthorizationError, "meta_authorization_failed"),
+            (403, ProviderAuthorizationError, "meta_authorization_failed"),
+            (429, ProviderAPIError, "meta_rate_limited"),
+            (500, ProviderAPIError, "meta_api_error"),
+        )
+
+        for status_code, error_class, message in cases:
+            with self.subTest(status_code=status_code):
+                mock_post.return_value = SimpleNamespace(
+                    status_code=status_code,
+                    json=lambda: {},
+                )
+                with self.assertRaises(error_class) as raised:
+                    provider_for("meta").create_ad_set(execution, payload)
+
+                self.assertEqual(str(raised.exception), message)
+                self.assertEqual(raised.exception.stage, "ad_set_create")
+                self.assertEqual(raised.exception.http_status, status_code)
+
+        self.assertEqual(mock_post.call_count, 4)
+        mock_get.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_ad_set_create_rejects_success_without_id(self, mock_post, mock_get):
+        _campaign, execution, payload = self._meta_ad_set_fixture()
+        mock_post.return_value = SimpleNamespace(status_code=200, json=lambda: {})
+
+        with self.assertRaises(ProviderAPIError) as raised:
+            provider_for("meta").create_ad_set(execution, payload)
+
+        self.assertEqual(str(raised.exception), "meta_ad_set_create_missing_id")
+        self.assertEqual(raised.exception.stage, "ad_set_create")
+        mock_get.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_ad_set_create_preserves_id_when_readback_fails(self, mock_post, mock_get):
+        _campaign, execution, payload = self._meta_ad_set_fixture()
+        mock_post.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {"id": "meta-ad-set-987"},
+        )
+        mock_get.return_value = SimpleNamespace(status_code=500, json=lambda: {})
+
+        result = provider_for("meta").create_ad_set(execution, payload)
+
+        self.assertEqual(result["external_ad_group_id"], "meta-ad-set-987")
+        self.assertEqual(result["external_status"], "PAUSED")
+        self.assertEqual(result["readback"], {})
+        self.assertEqual(result["readback_error"], "meta_api_error")
+        self.assertEqual(result["readback_error_stage"], "ad_set_readback")
+        self.assertEqual(result["readback_http_status"], 500)
+        self.assertEqual(execution.external_ad_group_id, "")
+        self.assertEqual(mock_post.call_count, 1)
+        self.assertEqual(mock_get.call_count, 1)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch(
+        "requests.sessions.Session.request",
+        side_effect=AssertionError("real network request attempted"),
+    )
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_ad_set_create_forces_paused_and_normalizes_account_prefix(
+        self,
+        mock_post,
+        mock_get,
+        mock_session_request,
+    ):
+        _campaign, execution, payload = self._meta_ad_set_fixture(
+            external_account_id="act_123456789"
+        )
+        payload["ad_set"]["status"] = "ACTIVE"
+        mock_post.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {"id": "meta-ad-set-987"},
+        )
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "id": "meta-ad-set-987",
+                "campaign_id": "meta-campaign-123",
+                "status": "PAUSED",
+                "effective_status": "PAUSED",
+            },
+        )
+
+        result = provider_for("meta").create_ad_set(execution, payload)
+
+        self.assertEqual(result["external_ad_group_id"], "meta-ad-set-987")
+        self.assertIn("/act_123456789/adsets", mock_post.call_args.args[0])
+        self.assertNotIn("/act_act_", mock_post.call_args.args[0])
+        self.assertEqual(mock_post.call_args.kwargs["data"]["status"], "PAUSED")
+        self.assertEqual(
+            mock_post.call_args.kwargs["data"]["campaign_id"],
+            "meta-campaign-123",
+        )
+        mock_session_request.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_ad_set_create_with_existing_id_does_not_create_duplicate(
+        self,
+        mock_post,
+        mock_get,
+    ):
+        _campaign, execution, payload = self._meta_ad_set_fixture()
+        execution.external_ad_group_id = "existing-ad-set-987"
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "id": "existing-ad-set-987",
+                "campaign_id": "meta-campaign-123",
+                "status": "PAUSED",
+                "effective_status": "PAUSED",
+            },
+        )
+
+        result = provider_for("meta").create_ad_set(execution, payload)
+
+        self.assertEqual(result["external_ad_group_id"], "existing-ad-set-987")
+        mock_post.assert_not_called()
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertIn("/existing-ad-set-987", mock_get.call_args.args[0])
+
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     @patch("ads.providers.requests.get")
     def test_meta_campaign_fetch_and_status_are_mocked_and_normalized(self, mock_get):
