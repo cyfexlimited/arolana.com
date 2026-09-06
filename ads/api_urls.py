@@ -21,6 +21,8 @@ urlpatterns = [
     path("management/connected-accounts/<str:provider>/connect/", api_views.management_connected_account_connect, name="management_connected_account_connect"),
     path("management/connected-accounts/<str:provider>/callback/", api_views.management_connected_account_callback, name="management_connected_account_callback"),
     path("management/connected-accounts/<str:provider>/accounts/", api_views.management_connected_account_accounts, name="management_connected_account_accounts"),
+    path("management/connected-accounts/<str:provider>/<int:account_id>/pages/", api_views.management_connected_account_pages, name="management_connected_account_pages"),
+    path("management/connected-accounts/<str:provider>/<int:account_id>/page-selection/", api_views.management_connected_account_page_select, name="management_connected_account_page_select"),
     path("management/connected-accounts/<str:provider>/select/", api_views.management_connected_account_select, name="management_connected_account_select"),
     path("management/connected-accounts/<str:provider>/disconnect/", api_views.management_connected_account_disconnect, name="management_connected_account_disconnect"),
 ]

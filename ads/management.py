@@ -380,6 +380,8 @@ def connected_account_shells(identity):
                     "currency": (account.metadata or {}).get("currency", ""),
                     "timezone": (account.metadata or {}).get("timezone", ""),
                     "permission_summary": (account.metadata or {}).get("permission_summary", ""),
+                    "meta_page_id": (account.metadata or {}).get("meta_page_id", ""),
+                    "meta_page_name": (account.metadata or {}).get("meta_page_name", ""),
                 }
                 for account in existing.get(channel, [])
             ],

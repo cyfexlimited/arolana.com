@@ -57,6 +57,14 @@ class DiscoveredAdAccount:
     metadata: dict = field(default_factory=dict)
 
 
+@dataclass
+class DiscoveredFacebookPage:
+    page_id: str
+    name: str
+    category: str = ""
+    tasks: list = field(default_factory=list)
+
+
 class AdvertisingProviderAdapter:
     provider = ""
     connection_flag = ""
@@ -314,6 +322,9 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
     authorization_base_url = "https://www.facebook.com/v24.0/dialog/oauth"
     token_url = "https://graph.facebook.com/v24.0/oauth/access_token"
     default_scopes = ["ads_read", "business_management", "pages_show_list"]
+    page_discovery_url = "https://graph.facebook.com/v24.0/me/accounts"
+    max_page_discovery_pages = 10
+    max_page_discovery_items = 250
 
     def scope_string(self):
         return ",".join(self.default_scopes)
@@ -339,6 +350,104 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
             )
             for item in response.json().get("data", [])
         ]
+
+    def list_facebook_pages(self, credential):
+        if credential.provider != self.provider or credential.external_account.channel != self.provider:
+            raise ProviderAPIError(
+                "meta_page_discovery_wrong_provider",
+                stage="page_discovery",
+            )
+        if credential.revoked_at:
+            raise ProviderAuthorizationError(
+                "credential_revoked",
+                stage="page_discovery",
+            )
+
+        pages = []
+        seen_page_ids = set()
+        seen_cursors = set()
+        after = ""
+        for _page_number in range(self.max_page_discovery_pages):
+            params = {"fields": "id,name,category,tasks", "limit": 100}
+            if after:
+                params["after"] = after
+            response = requests.get(
+                self.page_discovery_url,
+                headers=self._bearer_headers(credential),
+                params=params,
+                timeout=20,
+            )
+            if response.status_code in {401, 403}:
+                raise ProviderAuthorizationError(
+                    "meta_authorization_failed",
+                    stage="page_discovery",
+                    http_status=response.status_code,
+                )
+            if response.status_code == 429:
+                raise ProviderAPIError(
+                    "meta_rate_limited",
+                    stage="page_discovery",
+                    http_status=response.status_code,
+                )
+            if response.status_code >= 400:
+                raise ProviderAPIError(
+                    "meta_api_error",
+                    stage="page_discovery",
+                    http_status=response.status_code,
+                )
+            try:
+                payload = response.json()
+            except (ValueError, TypeError) as exc:
+                raise ProviderAPIError(
+                    "meta_page_discovery_malformed_response",
+                    stage="page_discovery",
+                ) from exc
+            if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+                raise ProviderAPIError(
+                    "meta_page_discovery_malformed_response",
+                    stage="page_discovery",
+                )
+
+            rows = payload["data"]
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                page_id = str(row.get("id") or "").strip()
+                if not re.fullmatch(r"\d+", page_id) or page_id in seen_page_ids:
+                    continue
+                raw_tasks = row.get("tasks")
+                tasks = sorted({
+                    str(task).strip().upper()
+                    for task in raw_tasks if str(task).strip()
+                }) if isinstance(raw_tasks, list) else []
+                pages.append(
+                    DiscoveredFacebookPage(
+                        page_id=page_id,
+                        name=str(row.get("name") or "Facebook Page")[:200],
+                        category=str(row.get("category") or "")[:120],
+                        tasks=tasks,
+                    )
+                )
+                seen_page_ids.add(page_id)
+                if len(pages) >= self.max_page_discovery_items:
+                    return pages
+
+            if not rows:
+                break
+            paging = payload.get("paging")
+            cursors = paging.get("cursors") if isinstance(paging, dict) else None
+            next_after = str(cursors.get("after") or "").strip() if isinstance(cursors, dict) else ""
+            if not next_after or next_after in seen_cursors:
+                break
+            seen_cursors.add(next_after)
+            after = next_after
+
+        if not pages:
+            raise ProviderAPIError(
+                "meta_page_discovery_empty",
+                stage="page_discovery",
+            )
+        return pages
 
 
     def create_campaign(self, execution, payload, *, idempotency_key=None):

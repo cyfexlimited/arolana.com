@@ -746,6 +746,8 @@ def _safe_external_account(account):
         "currency": account.metadata.get("currency", ""),
         "timezone": account.metadata.get("timezone", ""),
         "permission_summary": account.metadata.get("permission_summary", ""),
+        "meta_page_id": account.metadata.get("meta_page_id", ""),
+        "meta_page_name": account.metadata.get("meta_page_name", ""),
     }
 
 
@@ -956,6 +958,108 @@ def management_connected_account_accounts(request, provider):
         else:
             payload.append(_safe_external_account(account))
     return JsonResponse({"success": True, "provider": provider, "accounts": payload})
+
+
+def _meta_page_account(identity, provider, account_id):
+    if provider != ExternalAdvertisingAccount.CHANNEL_META:
+        raise ProviderAPIError("meta_page_discovery_wrong_provider", stage="page_discovery")
+    try:
+        return ExternalAdvertisingAccount.objects.select_related("credential").get(
+            pk=account_id,
+            advertiser_identity=identity,
+            channel=provider,
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+    except ExternalAdvertisingAccount.DoesNotExist as exc:
+        raise ProviderAPIError("connected_account_not_found", stage="page_discovery") from exc
+
+
+def _safe_facebook_page(page):
+    return {
+        "page_id": page.page_id,
+        "name": page.name,
+        "category": page.category,
+        "tasks": page.tasks,
+    }
+
+
+def _meta_page_error_response(exc):
+    if isinstance(exc, ProviderAuthorizationError):
+        status = 401
+    elif getattr(exc, "http_status", None) == 429:
+        status = 429
+    elif str(exc) == "connected_account_not_found":
+        status = 404
+    else:
+        status = 400
+    return JsonResponse({"success": False, "error": str(exc)}, status=status)
+
+
+@require_GET
+def management_connected_account_pages(request, provider, account_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    try:
+        account = _meta_page_account(identity, provider, account_id)
+        credential = getattr(account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError("missing_credential", stage="page_discovery")
+        pages = provider_for(provider).list_facebook_pages(credential)
+        selected_page_id = str((account.metadata or {}).get("meta_page_id") or "")
+        if selected_page_id and not any(page.page_id == selected_page_id for page in pages):
+            raise ProviderAPIError(
+                "meta_selected_page_not_accessible",
+                stage="page_selection",
+            )
+    except (ProviderAuthorizationError, ProviderAPIError) as exc:
+        return _meta_page_error_response(exc)
+    return JsonResponse({
+        "success": True,
+        "account_id": account.pk,
+        "selected_page": {
+            "page_id": str((account.metadata or {}).get("meta_page_id") or ""),
+            "name": str((account.metadata or {}).get("meta_page_name") or ""),
+        },
+        "pages": [_safe_facebook_page(page) for page in pages],
+    })
+
+
+@require_POST
+def management_connected_account_page_select(request, provider, account_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    data = _json_management_body(request)
+    selected_page_id = str(data.get("page_id") or "").strip()
+    if not selected_page_id:
+        return JsonResponse({"success": False, "error": "missing_page_id"}, status=400)
+    try:
+        account = _meta_page_account(identity, provider, account_id)
+        credential = getattr(account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError("missing_credential", stage="page_selection")
+        pages = provider_for(provider).list_facebook_pages(credential)
+        selected = next((page for page in pages if page.page_id == selected_page_id), None)
+        if not selected:
+            raise ProviderAPIError("meta_page_not_accessible", stage="page_selection")
+        account.metadata = {
+            **(account.metadata or {}),
+            "meta_page_id": selected.page_id,
+            "meta_page_name": selected.name,
+            "meta_page_selected_at": timezone.now().isoformat(),
+        }
+        account.save(update_fields=["metadata", "updated_at"])
+    except (ProviderAuthorizationError, ProviderAPIError) as exc:
+        return _meta_page_error_response(exc)
+    return JsonResponse({
+        "success": True,
+        "account_id": account.pk,
+        "selected_page": {
+            "page_id": selected.page_id,
+            "name": selected.name,
+        },
+    })
 
 
 @require_POST

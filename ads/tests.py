@@ -3682,6 +3682,400 @@ class AdsV2FoundationTests(TestCase):
 
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_normalizes_multiple_pages_and_strips_tokens(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "data": [
+                    {
+                        "id": "101",
+                        "name": "First Page",
+                        "category": "Shopping & retail",
+                        "tasks": ["ANALYZE", "ADVERTISE"],
+                        "access_token": "page-token-must-not-return",
+                    },
+                    {"id": "202", "name": "Second Page", "tasks": ["ANALYZE"]},
+                    {"id": "101", "name": "Duplicate Page"},
+                    {"name": "Missing ID"},
+                ]
+            },
+        )
+
+        pages = provider_for("meta").list_facebook_pages(execution.external_account.credential)
+
+        self.assertEqual([page.page_id for page in pages], ["101", "202"])
+        self.assertEqual(pages[0].name, "First Page")
+        self.assertEqual(pages[0].category, "Shopping & retail")
+        self.assertEqual(pages[0].tasks, ["ADVERTISE", "ANALYZE"])
+        self.assertNotIn("token", str(pages).lower())
+        self.assertNotIn("access_token", mock_get.call_args.kwargs["params"])
+        self.assertEqual(
+            mock_get.call_args.args[0],
+            "https://graph.facebook.com/v24.0/me/accounts",
+        )
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_uses_bounded_cursor_pagination(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        mock_get.side_effect = [
+            SimpleNamespace(
+                status_code=200,
+                json=lambda: {
+                    "data": [{"id": "101", "name": "First"}],
+                    "paging": {
+                        "cursors": {"after": "cursor-1"},
+                        "next": "https://attacker.example/steal-token",
+                    },
+                },
+            ),
+            SimpleNamespace(
+                status_code=200,
+                json=lambda: {
+                    "data": [{"id": "202", "name": "Second"}],
+                    "paging": {"cursors": {}},
+                },
+            ),
+        ]
+
+        pages = provider_for("meta").list_facebook_pages(execution.external_account.credential)
+
+        self.assertEqual([page.page_id for page in pages], ["101", "202"])
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_get.call_args_list[1].kwargs["params"]["after"], "cursor-1")
+        self.assertTrue(all(
+            call.args[0] == "https://graph.facebook.com/v24.0/me/accounts"
+            for call in mock_get.call_args_list
+        ))
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_stops_on_repeated_cursor(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        mock_get.side_effect = [
+            SimpleNamespace(
+                status_code=200,
+                json=lambda: {
+                    "data": [{"id": "101", "name": "First"}],
+                    "paging": {"cursors": {"after": "cycle"}},
+                },
+            ),
+            SimpleNamespace(
+                status_code=200,
+                json=lambda: {
+                    "data": [{"id": "202", "name": "Second"}],
+                    "paging": {"cursors": {"after": "cycle"}},
+                },
+            ),
+        ]
+
+        pages = provider_for("meta").list_facebook_pages(execution.external_account.credential)
+
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(mock_get.call_count, 2)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_enforces_page_and_item_bounds(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        responses = []
+        for page_number in range(10):
+            responses.append(SimpleNamespace(
+                status_code=200,
+                json=lambda page_number=page_number: {
+                    "data": [{"id": str(1000 + page_number), "name": "Page"}],
+                    "paging": {"cursors": {"after": f"cursor-{page_number}"}},
+                },
+            ))
+        mock_get.side_effect = responses
+        pages = provider_for("meta").list_facebook_pages(execution.external_account.credential)
+        self.assertEqual(len(pages), 10)
+        self.assertEqual(mock_get.call_count, 10)
+
+        mock_get.reset_mock()
+        mock_get.side_effect = None
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "data": [
+                    {"id": str(10000 + index), "name": f"Page {index}"}
+                    for index in range(300)
+                ]
+            },
+        )
+        pages = provider_for("meta").list_facebook_pages(execution.external_account.credential)
+        self.assertEqual(len(pages), 250)
+        self.assertEqual(mock_get.call_count, 1)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_maps_http_errors(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        cases = (
+            (401, ProviderAuthorizationError, "meta_authorization_failed"),
+            (403, ProviderAuthorizationError, "meta_authorization_failed"),
+            (429, ProviderAPIError, "meta_rate_limited"),
+            (500, ProviderAPIError, "meta_api_error"),
+        )
+        for status_code, error_class, message in cases:
+            with self.subTest(status_code=status_code):
+                mock_get.return_value = SimpleNamespace(status_code=status_code, json=lambda: {})
+                with self.assertRaises(error_class) as raised:
+                    provider_for("meta").list_facebook_pages(execution.external_account.credential)
+                self.assertEqual(str(raised.exception), message)
+                self.assertEqual(raised.exception.stage, "page_discovery")
+                self.assertEqual(raised.exception.http_status, status_code)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_rejects_malformed_and_empty_responses(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        responses = (
+            (SimpleNamespace(status_code=200, json=lambda: (_ for _ in ()).throw(ValueError())), "meta_page_discovery_malformed_response"),
+            (SimpleNamespace(status_code=200, json=lambda: {"data": {}}), "meta_page_discovery_malformed_response"),
+            (SimpleNamespace(status_code=200, json=lambda: {"data": []}), "meta_page_discovery_empty"),
+        )
+        for response, message in responses:
+            with self.subTest(message=message):
+                mock_get.return_value = response
+                with self.assertRaises(ProviderAPIError) as raised:
+                    provider_for("meta").list_facebook_pages(execution.external_account.credential)
+                self.assertEqual(str(raised.exception), message)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_rejects_missing_revoked_and_wrong_credentials(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        credential = execution.external_account.credential
+        credential.revoked_at = timezone.now()
+        with self.assertRaises(ProviderAuthorizationError) as revoked:
+            provider_for("meta").list_facebook_pages(credential)
+        self.assertEqual(str(revoked.exception), "credential_revoked")
+
+        credential.revoked_at = None
+        credential.provider = "google"
+        with self.assertRaises(ProviderAPIError) as wrong_provider:
+            provider_for("meta").list_facebook_pages(credential)
+        self.assertEqual(str(wrong_provider.exception), "meta_page_discovery_wrong_provider")
+        mock_get.assert_not_called()
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_api_is_safe_and_does_not_auto_select(self, mock_get):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "data": [{
+                    "id": "101",
+                    "name": "Accessible Page",
+                    "access_token": "page-token-must-not-leak",
+                }]
+            },
+        )
+        self.client.force_login(self.vendor_user)
+
+        response = self.client.get(reverse(
+            "ads_api:management_connected_account_pages",
+            args=["meta", execution.external_account_id],
+        ))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["pages"], [{
+            "page_id": "101",
+            "name": "Accessible Page",
+            "category": "",
+            "tasks": [],
+        }])
+        self.assertEqual(response.json()["selected_page"], {"page_id": "", "name": ""})
+        self.assertNotIn("page-token-must-not-leak", response.content.decode())
+        execution.external_account.refresh_from_db()
+        self.assertNotIn("meta_page_id", execution.external_account.metadata)
+        self.assertNotIn("access_token", execution.external_account.metadata)
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.MetaAdsProvider.list_facebook_pages")
+    def test_meta_page_selection_rediscovers_and_persists_only_server_values(self, mock_pages):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        execution.external_account.metadata.pop("meta_page_id", None)
+        execution.external_account.metadata.pop("meta_page_name", None)
+        execution.external_account.save(update_fields=["metadata", "updated_at"])
+        mock_pages.return_value = [
+            SimpleNamespace(page_id="101", name="Server Page", category="Business", tasks=[]),
+            SimpleNamespace(page_id="202", name="Second Page", category="", tasks=[]),
+        ]
+        self.client.force_login(self.vendor_user)
+
+        response = self.client.post(
+            reverse(
+                "ads_api:management_connected_account_page_select",
+                args=["meta", execution.external_account_id],
+            ),
+            data=json.dumps({"page_id": "101", "name": "Untrusted Client Name"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["selected_page"], {"page_id": "101", "name": "Server Page"})
+        mock_pages.assert_called_once()
+        execution.external_account.refresh_from_db()
+        self.assertEqual(execution.external_account.metadata["meta_page_id"], "101")
+        self.assertEqual(execution.external_account.metadata["meta_page_name"], "Server Page")
+        self.assertIn("meta_page_selected_at", execution.external_account.metadata)
+        self.assertNotIn("access_token", execution.external_account.metadata)
+
+        creative.dynamic_fields = {"meta_image_hash": "0123456789abcdef0123456789abcdef"}
+        story = json.loads(
+            provider_for("meta").build_creative_payload(execution, creative)["object_story_spec"]
+        )
+        self.assertEqual(story["page_id"], "101")
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.MetaAdsProvider.list_facebook_pages")
+    def test_meta_page_selection_rejects_missing_or_inaccessible_page(self, mock_pages):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        mock_pages.return_value = [
+            SimpleNamespace(page_id="101", name="Accessible", category="", tasks=[]),
+        ]
+        self.client.force_login(self.vendor_user)
+        url = reverse(
+            "ads_api:management_connected_account_page_select",
+            args=["meta", execution.external_account_id],
+        )
+
+        missing = self.client.post(url, data=json.dumps({}), content_type="application/json")
+        inaccessible = self.client.post(
+            url,
+            data=json.dumps({"page_id": "999"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(missing.status_code, 400)
+        self.assertEqual(missing.json()["error"], "missing_page_id")
+        self.assertEqual(inaccessible.status_code, 400)
+        self.assertEqual(inaccessible.json()["error"], "meta_page_not_accessible")
+        self.assertEqual(mock_pages.call_count, 1)
+        execution.external_account.refresh_from_db()
+        self.assertNotIn("meta_page_id", execution.external_account.metadata)
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.MetaAdsProvider.list_facebook_pages")
+    def test_meta_page_discovery_rejects_stale_selection_and_missing_credential(self, mock_pages):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        account = execution.external_account
+        account.metadata = {
+            **account.metadata,
+            "meta_page_id": "999",
+            "meta_page_name": "No Longer Accessible",
+        }
+        account.save(update_fields=["metadata", "updated_at"])
+        mock_pages.return_value = [
+            SimpleNamespace(page_id="101", name="Accessible", category="", tasks=[]),
+        ]
+        self.client.force_login(self.vendor_user)
+        url = reverse(
+            "ads_api:management_connected_account_pages",
+            args=["meta", account.pk],
+        )
+
+        stale = self.client.get(url)
+        self.assertEqual(stale.status_code, 400)
+        self.assertEqual(stale.json()["error"], "meta_selected_page_not_accessible")
+
+        account.credential.delete()
+        missing_credential = self.client.get(url)
+        self.assertEqual(missing_credential.status_code, 401)
+        self.assertEqual(missing_credential.json()["error"], "missing_credential")
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.MetaAdsProvider.list_facebook_pages")
+    def test_meta_page_endpoints_enforce_owner_and_provider(self, mock_pages):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        self.client.force_login(self.other_vendor_user)
+        owner_url = reverse(
+            "ads_api:management_connected_account_pages",
+            args=["meta", execution.external_account_id],
+        )
+        forbidden = self.client.get(owner_url)
+        self.assertEqual(forbidden.status_code, 404)
+        mock_pages.assert_not_called()
+
+        self.client.force_login(self.vendor_user)
+        wrong_provider = self.client.get(reverse(
+            "ads_api:management_connected_account_pages",
+            args=["google", execution.external_account_id],
+        ))
+        self.assertEqual(wrong_provider.status_code, 400)
+        self.assertEqual(wrong_provider.json()["error"], "meta_page_discovery_wrong_provider")
+        mock_pages.assert_not_called()
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
+    @patch("ads.providers.MetaAdsProvider.list_facebook_pages")
+    def test_meta_selected_page_is_exposed_safely_in_account_views(self, mock_pages):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        execution.external_account.metadata = {
+            **execution.external_account.metadata,
+            "meta_page_id": "101",
+            "meta_page_name": "Selected Page",
+        }
+        execution.external_account.save(update_fields=["metadata", "updated_at"])
+        self.client.force_login(self.vendor_user)
+
+        api_response = self.client.get(reverse("ads_api:management_connected_accounts"))
+        page_response = self.client.get(reverse("ads:marketing_connected_accounts"))
+
+        self.assertEqual(api_response.status_code, 200)
+        meta_account = next(
+            item for shell in api_response.json()["accounts"]
+            if shell["channel"] == "meta" for item in shell["accounts"]
+        )
+        self.assertEqual(meta_account["meta_page_id"], "101")
+        self.assertEqual(meta_account["meta_page_name"], "Selected Page")
+        self.assertContains(page_response, "Facebook Page: Selected Page")
+        mock_pages.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch(
+        "requests.sessions.Session.request",
+        side_effect=AssertionError("real network request attempted"),
+    )
+    @patch("ads.providers.requests.get")
+    def test_meta_page_discovery_cannot_make_real_network_request(
+        self,
+        mock_get,
+        mock_session_request,
+    ):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {"data": [{"id": "101", "name": "Page"}]},
+        )
+
+        provider_for("meta").list_facebook_pages(execution.external_account.credential)
+
+        mock_session_request.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
     def test_meta_campaign_fetch_and_status_are_mocked_and_normalized(self, mock_get):
         class Response:
             status_code = 200

@@ -45,6 +45,9 @@
               <span class="ads-mkt-muted">{{ connected.status }}</span>
               {% if connected.currency %}<span class="ads-mkt-muted">{{ connected.currency }}</span>{% endif %}
               {% if connected.timezone %}<span class="ads-mkt-muted">{{ connected.timezone }}</span>{% endif %}
+              {% if account.channel == "meta" %}
+                <span class="ads-mkt-muted">Facebook Page: {% if connected.meta_page_name %}{{ connected.meta_page_name }}{% else %}Not selected{% endif %}</span>
+              {% endif %}
             </li>
           {% endfor %}
         </ul>
