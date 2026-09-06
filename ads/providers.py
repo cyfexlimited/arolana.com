@@ -352,7 +352,7 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
 
         external_account_id = str(
             execution.external_account.external_account_id or ""
-        ).replace("act_", "")
+        ).strip().removeprefix("act_")
         if not external_account_id:
             raise ProviderAPIError("missing_external_account_id")
 
@@ -396,11 +396,23 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
                 stage="campaign_create",
             )
 
-        readback = self.fetch_campaign_by_id(
-            execution,
-            external_campaign_id,
-            stage="campaign_readback",
-        )
+        try:
+            readback = self.fetch_campaign_by_id(
+                execution,
+                external_campaign_id,
+                stage="campaign_readback",
+            )
+        except (ProviderAPIError, ProviderAuthorizationError) as exc:
+            # Meta has already created the campaign. Return its ID so the
+            # execution can persist it and a retry cannot create a duplicate.
+            return {
+                "external_campaign_id": external_campaign_id,
+                "external_status": "PAUSED",
+                "readback": {},
+                "readback_error": str(exc),
+                "readback_error_stage": exc.stage or "campaign_readback",
+                "readback_http_status": exc.http_status,
+            }
 
         return {
             "external_campaign_id": external_campaign_id,
