@@ -8,6 +8,7 @@ urlpatterns = [
     path("recommendations/", api_views.recommendations_v2, name="recommendations_v2"),
     path("events/", api_views.events_v2, name="events_v2"),
     path("internal-test/", api_views.internal_test_session, name="internal_test_session"),
+    path("management/bootstrap/", api_views.management_bootstrap, name="management_bootstrap"),
     path("management/current-advertiser/", api_views.management_current_advertiser, name="management_current_advertiser"),
     path("management/overview/", api_views.management_overview, name="management_overview"),
     path("management/campaigns/", api_views.management_campaigns, name="management_campaigns"),

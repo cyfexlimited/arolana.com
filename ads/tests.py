@@ -27,6 +27,8 @@ from orders.services import attribute_paid_order_for_ads
 from products.models import Category, Product, ProductVideo, VendorProductOffer, VideoCommerceEvent
 from vendors.models import VendorProfile
 from staff_mobile.models import StaffMobileToken
+from mobile_customers.models import MobileCustomer
+from mobile_customers.token_auth import issue_mobile_customer_token
 
 from .adapters import v2_recommendation_adapter
 from .frontend import recommendation_shelf
@@ -1586,6 +1588,162 @@ class AdsV2FoundationTests(TestCase):
         accounts = response.json()["accounts"]
         self.assertEqual({item["channel"] for item in accounts}, {"meta", "google", "tiktok", "linkedin"})
         self.assertTrue(all(item["available"] is False for item in accounts))
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_EXTERNAL_CAMPAIGN_PUBLISHING_ENABLED=False,
+    )
+    def test_mobile_management_bootstrap_requires_staff_mobile_auth_not_customer_bearer(self):
+        unauthenticated = self.client.get(reverse("ads_api:management_bootstrap"))
+        customer = MobileCustomer.objects.create(
+            user=self.customer_user,
+            full_name="Customer",
+            phone_number="+2348099990000",
+            email=self.customer_user.email,
+        )
+        customer_token, _record = issue_mobile_customer_token(customer)
+        customer_response = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            HTTP_AUTHORIZATION=f"Bearer {customer_token}",
+        )
+
+        self.assertEqual(unauthenticated.status_code, 401)
+        self.assertEqual(customer_response.status_code, 401)
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_EXTERNAL_CAMPAIGN_PUBLISHING_ENABLED=False,
+    )
+    def test_vendor_mobile_management_bootstrap_is_safe_owned_and_deterministic(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        other_identity = AdvertiserIdentity.objects.create(
+            owner_type=AdvertiserIdentity.OWNER_VENDOR,
+            vendor=self.other_vendor,
+            user=self.other_vendor_user,
+            display_name="Other Vendor Secret",
+        )
+        external_account = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id="safe-account-id",
+        )
+        credential = AdvertisingCredential.objects.create(
+            external_account=external_account,
+            provider="meta",
+            encrypted_access_token=b"encrypted-access-secret",
+            encrypted_refresh_token=b"encrypted-refresh-secret",
+            metadata={"raw_provider_response": "provider-secret"},
+        )
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+
+        response = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertEqual(payload["actor"]["role"], "vendor")
+        self.assertEqual(payload["selected_advertiser_identity_id"], identity.pk)
+        self.assertEqual([item["id"] for item in payload["advertiser_identities"]], [identity.pk])
+        self.assertNotIn(other_identity.pk, [item["id"] for item in payload["advertiser_identities"]])
+        self.assertFalse(payload["capabilities"]["external_publishing"])
+        rendered = response.content.decode("utf-8")
+        for secret in [session.token, "encrypted-access-secret", "encrypted-refresh-secret", "provider-secret"]:
+            self.assertNotIn(secret, rendered)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_provider_mobile_management_bootstrap_cannot_select_vendor_identity(self):
+        provider = self._provider(self.provider_user)
+        provider_identity = self.resolver.get_or_create_identity(
+            self.resolver.resolve_provider_owner(provider)
+        )
+        vendor_identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_PROVIDER, user=self.provider_user)
+
+        success = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        forbidden = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            {"advertiser_id": vendor_identity.pk},
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+
+        self.assertEqual(success.status_code, 200, success.content)
+        self.assertEqual(success.json()["actor"]["role"], "provider")
+        self.assertEqual(success.json()["selected_advertiser_identity_id"], provider_identity.pk)
+        self.assertEqual(forbidden.status_code, 403)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_staff_mobile_management_bootstrap_is_explicit_and_selection_is_validated(self):
+        first = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        second = AdvertiserIdentity.objects.create(
+            owner_type=AdvertiserIdentity.OWNER_VENDOR,
+            vendor=self.other_vendor,
+            user=self.other_vendor_user,
+            display_name="Other Vendor",
+        )
+        staff = get_user_model().objects.create_user(
+            username="ads-mobile-staff", email="ads-mobile-staff@example.com",
+            password="testpass123", is_staff=True,
+        )
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_ADMIN, user=staff)
+
+        default_response = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        selected_response = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            {"advertiser_id": second.pk},
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        stale_response = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            {"advertiser_id": 99999999},
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+
+        self.assertEqual(default_response.status_code, 200)
+        self.assertEqual(default_response.json()["actor"]["role"], "staff")
+        expected_first = min([first, second], key=lambda item: (item.owner_type, item.pk))
+        self.assertEqual(default_response.json()["selected_advertiser_identity_id"], expected_first.pk)
+        self.assertEqual(selected_response.json()["selected_advertiser_identity_id"], second.pk)
+        self.assertEqual(stale_response.status_code, 403)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_nonstaff_admin_role_token_cannot_bootstrap(self):
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_ADMIN, user=self.customer_user)
+        response = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_management_logout_revokes_only_the_staff_mobile_token(self):
+        self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        session = StaffMobileToken.issue(role=StaffMobileToken.ROLE_VENDOR, user=self.vendor_user)
+        logout = self.client.post(
+            reverse("staff_mobile:staff_auth_logout_api"),
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        after_logout = self.client.get(
+            reverse("ads_api:management_bootstrap"),
+            HTTP_AUTHORIZATION=f"Bearer {session.token}",
+        )
+        self.assertEqual(logout.status_code, 200, logout.content)
+        self.assertEqual(after_logout.status_code, 401)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_existing_web_management_session_remains_supported(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        self.client.force_login(self.vendor_user)
+        response = self.client.get(reverse("ads_api:management_current_advertiser"))
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["advertiser"]["id"], identity.pk)
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
     def test_connected_account_connect_requires_authentication(self):

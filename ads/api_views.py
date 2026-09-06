@@ -31,6 +31,7 @@ from .models import (
 from .management import (
     AdvertiserAccessError,
     AdvertiserValidationError,
+    authorized_identities_for_user,
     connected_account_shells,
     create_campaign,
     create_creative,
@@ -122,10 +123,16 @@ def _staff_mobile_ads_session(request):
             token=raw_token.strip(),
             is_active=True,
             user__is_active=True,
-            role__in=[StaffMobileToken.ROLE_VENDOR, StaffMobileToken.ROLE_PROVIDER],
+            role__in=[
+                StaffMobileToken.ROLE_ADMIN,
+                StaffMobileToken.ROLE_VENDOR,
+                StaffMobileToken.ROLE_PROVIDER,
+            ],
         )
         .first()
     )
+    if session and session.role == StaffMobileToken.ROLE_ADMIN and not session.user.is_staff:
+        session = None
     request._ads_mobile_session = session
     return session
 
@@ -571,6 +578,59 @@ def management_current_advertiser(request):
     if error:
         return error
     return JsonResponse({"success": True, "advertiser": identity_payload(identity)})
+
+
+@require_GET
+def management_bootstrap(request):
+    if not _dashboard_enabled():
+        return _dashboard_disabled_response()
+    user = _authenticated_user(request)
+    if not user:
+        return JsonResponse({"success": False, "error": "authentication_required"}, status=401)
+
+    mobile_session = _staff_mobile_ads_session(request)
+    requested_id = request.GET.get("advertiser_id")
+    try:
+        selected = current_advertiser_identity(user, advertiser_id=requested_id)
+    except AdvertiserAccessError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=403)
+
+    identities = list(authorized_identities_for_user(user).order_by("owner_type", "id"))
+    role = (
+        "staff"
+        if user.is_staff
+        else (mobile_session.role if mobile_session else selected.owner_type)
+    )
+    return JsonResponse(
+        {
+            "success": True,
+            "authenticated": True,
+            "actor": {
+                "id": user.pk,
+                "display_name": user.get_full_name() or user.username or user.email,
+                "role": role,
+            },
+            "advertiser_identities": [
+                {
+                    "id": identity.pk,
+                    "owner_type": identity.owner_type,
+                    "display_name": identity.display_name or str(identity),
+                    "can_manage": True,
+                }
+                for identity in identities
+            ],
+            "selected_advertiser_identity_id": selected.pk,
+            "capabilities": {
+                "connected_accounts": True,
+                "meta_page_selection": True,
+                "campaigns": True,
+                "reporting": True,
+                "external_publishing": bool(
+                    getattr(settings, "ADS_EXTERNAL_CAMPAIGN_PUBLISHING_ENABLED", False)
+                ),
+            },
+        }
+    )
 
 
 @require_GET
