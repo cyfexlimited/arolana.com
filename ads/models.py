@@ -931,6 +931,7 @@ class AdChannelExecution(BaseModel):
     external_status = models.CharField(max_length=80, blank=True)
     external_campaign_id = models.CharField(max_length=200, blank=True)
     external_ad_group_id = models.CharField(max_length=200, blank=True)
+    external_creative_id = models.CharField(max_length=200, blank=True)
     idempotency_key = models.CharField(max_length=160, blank=True, db_index=True)
     budget_allocation = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     currency = models.CharField(max_length=10, blank=True)

@@ -3421,6 +3421,265 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(mock_get.call_count, 1)
         self.assertIn("/existing-ad-set-987", mock_get.call_args.args[0])
 
+    def _meta_creative_fixture(self, *, external_account_id="meta-test-account"):
+        campaign, execution, _payload = self._meta_campaign_creation_fixture(
+            external_account_id=external_account_id
+        )
+        account = execution.external_account
+        account.metadata = {
+            **account.metadata,
+            "meta_page_id": "112233445566778",
+        }
+        account.save(update_fields=["metadata", "updated_at"])
+
+        creative = campaign.creatives.filter(is_active=True).first()
+        creative.creative_type = "image"
+        creative.cta_text = "Shop Now"
+        creative.dynamic_fields = {
+            "meta_image_hash": "0123456789abcdef0123456789abcdef",
+        }
+        creative.save(
+            update_fields=[
+                "creative_type",
+                "cta_text",
+                "dynamic_fields",
+                "updated_at",
+            ]
+        )
+        execution.external_campaign_id = "meta-campaign-123"
+        execution.external_ad_group_id = "meta-ad-set-456"
+        return campaign, execution, creative
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_meta_creative_id_has_dedicated_persistence_field(self):
+        _campaign, execution, _creative = self._meta_creative_fixture()
+
+        execution.external_creative_id = "meta-creative-789"
+        execution.save(
+            update_fields=[
+                "external_campaign_id",
+                "external_ad_group_id",
+                "external_creative_id",
+                "updated_at",
+            ]
+        )
+        execution.refresh_from_db()
+
+        self.assertEqual(execution.external_creative_id, "meta-creative-789")
+        self.assertEqual(execution.external_campaign_id, "meta-campaign-123")
+        self.assertEqual(execution.external_ad_group_id, "meta-ad-set-456")
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_meta_creative_payload_selects_campaign_creative_and_maps_content(self):
+        _campaign, execution, creative = self._meta_creative_fixture()
+
+        payload = provider_for("meta").build_creative_payload(execution)
+        story = json.loads(payload["object_story_spec"])
+
+        self.assertEqual(payload["name"], creative.name)
+        self.assertEqual(story["page_id"], "112233445566778")
+        self.assertEqual(story["link_data"]["link"], creative.clickthrough_url)
+        self.assertEqual(story["link_data"]["name"], creative.headline)
+        self.assertEqual(story["link_data"]["message"], creative.description)
+        self.assertEqual(
+            story["link_data"]["image_hash"],
+            "0123456789abcdef0123456789abcdef",
+        )
+        self.assertEqual(
+            story["link_data"]["call_to_action"],
+            {
+                "type": "SHOP_NOW",
+                "value": {"link": creative.clickthrough_url},
+            },
+        )
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_meta_creative_payload_rejects_wrong_campaign_and_inactive_creative(self):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        other_identity, other_campaign, _account = self._execution_campaign()
+        other_creative = other_campaign.creatives.first()
+
+        with self.assertRaises(ProviderAPIError) as mismatch:
+            provider_for("meta").build_creative_payload(execution, other_creative)
+        self.assertEqual(str(mismatch.exception), "meta_creative_campaign_mismatch")
+        self.assertEqual(mismatch.exception.stage, "creative_payload")
+
+        creative.is_active = False
+        with self.assertRaises(ProviderAPIError) as inactive:
+            provider_for("meta").build_creative_payload(execution, creative)
+        self.assertEqual(str(inactive.exception), "meta_creative_inactive")
+        self.assertEqual(inactive.exception.stage, "creative_payload")
+        self.assertIsNotNone(other_identity)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.post")
+    def test_meta_creative_payload_requires_page_and_meta_image_hash(self, mock_post):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        execution.external_account.metadata = {}
+
+        with self.assertRaises(ProviderAPIError) as missing_page:
+            provider_for("meta").create_creative(execution, creative)
+        self.assertEqual(
+            str(missing_page.exception),
+            "meta_creative_page_identity_required",
+        )
+
+        execution.external_account.metadata = {"meta_page_id": "112233445566778"}
+        creative.dynamic_fields = {}
+        creative.image.name = "ads/creatives/local-only.jpg"
+        with self.assertRaises(ProviderAPIError) as missing_hash:
+            provider_for("meta").create_creative(execution, creative)
+        self.assertEqual(str(missing_hash.exception), "meta_creative_image_hash_required")
+        self.assertEqual(missing_hash.exception.stage, "creative_payload")
+        mock_post.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.post")
+    def test_meta_creative_payload_rejects_video_and_unknown_cta(self, mock_post):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        creative.creative_type = "video"
+
+        with self.assertRaises(ProviderAPIError) as video_error:
+            provider_for("meta").create_creative(execution, creative)
+        self.assertEqual(
+            str(video_error.exception),
+            "meta_video_creative_upload_not_implemented",
+        )
+
+        creative.creative_type = "image"
+        creative.cta_text = "Buy Everything"
+        with self.assertRaises(ProviderAPIError) as cta_error:
+            provider_for("meta").create_creative(execution, creative)
+        self.assertEqual(str(cta_error.exception), "meta_creative_cta_unsupported")
+        mock_post.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_creative_create_maps_http_errors(self, mock_post, mock_get):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        cases = (
+            (401, ProviderAuthorizationError, "meta_authorization_failed"),
+            (403, ProviderAuthorizationError, "meta_authorization_failed"),
+            (429, ProviderAPIError, "meta_rate_limited"),
+            (500, ProviderAPIError, "meta_api_error"),
+        )
+
+        for status_code, error_class, message in cases:
+            with self.subTest(status_code=status_code):
+                mock_post.return_value = SimpleNamespace(
+                    status_code=status_code,
+                    json=lambda: {},
+                )
+                with self.assertRaises(error_class) as raised:
+                    provider_for("meta").create_creative(execution, creative)
+                self.assertEqual(str(raised.exception), message)
+                self.assertEqual(raised.exception.stage, "creative_create")
+                self.assertEqual(raised.exception.http_status, status_code)
+
+        self.assertEqual(mock_post.call_count, 4)
+        mock_get.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_creative_create_rejects_success_without_id(self, mock_post, mock_get):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        mock_post.return_value = SimpleNamespace(status_code=200, json=lambda: {})
+
+        with self.assertRaises(ProviderAPIError) as raised:
+            provider_for("meta").create_creative(execution, creative)
+
+        self.assertEqual(str(raised.exception), "meta_creative_create_missing_id")
+        self.assertEqual(raised.exception.stage, "creative_create")
+        mock_get.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_creative_create_preserves_id_when_readback_fails(self, mock_post, mock_get):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        mock_post.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {"id": "meta-creative-789"},
+        )
+        mock_get.return_value = SimpleNamespace(status_code=500, json=lambda: {})
+
+        result = provider_for("meta").create_creative(execution, creative)
+
+        self.assertEqual(result["external_creative_id"], "meta-creative-789")
+        self.assertEqual(result["readback"], {})
+        self.assertEqual(result["readback_error"], "meta_api_error")
+        self.assertEqual(result["readback_error_stage"], "creative_readback")
+        self.assertEqual(result["readback_http_status"], 500)
+        self.assertEqual(execution.external_creative_id, "")
+        self.assertEqual(execution.external_campaign_id, "meta-campaign-123")
+        self.assertEqual(execution.external_ad_group_id, "meta-ad-set-456")
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch(
+        "requests.sessions.Session.request",
+        side_effect=AssertionError("real network request attempted"),
+    )
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_creative_create_is_mocked_and_normalizes_account_prefix(
+        self,
+        mock_post,
+        mock_get,
+        mock_session_request,
+    ):
+        _campaign, execution, creative = self._meta_creative_fixture(
+            external_account_id="act_123456789"
+        )
+        mock_post.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {"id": "meta-creative-789"},
+        )
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "id": "meta-creative-789",
+                "name": creative.name,
+                "status": "ACTIVE",
+                "object_story_spec": {},
+            },
+        )
+
+        result = provider_for("meta").create_creative(execution, creative)
+
+        self.assertEqual(result["external_creative_id"], "meta-creative-789")
+        self.assertIn("/act_123456789/adcreatives", mock_post.call_args.args[0])
+        self.assertNotIn("/act_act_", mock_post.call_args.args[0])
+        mock_session_request.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_creative_create_with_existing_id_does_not_create_duplicate(
+        self,
+        mock_post,
+        mock_get,
+    ):
+        _campaign, execution, creative = self._meta_creative_fixture()
+        execution.external_creative_id = "existing-creative-789"
+        mock_get.return_value = SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "id": "existing-creative-789",
+                "name": creative.name,
+                "status": "ACTIVE",
+                "object_story_spec": {},
+            },
+        )
+
+        result = provider_for("meta").create_creative(execution, creative)
+
+        self.assertEqual(result["external_creative_id"], "existing-creative-789")
+        mock_post.assert_not_called()
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertIn("/existing-creative-789", mock_get.call_args.args[0])
+
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     @patch("ads.providers.requests.get")
     def test_meta_campaign_fetch_and_status_are_mocked_and_normalized(self, mock_get):

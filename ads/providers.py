@@ -664,6 +664,221 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
             "targeting": data.get("targeting") or {},
         }
 
+    def build_creative_payload(self, execution, creative=None):
+        if creative is None:
+            creative = execution.campaign.creatives.filter(is_active=True).first()
+        if creative is None:
+            raise ProviderAPIError(
+                "meta_creative_missing",
+                stage="creative_payload",
+            )
+        if creative.campaign_id != execution.campaign_id:
+            raise ProviderAPIError(
+                "meta_creative_campaign_mismatch",
+                stage="creative_payload",
+            )
+        if not creative.is_active:
+            raise ProviderAPIError(
+                "meta_creative_inactive",
+                stage="creative_payload",
+            )
+        if creative.creative_type == "video":
+            raise ProviderAPIError(
+                "meta_video_creative_upload_not_implemented",
+                stage="creative_payload",
+            )
+        if creative.creative_type != "image":
+            raise ProviderAPIError(
+                "meta_creative_type_unsupported",
+                stage="creative_payload",
+            )
+
+        destination_url = str(creative.clickthrough_url or "").strip()
+        if not destination_url:
+            raise ProviderAPIError(
+                "meta_creative_destination_url_required",
+                stage="creative_payload",
+            )
+
+        account_metadata = execution.external_account.metadata or {}
+        page_id = str(account_metadata.get("meta_page_id") or "").strip()
+        if not re.fullmatch(r"\d+", page_id):
+            raise ProviderAPIError(
+                "meta_creative_page_identity_required",
+                stage="creative_payload",
+            )
+
+        creative_metadata = creative.dynamic_fields or {}
+        image_hash = str(creative_metadata.get("meta_image_hash") or "").strip()
+        if not re.fullmatch(r"[a-fA-F0-9]{16,128}", image_hash):
+            raise ProviderAPIError(
+                "meta_creative_image_hash_required",
+                stage="creative_payload",
+            )
+
+        cta_map = {
+            "contact us": "CONTACT_US",
+            "get quote": "GET_QUOTE",
+            "learn more": "LEARN_MORE",
+            "shop now": "SHOP_NOW",
+            "sign up": "SIGN_UP",
+            "watch more": "WATCH_MORE",
+        }
+        cta_type = cta_map.get(str(creative.cta_text or "").strip().lower())
+        if not cta_type:
+            raise ProviderAPIError(
+                "meta_creative_cta_unsupported",
+                stage="creative_payload",
+            )
+
+        link_data = {
+            "link": destination_url,
+            "name": str(creative.headline or "").strip(),
+            "message": str(creative.description or "").strip(),
+            "image_hash": image_hash,
+            "call_to_action": {
+                "type": cta_type,
+                "value": {"link": destination_url},
+            },
+        }
+        return {
+            "name": str(creative.name or "").strip(),
+            "object_story_spec": json.dumps(
+                {
+                    "page_id": page_id,
+                    "link_data": link_data,
+                },
+                separators=(",", ":"),
+            ),
+        }
+
+    def create_creative(self, execution, creative=None, *, idempotency_key=None):
+        if execution.external_creative_id:
+            return self.fetch_creative(execution)
+
+        credential = getattr(execution.external_account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError(
+                "missing_credential",
+                stage="creative_create",
+            )
+        if credential.revoked_at:
+            raise ProviderAuthorizationError(
+                "credential_revoked",
+                stage="creative_create",
+            )
+        external_account_id = str(
+            execution.external_account.external_account_id or ""
+        ).strip().removeprefix("act_")
+        if not external_account_id:
+            raise ProviderAPIError(
+                "missing_external_account_id",
+                stage="creative_create",
+            )
+
+        response = requests.post(
+            f"https://graph.facebook.com/v24.0/act_{external_account_id}/adcreatives",
+            headers=self._bearer_headers(credential),
+            data=self.build_creative_payload(execution, creative),
+            timeout=20,
+        )
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError(
+                "meta_authorization_failed",
+                stage="creative_create",
+                http_status=response.status_code,
+            )
+        if response.status_code == 429:
+            raise ProviderAPIError(
+                "meta_rate_limited",
+                stage="creative_create",
+                http_status=response.status_code,
+            )
+        if response.status_code >= 400:
+            raise ProviderAPIError(
+                "meta_api_error",
+                stage="creative_create",
+                http_status=response.status_code,
+            )
+
+        external_creative_id = str(response.json().get("id") or "")
+        if not external_creative_id:
+            raise ProviderAPIError(
+                "meta_creative_create_missing_id",
+                stage="creative_create",
+            )
+        try:
+            readback = self.fetch_creative_by_id(
+                execution,
+                external_creative_id,
+                stage="creative_readback",
+            )
+        except (ProviderAPIError, ProviderAuthorizationError) as exc:
+            return {
+                "external_creative_id": external_creative_id,
+                "readback": {},
+                "readback_error": str(exc),
+                "readback_error_stage": exc.stage or "creative_readback",
+                "readback_http_status": exc.http_status,
+            }
+        return {
+            "external_creative_id": external_creative_id,
+            "readback": readback,
+        }
+
+    def fetch_creative(self, execution):
+        if not execution.external_creative_id:
+            raise ProviderAPIError(
+                "missing_external_creative_id",
+                stage="creative_read",
+            )
+        return self.fetch_creative_by_id(
+            execution,
+            execution.external_creative_id,
+        )
+
+    def fetch_creative_by_id(self, execution, external_creative_id, *, stage="creative_read"):
+        credential = getattr(execution.external_account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError("missing_credential", stage=stage)
+        if credential.revoked_at:
+            raise ProviderAuthorizationError("credential_revoked", stage=stage)
+
+        external_creative_id = str(external_creative_id or "")
+        if not external_creative_id:
+            raise ProviderAPIError("missing_external_creative_id", stage=stage)
+        response = requests.get(
+            f"https://graph.facebook.com/v24.0/{external_creative_id}",
+            headers=self._bearer_headers(credential),
+            params={"fields": "id,name,object_story_spec,status"},
+            timeout=20,
+        )
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError(
+                "meta_authorization_failed",
+                stage=stage,
+                http_status=response.status_code,
+            )
+        if response.status_code == 429:
+            raise ProviderAPIError(
+                "meta_rate_limited",
+                stage=stage,
+                http_status=response.status_code,
+            )
+        if response.status_code >= 400:
+            raise ProviderAPIError(
+                "meta_api_error",
+                stage=stage,
+                http_status=response.status_code,
+            )
+        data = response.json()
+        return {
+            "external_creative_id": str(data.get("id") or external_creative_id),
+            "name": data.get("name", ""),
+            "object_story_spec": data.get("object_story_spec") or {},
+            "status": data.get("status", ""),
+        }
+
     def fetch_campaign(self, execution):
         if not execution.external_campaign_id:
             raise ProviderAPIError("missing_external_campaign_id")
