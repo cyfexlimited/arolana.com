@@ -366,19 +366,35 @@ class ExternalCampaignExecutionService:
 
     def live_mutation_safety_errors(self, campaign, channel, external_account, *, user=None):
         errors = []
+
         if not user or not getattr(user, "is_authenticated", False) or not getattr(user, "is_staff", False):
             errors.append("staff_required")
-        if channel != "google":
+
+        if channel not in {"google", "meta"}:
             errors.append("provider_write_not_enabled")
+
         if not getattr(settings, "ADS_EXTERNAL_CAMPAIGN_TEST_MODE_ENABLED", False):
             errors.append("external_campaign_test_mode_disabled")
-        if external_account:
-            allowlist = set(getattr(settings, "ADS_GOOGLE_TEST_ACCOUNT_ALLOWLIST", []) or [])
-            external_id = str(external_account.external_account_id)
-            if channel == "google" and external_id not in allowlist:
-                errors.append("external_account_not_allowlisted")
-        else:
+
+        if not external_account:
             errors.append("missing_external_account")
+            return sorted(set(errors))
+
+        external_id = str(external_account.external_account_id)
+
+        if channel == "google":
+            allowlist = set(getattr(settings, "ADS_GOOGLE_TEST_ACCOUNT_ALLOWLIST", []) or [])
+            if external_id not in allowlist:
+                errors.append("external_account_not_allowlisted")
+
+        elif channel == "meta":
+            if not getattr(settings, "ADS_META_ALLOW_TEST_WRITES", False):
+                errors.append("meta_test_writes_disabled")
+
+            allowlist = set(getattr(settings, "ADS_META_TEST_ACCOUNT_ALLOWLIST", []) or [])
+            if external_id not in allowlist:
+                errors.append("external_account_not_allowlisted")
+
         return sorted(set(errors))
 
     def sync_status(self, execution):

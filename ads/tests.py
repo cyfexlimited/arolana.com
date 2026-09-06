@@ -2516,6 +2516,38 @@ class AdsV2FoundationTests(TestCase):
         )
         return identity, campaign, account
 
+    @override_settings(
+        ADS_EXTERNAL_CAMPAIGN_TEST_MODE_ENABLED=True,
+        ADS_META_ALLOW_TEST_WRITES=False,
+        ADS_META_TEST_ACCOUNT_ALLOWLIST=[],
+    )
+    def test_meta_live_mutation_requires_explicit_write_flag_and_allowlist(self):
+        identity, campaign, account = self._execution_campaign()
+        account.channel = ExternalAdvertisingAccount.CHANNEL_META
+        account.external_account_id = "meta-test-account"
+        account.save(update_fields=["channel", "external_account_id", "updated_at"])
+
+        blocked = external_campaign_execution_service.live_mutation_safety_errors(
+            campaign, "meta", account, user=self.vendor_user
+        )
+        self.assertIn("staff_required", blocked)
+        self.assertIn("meta_test_writes_disabled", blocked)
+        self.assertIn("external_account_not_allowlisted", blocked)
+        self.assertNotIn("provider_write_not_enabled", blocked)
+
+        self.vendor_user.is_staff = True
+        self.vendor_user.save(update_fields=["is_staff"])
+
+        with self.settings(
+            ADS_META_ALLOW_TEST_WRITES=True,
+            ADS_META_TEST_ACCOUNT_ALLOWLIST=["meta-test-account"],
+        ):
+            allowed = external_campaign_execution_service.live_mutation_safety_errors(
+                campaign, "meta", account, user=self.vendor_user
+            )
+
+        self.assertEqual(allowed, [])
+
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     def test_external_objective_mapping_is_explicit_and_unsupported_returns_review_error(self):
         identity, campaign, account = self._execution_campaign(objective=AdCampaign.OBJECTIVE_MESSAGES)
@@ -2906,6 +2938,107 @@ class AdsV2FoundationTests(TestCase):
         self.assertTrue(body["dry_run"])
         self.assertEqual(body["provider"], "google")
         self.assertEqual(body["payload"]["campaign"]["campaign_type"], "DEMAND_GEN")
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_campaign_fetch_and_status_are_mocked_and_normalized(self, mock_get):
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {
+                    "id": "987654321",
+                    "name": "Arolana Meta Test",
+                    "status": "PAUSED",
+                    "effective_status": "PAUSED",
+                    "objective": "OUTCOME_TRAFFIC",
+                }
+
+        identity, campaign, account = self._execution_campaign()
+        account.channel = ExternalAdvertisingAccount.CHANNEL_META
+        account.external_account_id = "meta-test-account"
+        account.save(update_fields=["channel", "external_account_id", "updated_at"])
+
+        credential = account.credential
+        credential.provider = "meta"
+        credential.save(update_fields=["provider", "updated_at"])
+
+        execution = AdChannelExecution.objects.create(
+            campaign=campaign,
+            advertiser_identity=identity,
+            channel="meta",
+            external_account=account,
+            external_campaign_id="987654321",
+            idempotency_key="meta-idempotency",
+            status=AdChannelExecution.STATUS_PAUSED,
+            currency="NGN",
+        )
+
+        mock_get.return_value = Response()
+
+        provider = provider_for("meta")
+        fetched = provider.fetch_campaign(execution)
+        synced = provider.sync_status(execution)
+
+        self.assertEqual(fetched["external_campaign_id"], "987654321")
+        self.assertEqual(fetched["name"], "Arolana Meta Test")
+        self.assertEqual(fetched["status"], "PAUSED")
+        self.assertEqual(fetched["effective_status"], "PAUSED")
+        self.assertEqual(fetched["objective"], "OUTCOME_TRAFFIC")
+
+        self.assertEqual(synced["status"], "paused")
+        self.assertEqual(synced["external_status"], "PAUSED")
+
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertIn(
+            "/987654321",
+            mock_get.call_args_list[0].args[0],
+        )
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_meta_reporting_is_mocked_and_normalized(self, mock_get):
+        identity, campaign, account = self._execution_campaign()
+        account.channel = ExternalAdvertisingAccount.CHANNEL_META
+        account.external_account_id = "meta-test-account"
+        account.save(update_fields=["channel", "external_account_id", "updated_at"])
+
+        credential = account.credential
+        credential.provider = "meta"
+        credential.save(update_fields=["provider", "updated_at"])
+
+        execution = AdChannelExecution.objects.create(
+            campaign=campaign,
+            advertiser_identity=identity,
+            channel="meta",
+            external_account=account,
+            external_campaign_id="987654321",
+            currency="NGN",
+        )
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {"data": [{"impressions": "120", "clicks": "15", "spend": "3500.50", "actions": [{"action_type": "video_view", "value": "40"}, {"action_type": "purchase", "value": "3"}]}]}
+
+        mock_get.return_value = Response()
+
+        reporting = provider_for("meta").fetch_reporting(execution, "2026-09-01", "2026-09-05")
+        snapshot = external_campaign_execution_service.normalize_reporting(
+            execution, reporting, "2026-09-01", "2026-09-05"
+        )
+        self.assertEqual(snapshot.impressions, 120)
+        self.assertEqual(snapshot.clicks, 15)
+        self.assertEqual(snapshot.spend, Decimal("3500.50"))
+        self.assertEqual(snapshot.video_views, 40)
+        self.assertEqual(snapshot.provider_conversions, 3)
+        self.assertEqual(snapshot.currency, "NGN")
+        self.assertEqual(str(snapshot.reporting_start), "2026-09-01")
+        self.assertEqual(str(snapshot.reporting_end), "2026-09-05")
+        self.assertIn("/987654321/insights", mock_get.call_args.args[0])
+        self.assertEqual(
+            mock_get.call_args.kwargs["params"]["time_range"],
+            '{"since":"2026-09-01","until":"2026-09-05"}',
+        )
 
     @override_settings(
         ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",

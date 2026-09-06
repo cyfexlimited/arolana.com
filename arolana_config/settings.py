@@ -632,6 +632,16 @@ ADS_TIKTOK_CONNECTION_ENABLED = config("ADS_TIKTOK_CONNECTION_ENABLED", default=
 ADS_LINKEDIN_CONNECTION_ENABLED = config("ADS_LINKEDIN_CONNECTION_ENABLED", default=False, cast=bool)
 ADS_META_CLIENT_ID = config("ADS_META_CLIENT_ID", default="")
 ADS_META_CLIENT_SECRET = config("ADS_META_CLIENT_SECRET", default="")
+ADS_META_ALLOW_TEST_WRITES = config(
+    "ADS_META_ALLOW_TEST_WRITES",
+    default=False,
+    cast=bool,
+)
+ADS_META_TEST_ACCOUNT_ALLOWLIST = config(
+    "ADS_META_TEST_ACCOUNT_ALLOWLIST",
+    default="",
+    cast=lambda value: [item.strip() for item in value.split(",") if item.strip()],
+)
 ADS_GOOGLE_CLIENT_ID = config("ADS_GOOGLE_CLIENT_ID", default="")
 ADS_GOOGLE_CLIENT_SECRET = config("ADS_GOOGLE_CLIENT_SECRET", default="")
 ADS_GOOGLE_DEVELOPER_TOKEN = config("ADS_GOOGLE_DEVELOPER_TOKEN", default="")

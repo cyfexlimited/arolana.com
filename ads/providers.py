@@ -1,6 +1,7 @@
 import logging
 import re
 import secrets
+from decimal import Decimal
 from dataclasses import dataclass, field
 from datetime import timedelta
 from urllib.parse import urlencode
@@ -338,6 +339,145 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
             for item in response.json().get("data", [])
         ]
 
+
+    def fetch_campaign(self, execution):
+        if not execution.external_campaign_id:
+            raise ProviderAPIError("missing_external_campaign_id")
+
+        credential = getattr(execution.external_account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError("missing_credential")
+        if credential.revoked_at:
+            raise ProviderAuthorizationError("credential_revoked")
+
+        response = requests.get(
+            f"https://graph.facebook.com/v24.0/{execution.external_campaign_id}",
+            headers=self._bearer_headers(credential),
+            params={"fields": "id,name,status,effective_status,objective,start_time,stop_time"},
+            timeout=20,
+        )
+
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError(
+                "meta_authorization_failed",
+                stage="campaign_read",
+                http_status=response.status_code,
+            )
+        if response.status_code == 429:
+            raise ProviderAPIError(
+                "meta_rate_limited",
+                stage="campaign_read",
+                http_status=response.status_code,
+            )
+        if response.status_code >= 400:
+            raise ProviderAPIError(
+                "meta_api_error",
+                stage="campaign_read",
+                http_status=response.status_code,
+            )
+
+        data = response.json()
+        return {
+            "external_campaign_id": str(data.get("id") or execution.external_campaign_id),
+            "name": data.get("name", ""),
+            "status": data.get("status", ""),
+            "effective_status": data.get("effective_status", ""),
+            "objective": data.get("objective", ""),
+            "start_time": data.get("start_time", ""),
+            "stop_time": data.get("stop_time", ""),
+        }
+
+    def sync_status(self, execution):
+        data = self.fetch_campaign(execution)
+        external_status = data.get("effective_status") or data.get("status") or ""
+        status_map = {
+            "ACTIVE": "active",
+            "PAUSED": "paused",
+            "DELETED": "completed",
+            "ARCHIVED": "completed",
+        }
+        return {
+            "status": status_map.get(external_status, execution.status),
+            "external_status": external_status,
+            "readback": data,
+        }
+    def fetch_reporting(self, execution, reporting_start=None, reporting_end=None):
+        if not execution.external_campaign_id:
+            raise ProviderAPIError("missing_external_campaign_id")
+
+        credential = getattr(execution.external_account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError("missing_credential")
+        if credential.revoked_at:
+            raise ProviderAuthorizationError("credential_revoked")
+
+        start = reporting_start.isoformat() if hasattr(reporting_start, "isoformat") else reporting_start
+        end = reporting_end.isoformat() if hasattr(reporting_end, "isoformat") else reporting_end
+
+        params = {"fields": "impressions,clicks,spend,actions"}
+        if start and end:
+            params["time_range"] = '{"since":"%s","until":"%s"}' % (start, end)
+
+        response = requests.get(
+            f"https://graph.facebook.com/v24.0/{execution.external_campaign_id}/insights",
+                       headers=self._bearer_headers(credential),
+            params=params,
+            timeout=20,
+        )
+
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError(
+                "meta_authorization_failed",
+                stage="reporting_fetch",
+                http_status=response.status_code,
+            )
+        if response.status_code == 429:
+            raise ProviderAPIError(
+                "meta_rate_limited",
+                stage="reporting_fetch",
+                http_status=response.status_code,
+            )
+        if response.status_code >= 400:
+            raise ProviderAPIError(
+                "meta_api_error",
+                stage="reporting_fetch",
+                http_status=response.status_code,
+            )
+
+        totals = {
+            "impressions": 0,
+            "clicks": 0,
+            "spend": Decimal("0"),
+            "video_views": 0,
+            "conversions": 0,
+            "currency": execution.currency,
+        }
+
+        for row in response.json().get("data", []):
+            totals["impressions"] += int(row.get("impressions") or 0)
+            totals["clicks"] += int(row.get("clicks") or 0)
+            totals["spend"] += Decimal(str(row.get("spend") or "0"))
+
+            for action in row.get("actions", []):
+                action_type = action.get("action_type") or ""
+                value = int(float(action.get("value") or 0))
+
+                if action_type == "video_view":
+                    totals["video_views"] += value
+                if action_type == "purchase":
+                    totals["conversions"] += value
+
+        totals["spend"] = str(totals["spend"])
+
+        audit_connection(
+            self.provider,
+            AdvertisingConnectionAuditLog.EVENT_REPORT_PULLED,
+            advertiser_identity=execution.advertiser_identity,
+            external_account=execution.external_account,
+            status="pulled",
+            metadata={"external_campaign_id": execution.external_campaign_id},
+        )
+        return {"metrics": totals}
 
 class GoogleAdsProvider(AdvertisingProviderAdapter):
     provider = "google"
