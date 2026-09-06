@@ -396,13 +396,11 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
                 stage="campaign_create",
             )
 
-        readback_execution = execution
-        original_external_campaign_id = execution.external_campaign_id
-        execution.external_campaign_id = external_campaign_id
-        try:
-            readback = self.fetch_campaign(readback_execution)
-        finally:
-            execution.external_campaign_id = original_external_campaign_id
+        readback = self.fetch_campaign_by_id(
+            execution,
+            external_campaign_id,
+            stage="campaign_readback",
+        )
 
         return {
             "external_campaign_id": external_campaign_id,
@@ -418,41 +416,64 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
         if not execution.external_campaign_id:
             raise ProviderAPIError("missing_external_campaign_id")
 
+        return self.fetch_campaign_by_id(
+            execution,
+            execution.external_campaign_id,
+        )
+
+    def fetch_campaign_by_id(
+        self,
+        execution,
+        external_campaign_id,
+        *,
+        stage="campaign_read",
+    ):
         credential = getattr(execution.external_account, "credential", None)
         if not credential:
             raise ProviderAuthorizationError("missing_credential")
         if credential.revoked_at:
             raise ProviderAuthorizationError("credential_revoked")
 
+        external_campaign_id = str(external_campaign_id or "")
+        if not external_campaign_id:
+            raise ProviderAPIError("missing_external_campaign_id")
+
         response = requests.get(
-            f"https://graph.facebook.com/v24.0/{execution.external_campaign_id}",
+            f"https://graph.facebook.com/v24.0/{external_campaign_id}",
             headers=self._bearer_headers(credential),
-            params={"fields": "id,name,status,effective_status,objective,start_time,stop_time"},
+            params={
+                "fields": (
+                    "id,name,status,effective_status,objective,"
+                    "start_time,stop_time"
+                )
+            },
             timeout=20,
         )
 
         if response.status_code in {401, 403}:
             raise ProviderAuthorizationError(
                 "meta_authorization_failed",
-                stage="campaign_read",
+                stage=stage,
                 http_status=response.status_code,
             )
         if response.status_code == 429:
             raise ProviderAPIError(
                 "meta_rate_limited",
-                stage="campaign_read",
+                stage=stage,
                 http_status=response.status_code,
             )
         if response.status_code >= 400:
             raise ProviderAPIError(
                 "meta_api_error",
-                stage="campaign_read",
+                stage=stage,
                 http_status=response.status_code,
             )
 
         data = response.json()
         return {
-            "external_campaign_id": str(data.get("id") or execution.external_campaign_id),
+            "external_campaign_id": str(
+                data.get("id") or external_campaign_id
+            ),
             "name": data.get("name", ""),
             "status": data.get("status", ""),
             "effective_status": data.get("effective_status", ""),
