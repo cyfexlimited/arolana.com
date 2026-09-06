@@ -40,6 +40,7 @@ class V2RecommendationAdapter:
                 "delivery_id": tracking.get("delivery_id") or "",
                 "asset_id": tracking.get("asset_id"),
                 "campaign_id": tracking.get("campaign_id"),
+                "delivery_token": tracking.get("delivery_token") or "",
             },
             "ui": {
                 "surface": surface,

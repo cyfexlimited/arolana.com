@@ -9,6 +9,7 @@ from uuid import uuid4
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.core.management import call_command
+from django.core import signing
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.backends.db import SessionStore
 from django.core.cache import cache
@@ -61,6 +62,7 @@ from .providers import (
 from .reporting import advertiser_reporting_service
 from .services import AdService
 from .attribution import commerce_attribution_service
+from .decisioning import decisioning_service
 
 
 class LegacyAdsCompatibilityTests(TestCase):
@@ -445,21 +447,31 @@ class AdsV2FoundationTests(TestCase):
     @override_settings(ADS_RECOMMENDATION_V2_API_ENABLED=True, ADS_RECOMMENDATION_V2_WEB_ENABLED=True)
     def test_v2_event_endpoint_is_idempotent_by_event_uuid(self):
         event_uuid = str(uuid4())
+        delivery = self._issued_event_payload()
 
         first = self.client.post(
             reverse("ads_api:events_v2"),
-            data={"event_uuid": event_uuid, "event_type": AdEvent.EVENT_IMPRESSION},
+            data={"event_uuid": event_uuid, "event_type": AdEvent.EVENT_IMPRESSION, **delivery},
             content_type="application/json",
         )
         second = self.client.post(
             reverse("ads_api:events_v2"),
-            data={"event_uuid": event_uuid, "event_type": AdEvent.EVENT_IMPRESSION},
+            data={"event_uuid": event_uuid, "event_type": AdEvent.EVENT_IMPRESSION, **delivery},
             content_type="application/json",
         )
 
         self.assertEqual(first.status_code, 201)
         self.assertEqual(second.status_code, 200)
         self.assertEqual(AdEvent.objects.filter(event_uuid=event_uuid).count(), 1)
+
+        replay = self.client.post(
+            reverse("ads_api:events_v2"),
+            data={"event_uuid": str(uuid4()), "event_type": AdEvent.EVENT_IMPRESSION, **delivery},
+            content_type="application/json",
+        )
+        self.assertEqual(replay.status_code, 200)
+        self.assertFalse(replay.json()["created"])
+        self.assertEqual(AdEvent.objects.filter(delivery_id=delivery["delivery_id"]).count(), 1)
 
     @override_settings(ADS_RECOMMENDATION_V2_API_ENABLED=True, ADS_RECOMMENDATION_V2_WEB_ENABLED=True)
     def test_v2_event_endpoint_rejects_client_conversion_events(self):
@@ -474,11 +486,13 @@ class AdsV2FoundationTests(TestCase):
 
     @override_settings(ADS_RECOMMENDATION_V2_API_ENABLED=True)
     def test_v2_event_endpoint_redacts_sensitive_metadata(self):
+        delivery = self._issued_event_payload()
         response = self.client.post(
             reverse("ads_api:events_v2"),
             data={
                 "event_uuid": str(uuid4()),
                 "event_type": AdEvent.EVENT_CLICK,
+                **delivery,
                 "metadata": {
                     "placement": "home",
                     "revenue": "999999",
@@ -491,6 +505,75 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(response.status_code, 201)
         event = AdEvent.objects.get()
         self.assertEqual(event.metadata, {"placement": "home"})
+
+    @override_settings(ADS_RECOMMENDATION_V2_API_ENABLED=True)
+    def test_v2_event_rejects_missing_tampered_or_mismatched_delivery(self):
+        event_uuid = str(uuid4())
+        delivery = self._issued_event_payload()
+        missing = self.client.post(
+            reverse("ads_api:events_v2"),
+            data={"event_uuid": event_uuid, "event_type": AdEvent.EVENT_CLICK},
+            content_type="application/json",
+        )
+        tampered = self.client.post(
+            reverse("ads_api:events_v2"),
+            data={"event_uuid": str(uuid4()), "event_type": AdEvent.EVENT_CLICK, **delivery, "delivery_token": delivery["delivery_token"] + "x"},
+            content_type="application/json",
+        )
+        mismatched = self.client.post(
+            reverse("ads_api:events_v2"),
+            data={"event_uuid": str(uuid4()), "event_type": AdEvent.EVENT_CLICK, **delivery, "delivery_id": str(uuid4())},
+            content_type="application/json",
+        )
+        invalid_uuid = self.client.post(
+            reverse("ads_api:events_v2"),
+            data={"event_uuid": "not-a-uuid", "event_type": AdEvent.EVENT_CLICK, **delivery},
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            [missing.status_code, tampered.status_code, mismatched.status_code, invalid_uuid.status_code],
+            [400, 400, 400, 400],
+        )
+        self.assertEqual(invalid_uuid.json()["error"], "invalid_event_uuid")
+        self.assertEqual(AdEvent.objects.count(), 0)
+
+    @override_settings(ADS_RECOMMENDATION_V2_API_ENABLED=True)
+    def test_v2_event_derives_asset_and_campaign_from_delivery(self):
+        asset = self._campaign_asset()
+        delivery = self._issued_event_payload(asset=asset)
+        response = self.client.post(
+            reverse("ads_api:events_v2"),
+            data={
+                "event_uuid": str(uuid4()),
+                "event_type": AdEvent.EVENT_CLICK,
+                "asset_id": 999999,
+                "campaign_id": 999999,
+                "ads_session_id": str(uuid4()),
+                **delivery,
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        event = AdEvent.objects.get()
+        self.assertEqual(event.asset, asset)
+        self.assertEqual(event.campaign, asset.campaign)
+        self.assertEqual(event.advertiser_identity, asset.advertiser_identity)
+        self.assertRegex(event.session_id, r"^[0-9a-f-]{36}$")
+
+        invalid_session = self.client.post(
+            reverse("ads_api:events_v2"),
+            data={
+                "event_uuid": str(uuid4()),
+                "event_type": AdEvent.EVENT_VIEW,
+                "ads_session_id": "not-a-valid-session",
+                **delivery,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(invalid_session.status_code, 400)
+        self.assertEqual(invalid_session.json()["error"], "invalid_ads_session_id")
 
     @override_settings(ADS_RECOMMENDATION_V2_API_ENABLED=True)
     def test_v2_event_endpoint_rejects_oversized_payloads(self):
@@ -540,6 +623,22 @@ class AdsV2FoundationTests(TestCase):
                 **(metadata or {}),
             },
         )
+
+    def _issued_event_payload(self, asset=None, delivery_id=None):
+        asset = asset or self._campaign_asset()
+        delivery_id = delivery_id or uuid4()
+        return {
+            "delivery_id": str(delivery_id),
+            "delivery_token": signing.dumps(
+                {
+                    "delivery_id": str(delivery_id),
+                    "asset_id": asset.pk,
+                    "campaign_id": asset.campaign_id,
+                },
+                salt="ads.v2.delivery",
+                compress=True,
+            ),
+        }
 
     @override_settings(
         ADS_RECOMMENDATION_V2_API_ENABLED=True,
@@ -695,7 +794,7 @@ class AdsV2FoundationTests(TestCase):
                 "event_uuid": str(uuid4()),
                 "event_type": AdEvent.EVENT_CLICK,
                 "delivery_id": sponsored["tracking"]["delivery_id"],
-                "asset_id": sponsored["tracking"]["asset_id"],
+                "delivery_token": sponsored["tracking"]["delivery_token"],
             },
             content_type="application/json",
         )
@@ -763,7 +862,7 @@ class AdsV2FoundationTests(TestCase):
 
         response = self.client.post(
             reverse("ads_api:events_v2"),
-            data={"event_uuid": str(uuid4()), "event_type": AdEvent.EVENT_CLICK},
+            data={"event_uuid": str(uuid4()), "event_type": AdEvent.EVENT_CLICK, **self._issued_event_payload()},
             content_type="application/json",
         )
 
@@ -843,6 +942,35 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(attribution.order, order)
         self.assertEqual(attribution.order_item, item)
         self.assertTrue(attribution.metadata["server_authoritative"])
+
+    def test_order_item_opaque_delivery_id_drives_paid_order_attribution(self):
+        asset = self._campaign_asset()
+        delivery_id = uuid4()
+        click = AdEvent.objects.create(
+            event_type=AdEvent.EVENT_CLICK,
+            delivery_id=delivery_id,
+            asset=asset,
+            campaign=asset.campaign,
+            advertiser_identity=asset.advertiser_identity,
+            user=self.customer_user,
+        )
+        order = Order.objects.create(
+            user=self.customer_user,
+            subtotal=Decimal("100.00"), shipping_cost=0, tax=0, total=Decimal("100.00"),
+            shipping_address="1 Customer Street", billing_address="1 Customer Street", payment_status="paid",
+        )
+        item = OrderItem.objects.create(
+            order=order, product=self.product, quantity=1, price=Decimal("100.00"),
+            subtotal=Decimal("100.00"), ads_delivery_id=delivery_id,
+            recommendation_section="existing_legacy_section", recommendation_algorithm="existing_legacy_algorithm",
+        )
+
+        attributions = attribute_paid_order_for_ads(order)
+
+        self.assertEqual(len(attributions), 1)
+        self.assertEqual(attributions[0].source_event, click)
+        self.assertEqual(item.recommendation_section, "existing_legacy_section")
+        self.assertEqual(item.recommendation_algorithm, "existing_legacy_algorithm")
 
     def test_paid_order_hook_attributes_once_and_skips_cancelled_orders(self):
         asset = self._campaign_asset()
@@ -1073,7 +1201,13 @@ class AdsV2FoundationTests(TestCase):
 
         response = self.client.get(
             reverse("ads_api:recommendations_v2"),
-            {"placement": "product_recommendations", "device": "mobile", "limit": 5, "client": "app"},
+            {
+                "placement": "product_recommendations",
+                "device": "mobile",
+                "limit": 5,
+                "client": "app",
+                "ads_session_id": str(uuid4()),
+            },
             HTTP_USER_AGENT="ArolanaMobile/1.0",
         )
 
@@ -1085,11 +1219,68 @@ class AdsV2FoundationTests(TestCase):
         self.assertNotIn("max_bid", str(sponsored[0]))
 
         adapted = response.json()["adapter_results"]
+        self.assertEqual(response.json()["recommendations"], adapted)
         sponsored_adapted = [item for item in adapted if item["sponsored"]]
         self.assertTrue(sponsored_adapted)
         self.assertEqual(sponsored_adapted[0]["ui"]["badge"], "Sponsored")
         self.assertEqual(sponsored_adapted[0]["ui"]["client"], "app")
         self.assertTrue(sponsored_adapted[0]["tracking"]["delivery_id"])
+        self.assertTrue(sponsored_adapted[0]["tracking"]["delivery_token"])
+
+    @override_settings(
+        ADS_RECOMMENDATION_V2_API_ENABLED=True,
+        ADS_RECOMMENDATION_V2_APP_ENABLED=True,
+        ADS_RECOMMENDATION_V2_WEB_ENABLED=False,
+    )
+    def test_native_client_uses_app_flag_and_validated_session(self):
+        session_id = str(uuid4())
+        native = self.client.get(
+            reverse("ads_api:recommendations_v2"),
+            {"client": "app", "ads_session_id": session_id},
+        )
+        web = self.client.get(reverse("ads_api:recommendations_v2"))
+
+        self.assertEqual(native.status_code, 200)
+        self.assertEqual(native.json()["context"]["client"], "app")
+        self.assertEqual(web.status_code, 404)
+        context = decisioning_service.context_from_request(native.wsgi_request)
+        self.assertEqual(context.session_id, session_id)
+
+    @override_settings(
+        ADS_RECOMMENDATION_V2_API_ENABLED=True,
+        ADS_RECOMMENDATION_V2_APP_ENABLED=True,
+        ADS_RECOMMENDATION_V2_SPONSORED_ENABLED=True,
+    )
+    def test_native_missing_or_invalid_session_falls_back_to_organic(self):
+        self._campaign_asset()
+        response = self.client.get(
+            reverse("ads_api:recommendations_v2"),
+            {"client": "app", "placement": "product_recommendations", "device": "desktop", "ads_session_id": "invalid"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(any(item["sponsored"] for item in response.json()["recommendations"]))
+
+    def test_public_media_contract_is_safe_for_supported_types(self):
+        request = RequestFactory().get("/api/ads/v2/recommendations/")
+        good = SimpleNamespace(url="/media/public/example.jpg")
+        malformed = SimpleNamespace(url="private-storage-key-without-public-path")
+        product = SimpleNamespace(pk=1, name="Product", slug="product", price=10, main_image=good, get_absolute_url=lambda: "/p/product/")
+        video = SimpleNamespace(pk=2, title="Video", product_id=1, product=product, source="youtube", thumbnail=malformed)
+        provider = SimpleNamespace(pk=3, business_name="Provider", slug="provider", business_logo=good, profile_image=None)
+        service = SimpleNamespace(pk=4, service_name="Service", provider_id=3, provider=provider)
+        store = SimpleNamespace(pk=5, display_name="Store", store_name="Store", store_slug="store", store_logo=None)
+
+        payloads = {
+            kind: decisioning_service._public_item_payload(kind, obj, request=request)
+            for kind, obj in {"product": product, "product_video": video, "service": service, "provider": provider, "store": store}.items()
+        }
+        self.assertTrue(payloads["product"]["image_url"].endswith("/media/public/example.jpg"))
+        self.assertTrue(payloads["product_video"]["thumbnail_url"].endswith("/media/public/example.jpg"))
+        self.assertTrue(payloads["service"]["image_url"].endswith("/media/public/example.jpg"))
+        self.assertTrue(payloads["provider"]["image_url"].endswith("/media/public/example.jpg"))
+        self.assertEqual(payloads["store"]["image_url"], "")
+        self.assertEqual(payloads["product_video"]["product_slug"], "product")
 
     def test_v2_adapter_supports_all_initial_result_types(self):
         results = [

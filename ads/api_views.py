@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from decimal import Decimal
 from datetime import datetime
 from urllib.parse import urlencode
@@ -53,6 +54,7 @@ from .providers import (
     validate_oauth_state,
 )
 from .credentials import CredentialEncryptionError
+from .contracts import InvalidAdsDelivery, native_ads_session_id, verified_ads_delivery
 
 logger = logging.getLogger(__name__)
 
@@ -310,6 +312,9 @@ def recommendations_v2(request):
             },
             "results": candidates,
             "adapter_results": adapted,
+            # Canonical provider-neutral client contract. The two older fields
+            # remain during migration for existing web and API consumers.
+            "recommendations": adapted,
         }
     )
 
@@ -451,23 +456,63 @@ def events_v2(request):
     if data is None:
         return JsonResponse({"success": False, "error": "payload_too_large"}, status=413)
 
-    event_uuid = data.get("event_uuid")
-    delivery_id = data.get("delivery_id")
+    try:
+        event_uuid = uuid.UUID(str(data.get("event_uuid") or ""))
+    except (ValueError, AttributeError):
+        return JsonResponse({"success": False, "error": "invalid_event_uuid"}, status=400)
+    if event_uuid.version != 4:
+        return JsonResponse({"success": False, "error": "invalid_event_uuid"}, status=400)
+
+    delivery_id = str(data.get("delivery_id") or "").strip()
     event_type = data.get("event_type")
-    if not event_uuid or event_type not in CLIENT_EVENT_TYPES:
+    if not delivery_id or event_type not in CLIENT_EVENT_TYPES:
         return JsonResponse({"success": False, "error": "invalid_event"}, status=400)
 
-    asset = None
-    asset_id = data.get("asset_id")
-    if asset_id:
-        try:
-            asset = CampaignAsset.objects.select_related("campaign", "advertiser_identity").get(pk=int(asset_id))
-        except (TypeError, ValueError, CampaignAsset.DoesNotExist):
-            return JsonResponse({"success": False, "error": "invalid_asset"}, status=400)
+    try:
+        issued_delivery_id, asset = verified_ads_delivery(data.get("delivery_token"), delivery_id)
+        issued_delivery_id = str(issued_delivery_id)
+    except InvalidAdsDelivery:
+        return JsonResponse({"success": False, "error": "invalid_delivery"}, status=400)
 
     metadata = _safe_metadata(data.get("metadata", {}))
     if _is_internal_test_request(request):
         metadata["internal_test"] = True
+
+    session_id = native_ads_session_id(data.get("ads_session_id"))
+    if data.get("ads_session_id") and not session_id:
+        return JsonResponse({"success": False, "error": "invalid_ads_session_id"}, status=400)
+    if not session_id and getattr(request, "session", None):
+        session_id = request.session.session_key or ""
+
+    existing_uuid_event = AdEvent.objects.filter(event_uuid=event_uuid).first()
+    if existing_uuid_event:
+        if (
+            str(existing_uuid_event.delivery_id) != issued_delivery_id
+            or existing_uuid_event.event_type != event_type
+        ):
+            return JsonResponse({"success": False, "error": "event_uuid_reused"}, status=409)
+        return JsonResponse(
+            {
+                "success": True,
+                "created": False,
+                "event_id": existing_uuid_event.pk,
+                "event_uuid": str(existing_uuid_event.event_uuid),
+            }
+        )
+
+    existing_delivery_event = AdEvent.objects.filter(
+        delivery_id=issued_delivery_id,
+        event_type=event_type,
+    ).first()
+    if existing_delivery_event:
+        return JsonResponse(
+            {
+                "success": True,
+                "created": False,
+                "event_id": existing_delivery_event.pk,
+                "event_uuid": str(existing_delivery_event.event_uuid),
+            }
+        )
 
     event, created = AdEvent.objects.get_or_create(
         event_uuid=event_uuid,
@@ -477,7 +522,7 @@ def events_v2(request):
             "asset": asset,
             "campaign": asset.campaign if asset else None,
             "advertiser_identity": asset.advertiser_identity if asset else None,
-            "session_id": data.get("session_id", "")[:200],
+            "session_id": session_id,
             "request_id": data.get("request_id", "")[:100],
             "event_source": data.get("event_source", "internal")[:50],
             "metadata": metadata,

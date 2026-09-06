@@ -14,6 +14,7 @@
                 data-ads-delivery-id="{{ result.tracking.delivery_id }}"
                 data-ads-asset-id="{{ result.tracking.asset_id|default:'' }}"
                 data-ads-campaign-id="{{ result.tracking.campaign_id|default:'' }}"
+                data-ads-delivery-token="{{ result.tracking.delivery_token|default:'' }}"
                 data-ads-item-type="{{ result.type }}"
                 data-ads-surface="{{ placement }}"
             >
@@ -215,6 +216,7 @@
                 event_uuid: stableUuid(key),
                 event_type: eventType,
                 delivery_id: deliveryId,
+                delivery_token: card.getAttribute("data-ads-delivery-token") || "",
                 asset_id: card.getAttribute("data-ads-asset-id") || null,
                 campaign_id: card.getAttribute("data-ads-campaign-id") || null,
                 event_source: "web",

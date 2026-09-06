@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem, MobilePushToken
 from .services import calculate_delivery_quote, notify_staff_delivery, requires_delivery_admin_quote, select_delivery_provider
 from products.models import Accessory, Product
+from ads.contracts import InvalidAdsDelivery, campaign_asset_matches_product, verified_ads_delivery
 from core.media_optimization import get_optimized_image_url
 
 try:
@@ -324,6 +325,14 @@ def _recommendation_metadata_from_item(item):
     }
 
 
+def _verified_ads_delivery_id(delivery_id, delivery_token, product):
+    try:
+        verified_id, asset = verified_ads_delivery(delivery_token, delivery_id)
+        return verified_id if campaign_asset_matches_product(asset, product) else None
+    except InvalidAdsDelivery:
+        return None
+
+
 @require_POST
 def delivery_quote_request(request):
     data = _json_body(request)
@@ -556,6 +565,11 @@ def mobile_create_order_api(request):
                 "price": price,
                 "quantity": quantity,
                 "line_total": line_total,
+                "ads_delivery_id": _verified_ads_delivery_id(
+                    item.get("ads_delivery_id"),
+                    item.get("ads_delivery_token"),
+                    product,
+                ),
                 **recommendation_metadata,
             }
         )
@@ -714,6 +728,7 @@ def mobile_create_order_api(request):
                     recommendation_score=item.get(
                         "recommendation_score",
                     ),
+                    ads_delivery_id=item.get("ads_delivery_id"),
                 )
 
                 order_items_response.append(

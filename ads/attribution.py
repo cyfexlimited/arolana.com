@@ -91,7 +91,7 @@ class CommerceAttributionService:
         source_event = source_event or self.find_last_touch(
             user=getattr(order, "user", None),
             product=product,
-            delivery_id=delivery_id,
+            delivery_id=delivery_id or getattr(order_item, "ads_delivery_id", None),
         )
         if source_event is None or source_event.asset_id is None:
             return None

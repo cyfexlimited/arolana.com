@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core import signing
 from django.utils import timezone
 
 from installers.models import ProviderService, ServiceProviderProfile
@@ -12,6 +13,7 @@ from products.services.recommendation_engine import RecommendationEngine
 from vendors.models import VendorProfile
 
 from .models import AdEvent, CampaignAsset
+from .contracts import native_ads_session_id
 from .ownership import ownership_resolver
 
 
@@ -82,6 +84,11 @@ class UnifiedRecommendationDecisioningService:
                 return None
             return value or None
 
+        client = (request.GET.get("client") or request.GET.get("source") or "web").strip().lower()
+        native_session_id = ""
+        if client in {"app", "mobile", "mobile_app", "react_native"}:
+            native_session_id = native_ads_session_id(request.GET.get("ads_session_id"))
+
         return DecisionContext(
             placement=(request.GET.get("placement") or request.GET.get("surface") or "default")[:80],
             surface=(request.GET.get("surface") or "")[:80],
@@ -95,7 +102,11 @@ class UnifiedRecommendationDecisioningService:
             search_query=(request.GET.get("q") or request.GET.get("query") or "")[:160],
             device=(request.GET.get("device") or self._request_device(request))[:30],
             country=(request.GET.get("country") or "")[:2].upper(),
-            session_id=getattr(request, "session", None).session_key if getattr(request, "session", None) else "",
+            session_id=(
+                native_session_id
+                or (getattr(request, "session", None).session_key if getattr(request, "session", None) else "")
+                or ""
+            ),
             user=request.user if getattr(request, "user", None) and request.user.is_authenticated else None,
         )
 
@@ -112,7 +123,7 @@ class UnifiedRecommendationDecisioningService:
             sponsored = self._eligible_sponsored_candidates(context)
 
         mixed = self._mix_candidates(organic, sponsored, context, limit)
-        return [self._candidate_to_dict(candidate) for candidate in mixed[:limit]]
+        return [self._candidate_to_dict(candidate, request=request) for candidate in mixed[:limit]]
 
     def _organic_candidates(self, request, context, limit):
         candidates = []
@@ -159,6 +170,7 @@ class UnifiedRecommendationDecisioningService:
                 "advertiser_identity__provider",
                 "content_type",
                 "product_video",
+                "product_video__product",
             )
         )
 
@@ -284,7 +296,18 @@ class UnifiedRecommendationDecisioningService:
 
         return result
 
-    def _candidate_to_dict(self, candidate):
+    def _candidate_to_dict(self, candidate, request=None):
+        delivery_token = ""
+        if candidate.delivery_id and candidate.asset:
+            delivery_token = signing.dumps(
+                {
+                    "delivery_id": candidate.delivery_id,
+                    "asset_id": candidate.asset.pk,
+                    "campaign_id": candidate.asset.campaign_id,
+                },
+                salt="ads.v2.delivery",
+                compress=True,
+            )
         payload = {
             "type": candidate.type,
             "id": candidate.id,
@@ -297,12 +320,13 @@ class UnifiedRecommendationDecisioningService:
                 "delivery_id": candidate.delivery_id,
                 "asset_id": candidate.asset.pk if candidate.asset else None,
                 "campaign_id": candidate.asset.campaign_id if candidate.asset else None,
+                "delivery_token": delivery_token,
             },
-            "item": self._public_item_payload(candidate.type, candidate.object),
+            "item": self._public_item_payload(candidate.type, candidate.object, request=request),
         }
         return payload
 
-    def _public_item_payload(self, candidate_type, obj):
+    def _public_item_payload(self, candidate_type, obj, request=None):
         if candidate_type == "product":
             return {
                 "id": obj.pk,
@@ -310,33 +334,66 @@ class UnifiedRecommendationDecisioningService:
                 "slug": getattr(obj, "slug", ""),
                 "price": str(getattr(obj, "price", "")),
                 "url": obj.get_absolute_url() if hasattr(obj, "get_absolute_url") else "",
+                "image_url": self._public_media_url(request, getattr(obj, "main_image", None)),
             }
         if candidate_type == "product_video":
+            product = getattr(obj, "product", None)
             return {
                 "id": obj.pk,
+                "video_id": obj.pk,
                 "title": getattr(obj, "title", ""),
                 "product_id": getattr(obj, "product_id", None),
+                "product_slug": getattr(product, "slug", ""),
+                "product_name": getattr(product, "name", ""),
                 "source": getattr(obj, "source", ""),
+                "thumbnail_url": self._public_media_url(
+                    request,
+                    getattr(obj, "thumbnail", None),
+                    getattr(product, "main_image", None),
+                ),
             }
         if candidate_type == "service":
+            provider = getattr(obj, "provider", None)
             return {
                 "id": obj.pk,
                 "name": getattr(obj, "service_name", ""),
                 "provider_id": getattr(obj, "provider_id", None),
+                "image_url": self._public_media_url(
+                    request,
+                    getattr(provider, "business_logo", None),
+                ),
             }
         if candidate_type == "provider":
             return {
                 "id": obj.pk,
                 "name": getattr(obj, "business_name", ""),
                 "slug": getattr(obj, "slug", ""),
+                "image_url": self._public_media_url(
+                    request,
+                    getattr(obj, "business_logo", None),
+                ),
             }
         if candidate_type == "store":
             return {
                 "id": obj.pk,
                 "name": getattr(obj, "display_name", "") or getattr(obj, "store_name", ""),
                 "slug": getattr(obj, "store_slug", ""),
+                "image_url": self._public_media_url(request, getattr(obj, "store_logo", None)),
             }
         return {"id": getattr(obj, "pk", None)}
+
+    def _public_media_url(self, request, *fields):
+        for field in fields:
+            try:
+                value = str(field.url if field else "").strip()
+            except (AttributeError, ValueError):
+                continue
+            if not value or not value.startswith(("/", "http://", "https://")):
+                continue
+            if request and value.startswith("/"):
+                return request.build_absolute_uri(value)
+            return value
+        return ""
 
     def _organic_video_candidates(self, context, limit):
         qs = ProductVideo.objects.filter(is_active=True, moderation_status="approved").select_related("product")
@@ -510,6 +567,11 @@ class UnifiedRecommendationDecisioningService:
         return {"type": advertiser_identity.owner_type, "id": advertiser_identity.pk, "name": advertiser_identity.display_name}
 
     def _sponsored_allowed(self, request):
+        client = (request.GET.get("client") or request.GET.get("source") or "web").strip().lower()
+        if client in {"app", "mobile", "mobile_app", "react_native"} and not native_ads_session_id(
+            request.GET.get("ads_session_id")
+        ):
+            return False
         if getattr(settings, "ADS_RECOMMENDATION_V2_SPONSORED_ENABLED", False):
             return True
         if not getattr(settings, "ADS_RECOMMENDATION_V2_INTERNAL_TESTING_ENABLED", False):

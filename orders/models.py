@@ -349,6 +349,12 @@ class OrderItem(BaseModel):
         null=True,
         blank=True,
     )
+    ads_delivery_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Opaque Ads V2 delivery identifier preserved until server-side attribution.",
+    )
     
     def save(self, *args, **kwargs):
         if self.vendor_offer_id:
