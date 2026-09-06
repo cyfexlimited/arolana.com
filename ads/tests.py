@@ -2941,6 +2941,93 @@ class AdsV2FoundationTests(TestCase):
 
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     @patch("ads.providers.requests.get")
+    @patch("ads.providers.requests.post")
+    def test_meta_create_campaign_creates_paused_and_reads_back(self, mock_post, mock_get):
+        class Response:
+            status_code = 200
+
+            def __init__(self, payload):
+                self.payload = payload
+
+            def json(self):
+                return self.payload
+
+        identity, campaign, account = self._execution_campaign()
+        account.channel = ExternalAdvertisingAccount.CHANNEL_META
+        account.external_account_id = "meta-test-account"
+        account.display_name = "Meta Test Account"
+        account.metadata = {"currency": "NGN", "timezone": "Africa/Lagos"}
+        account.save(
+            update_fields=[
+                "channel",
+                "external_account_id",
+                "display_name",
+                "metadata",
+                "updated_at",
+            ]
+        )
+
+        credential = account.credential
+        credential.provider = "meta"
+        credential.save(update_fields=["provider", "updated_at"])
+
+        execution = AdChannelExecution.objects.create(
+            campaign=campaign,
+            advertiser_identity=identity,
+            channel="meta",
+            external_account=account,
+            idempotency_key="meta-create-idempotency",
+            budget_allocation=Decimal("25000.00"),
+            currency="NGN",
+        )
+
+        payload = external_campaign_execution_service.build_external_payload(
+            campaign,
+            "meta",
+            account,
+        )
+
+        mock_post.return_value = Response({"id": "987654321"})
+        mock_get.return_value = Response(
+            {
+                "id": "987654321",
+                "name": campaign.name,
+                "status": "PAUSED",
+                "effective_status": "PAUSED",
+                "objective": "OUTCOME_TRAFFIC",
+            }
+        )
+
+        result = provider_for("meta").create_campaign(
+            execution,
+            payload,
+            idempotency_key=execution.idempotency_key,
+        )
+
+        self.assertEqual(result["external_campaign_id"], "987654321")
+        self.assertEqual(result["external_status"], "PAUSED")
+
+        self.assertEqual(mock_post.call_count, 1)
+        self.assertEqual(mock_get.call_count, 1)
+
+        self.assertIn(
+            "/act_meta-test-account/campaigns",
+            mock_post.call_args.args[0],
+        )
+
+        create_payload = mock_post.call_args.kwargs["data"]
+        self.assertEqual(create_payload["name"], campaign.name)
+        self.assertEqual(create_payload["objective"], "OUTCOME_TRAFFIC")
+        self.assertEqual(create_payload["status"], "PAUSED")
+        self.assertEqual(create_payload["special_ad_categories"], "[]")
+
+        self.assertIn(
+            "/987654321",
+            mock_get.call_args.args[0],
+        )
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
     def test_meta_campaign_fetch_and_status_are_mocked_and_normalized(self, mock_get):
         class Response:
             status_code = 200

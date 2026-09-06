@@ -340,6 +340,80 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
         ]
 
 
+    def create_campaign(self, execution, payload, *, idempotency_key=None):
+        if execution.external_campaign_id:
+            return self.fetch_campaign(execution)
+
+        credential = getattr(execution.external_account, "credential", None)
+        if not credential:
+            raise ProviderAuthorizationError("missing_credential")
+        if credential.revoked_at:
+            raise ProviderAuthorizationError("credential_revoked")
+
+        external_account_id = str(
+            execution.external_account.external_account_id or ""
+        ).replace("act_", "")
+        if not external_account_id:
+            raise ProviderAPIError("missing_external_account_id")
+
+        campaign_payload = {
+            "name": payload["campaign"]["name"],
+            "objective": payload["campaign"]["objective"],
+            "status": "PAUSED",
+            "special_ad_categories": "[]",
+        }
+
+        response = requests.post(
+            f"https://graph.facebook.com/v24.0/act_{external_account_id}/campaigns",
+            headers=self._bearer_headers(credential),
+            data=campaign_payload,
+            timeout=20,
+        )
+
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError(
+                "meta_authorization_failed",
+                stage="campaign_create",
+                http_status=response.status_code,
+            )
+        if response.status_code == 429:
+            raise ProviderAPIError(
+                "meta_rate_limited",
+                stage="campaign_create",
+                http_status=response.status_code,
+            )
+        if response.status_code >= 400:
+            raise ProviderAPIError(
+                "meta_api_error",
+                stage="campaign_create",
+                http_status=response.status_code,
+            )
+
+        external_campaign_id = str(response.json().get("id") or "")
+        if not external_campaign_id:
+            raise ProviderAPIError(
+                "meta_campaign_create_missing_id",
+                stage="campaign_create",
+            )
+
+        readback_execution = execution
+        original_external_campaign_id = execution.external_campaign_id
+        execution.external_campaign_id = external_campaign_id
+        try:
+            readback = self.fetch_campaign(readback_execution)
+        finally:
+            execution.external_campaign_id = original_external_campaign_id
+
+        return {
+            "external_campaign_id": external_campaign_id,
+            "external_status": (
+                readback.get("effective_status")
+                or readback.get("status")
+                or "PAUSED"
+            ),
+            "readback": readback,
+        }
+
     def fetch_campaign(self, execution):
         if not execution.external_campaign_id:
             raise ProviderAPIError("missing_external_campaign_id")
