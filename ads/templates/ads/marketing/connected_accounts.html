@@ -47,6 +47,23 @@
               {% if connected.timezone %}<span class="ads-mkt-muted">{{ connected.timezone }}</span>{% endif %}
               {% if account.channel == "meta" %}
                 <span class="ads-mkt-muted">Facebook Page: {% if connected.meta_page_name %}{{ connected.meta_page_name }}{% else %}Not selected{% endif %}</span>
+                {% if connected.status == "connected" %}
+                  <button
+                    class="ads-mkt-btn secondary ads-meta-page-open"
+                    type="button"
+                    data-account-id="{{ connected.id }}"
+                    data-pages-url="{% url 'ads_api:management_connected_account_pages' 'meta' connected.id %}?advertiser_id={{ advertiser.id }}"
+                    data-select-url="{% url 'ads_api:management_connected_account_page_select' 'meta' connected.id %}?advertiser_id={{ advertiser.id }}"
+                  >Choose Facebook Page</button>
+                  <section class="ads-meta-page-picker ads-mkt-card" data-account-id="{{ connected.id }}" hidden>
+                    {% csrf_token %}
+                    <strong>Choose a Facebook Page explicitly</strong>
+                    <p class="ads-mkt-muted" data-page-status></p>
+                    <div class="ads-mkt-list" data-page-list></div>
+                    <p class="ads-mkt-muted" data-page-error role="alert" hidden></p>
+                    <button class="ads-mkt-btn secondary" type="button" data-page-close>Cancel</button>
+                  </section>
+                {% endif %}
               {% endif %}
             </li>
           {% endfor %}
@@ -86,5 +103,60 @@ document.querySelectorAll(".ads-oauth-connect-form").forEach(function(form){
     }
   });
 });
+</script>
+<script>
+(function(){
+  var csrfField = document.querySelector('[name="csrfmiddlewaretoken"]');
+  var csrfToken = csrfField ? csrfField.value : "";
+  function picker(accountId) { return document.querySelector('.ads-meta-page-picker[data-account-id="' + accountId + '"]'); }
+  function showError(panel, message) {
+    var error = panel.querySelector("[data-page-error]");
+    error.textContent = message; error.hidden = false;
+  }
+  function statusMessage(response, payload) {
+    if (response.status === 401) return "Meta Page access requires reauthorization. No Page was selected.";
+    if (response.status === 403) return "You do not have access to this Meta advertising account.";
+    if (payload && payload.error === "meta_selected_page_not_accessible") return "The selected Facebook Page is no longer accessible. No replacement was selected.";
+    if (payload && payload.error === "meta_page_discovery_empty") return "No Facebook Pages are accessible for this Meta account.";
+    return "Facebook Pages could not be loaded. Reauthorize Meta access and try again.";
+  }
+  function renderPages(panel, pages) {
+    var list = panel.querySelector("[data-page-list]"); list.replaceChildren();
+    if (!pages.length) { list.textContent = "No Facebook Pages are accessible for this Meta account."; return; }
+    pages.forEach(function(page) {
+      var button = document.createElement("button"); button.type = "button"; button.className = "ads-mkt-row";
+      var name = document.createElement("strong"); name.textContent = page.name; button.append(name);
+      if (page.category) { var category = document.createElement("span"); category.className = "ads-mkt-muted"; category.textContent = page.category; button.append(category); }
+      if (page.tasks.length) { var tasks = document.createElement("span"); tasks.className = "ads-mkt-muted"; tasks.textContent = page.tasks.join(", "); button.append(tasks); }
+      button.addEventListener("click", async function() {
+        button.disabled = true;
+        try {
+          var response = await fetch(panel.dataset.selectUrl, { method: "POST", headers: { "Accept": "application/json", "Content-Type": "application/json", "X-CSRFToken": csrfToken }, credentials: "same-origin", body: JSON.stringify({ page_id: page.page_id }) });
+          var payload = await response.json().catch(function(){ return {}; });
+          if (!response.ok || !payload.success) throw { response: response, payload: payload };
+          window.location.reload();
+        } catch (failure) { showError(panel, statusMessage(failure.response || {}, failure.payload || {})); button.disabled = false; }
+      });
+      list.append(button);
+    });
+  }
+  document.querySelectorAll(".ads-meta-page-open").forEach(function(button) {
+    button.addEventListener("click", async function() {
+      var panel = picker(button.dataset.accountId); if (!panel) return;
+      panel.hidden = false; panel.dataset.selectUrl = button.dataset.selectUrl;
+      panel.querySelector("[data-page-error]").hidden = true;
+      panel.querySelector("[data-page-status]").textContent = "Loading accessible Facebook Pages…";
+      try {
+        var response = await fetch(button.dataset.pagesUrl, { headers: { "Accept": "application/json" }, credentials: "same-origin" });
+        var payload = await response.json().catch(function(){ return {}; });
+        if (!response.ok || !payload.success) throw { response: response, payload: payload };
+        var pages = Array.isArray(payload.pages) ? payload.pages.filter(function(page){ return page && page.page_id && page.name; }).map(function(page){ return { page_id: String(page.page_id), name: String(page.name), category: String(page.category || ""), tasks: Array.isArray(page.tasks) ? page.tasks.filter(function(task){ return typeof task === "string"; }) : [] }; }) : [];
+        panel.querySelector("[data-page-status]").textContent = payload.selected_page && payload.selected_page.name ? "Currently selected: " + payload.selected_page.name : "No Page selected.";
+        renderPages(panel, pages);
+      } catch (failure) { panel.querySelector("[data-page-status]").textContent = ""; showError(panel, statusMessage(failure.response || {}, failure.payload || {})); }
+    });
+  });
+  document.querySelectorAll("[data-page-close]").forEach(function(button) { button.addEventListener("click", function(){ button.closest(".ads-meta-page-picker").hidden = true; }); });
+})();
 </script>
 {% endblock %}

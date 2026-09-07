@@ -4378,6 +4378,26 @@ class AdsV2FoundationTests(TestCase):
         ADS_ADVERTISER_DASHBOARD_ENABLED=True,
         ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
     )
+    def test_meta_connected_account_web_view_shows_no_page_selected_without_mutation(self):
+        _campaign, execution, _payload = self._meta_campaign_creation_fixture()
+        account = execution.external_account
+        account.metadata.pop("meta_page_id", None)
+        account.metadata.pop("meta_page_name", None)
+        account.save(update_fields=["metadata", "updated_at"])
+        self.client.force_login(self.vendor_user)
+
+        response = self.client.get(reverse("ads:marketing_connected_accounts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Facebook Page: Not selected")
+        self.assertContains(response, "Choose Facebook Page")
+        account.refresh_from_db()
+        self.assertNotIn("meta_page_id", account.metadata)
+
+    @override_settings(
+        ADS_ADVERTISER_DASHBOARD_ENABLED=True,
+        ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key",
+    )
     @patch("ads.providers.MetaAdsProvider.list_facebook_pages")
     def test_meta_selected_page_is_exposed_safely_in_account_views(self, mock_pages):
         _campaign, execution, _payload = self._meta_campaign_creation_fixture()
@@ -4400,6 +4420,21 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(meta_account["meta_page_id"], "101")
         self.assertEqual(meta_account["meta_page_name"], "Selected Page")
         self.assertContains(page_response, "Facebook Page: Selected Page")
+        self.assertContains(page_response, "Choose Facebook Page")
+        self.assertContains(
+            page_response,
+            reverse(
+                "ads_api:management_connected_account_pages",
+                args=["meta", execution.external_account.pk],
+            ),
+        )
+        self.assertContains(
+            page_response,
+            reverse(
+                "ads_api:management_connected_account_page_select",
+                args=["meta", execution.external_account.pk],
+            ),
+        )
         mock_pages.assert_not_called()
 
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
