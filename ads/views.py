@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render, get_object_or_404
+from django.urls import reverse
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
@@ -14,6 +15,8 @@ from .management import (
     update_campaign,
     create_creative,
     creative_queryset,
+    serialize_creative,
+    update_creative,
     current_advertiser_identity,
     owned_asset_options,
     overview_metrics,
@@ -71,6 +74,30 @@ def _dashboard_context(request, section):
             ("settings", "Settings", "ads:marketing_settings"),
         ],
     }
+
+
+CREATIVE_FORM_FIELDS = (
+    "name",
+    "creative_type",
+    "headline",
+    "description",
+    "cta_text",
+    "clickthrough_url",
+    "video_url",
+)
+
+
+def _creative_form_data(request, *, creating=False):
+    """Pass only the public creative contract through server-rendered forms."""
+    data = {field: request.POST[field] for field in CREATIVE_FORM_FIELDS if field in request.POST}
+    if creating:
+        data["campaign_id"] = request.POST.get("campaign_id")
+    return data
+
+
+def _advertiser_marketing_url(name, advertiser, **kwargs):
+    url = reverse(name, kwargs=kwargs)
+    return f"{url}?advertiser_id={advertiser.pk}"
 
 
 def _render_dashboard(request, template, section, extra=None):
@@ -177,17 +204,46 @@ def marketing_creatives(request):
     advertiser = context["advertiser"]
     if request.method == "POST":
         try:
-            create_creative(advertiser, request.POST)
-            return redirect("ads:marketing_creatives")
+            creative = create_creative(advertiser, _creative_form_data(request, creating=True))
+            return redirect(_advertiser_marketing_url("ads:marketing_creative_detail", advertiser, creative_id=creative.pk) + "&created=1")
         except (AdvertiserAccessError, AdvertiserValidationError) as exc:
             context["form_error"] = str(exc)
+            context["field_errors"] = {getattr(exc, "field", None): str(exc)} if getattr(exc, "field", None) else {}
     context.update(
         {
-            "creatives": creative_queryset(advertiser),
+            "creatives": [serialize_creative(creative) for creative in creative_queryset(advertiser)],
             "campaigns": campaign_queryset(advertiser),
+            "form_data": request.POST if request.method == "POST" else {},
+            "creative_types": (("image", "Image"), ("video", "Video"), ("native", "Card / native"), ("carousel", "Carousel")),
         }
     )
     return render(request, "ads/marketing/creatives.html", context)
+
+
+@login_required
+def marketing_creative_detail(request, creative_id):
+    context = _dashboard_context(request, "creatives")
+    if not context.get("dashboard_enabled") or context.get("access_denied"):
+        return render(request, "ads/marketing/creative_detail.html", context)
+    advertiser = context["advertiser"]
+    creative = get_object_or_404(creative_queryset(advertiser), pk=creative_id)
+    if request.method == "POST":
+        try:
+            update_creative(advertiser, creative_id, _creative_form_data(request))
+            return redirect(_advertiser_marketing_url("ads:marketing_creative_detail", advertiser, creative_id=creative_id) + "&saved=1")
+        except (AdvertiserAccessError, AdvertiserValidationError) as exc:
+            context["form_error"] = str(exc)
+            context["field_errors"] = {getattr(exc, "field", None): str(exc)} if getattr(exc, "field", None) else {}
+            context["form_data"] = request.POST
+    context.update(
+        {
+            "creative": serialize_creative(creative),
+            "saved": request.GET.get("saved") == "1",
+            "created": request.GET.get("created") == "1",
+            "creative_types": (("image", "Image"), ("video", "Video"), ("native", "Card / native"), ("carousel", "Carousel")),
+        }
+    )
+    return render(request, "ads/marketing/creative_detail.html", context)
 
 
 @login_required

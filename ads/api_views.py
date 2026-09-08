@@ -21,6 +21,7 @@ from .execution import external_campaign_execution_service
 from .models import (
     AdCampaign,
     AdChannelExecution,
+    AdCreative,
     AdvertisingCredential,
     AdEvent,
     AdPlacement,
@@ -37,6 +38,8 @@ from .management import (
     create_campaign,
     create_creative,
     creative_queryset,
+    serialize_creative,
+    update_creative,
     current_advertiser_identity,
     identity_payload,
     owned_asset_options,
@@ -775,39 +778,42 @@ def management_creatives(request):
         return JsonResponse(
             {
                 "success": True,
-                "creatives": [
-                    {
-                        "id": creative.pk,
-                        "campaign_id": creative.campaign_id,
-                        "name": creative.name,
-                        "creative_type": creative.creative_type,
-                        "headline": creative.headline,
-                        "description": creative.description,
-                        "cta_text": creative.cta_text,
-                        "has_image": bool(creative.image),
-                        "has_mobile_image": bool(creative.image_mobile),
-                        "has_video": bool(creative.video_url),
-                    }
-                    for creative in creatives
-                ],
+                "creatives": _json_safe([serialize_creative(creative) for creative in creatives]),
             }
         )
     try:
         creative = create_creative(identity, _json_management_body(request))
-    except (AdvertiserAccessError, AdvertiserValidationError) as exc:
+    except AdvertiserAccessError as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
-    return JsonResponse(
-        {
-            "success": True,
-            "creative": {
-                "id": creative.pk,
-                "campaign_id": creative.campaign_id,
-                "creative_type": creative.creative_type,
-                "headline": creative.headline,
-            },
-        },
-        status=201,
-    )
+    except AdvertiserValidationError as exc:
+        response = {"success": False, "error": str(exc)}
+        if exc.field:
+            response["field_errors"] = {exc.field: str(exc)}
+        return JsonResponse(response, status=400)
+    return JsonResponse({"success": True, "creative": _json_safe(serialize_creative(creative))}, status=201)
+
+
+@require_http_methods(["GET", "PATCH"])
+def management_creative_detail(request, creative_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    try:
+        creative = creative_queryset(identity).get(pk=creative_id)
+    except AdCreative.DoesNotExist:
+        return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    if request.method == "GET":
+        return JsonResponse({"success": True, "creative": _json_safe(serialize_creative(creative))})
+    try:
+        creative = update_creative(identity, creative_id, _json_management_body(request))
+    except AdvertiserAccessError:
+        return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    except AdvertiserValidationError as exc:
+        response = {"success": False, "error": str(exc)}
+        if exc.field:
+            response["field_errors"] = {exc.field: str(exc)}
+        return JsonResponse(response, status=400)
+    return JsonResponse({"success": True, "creative": _json_safe(serialize_creative(creative))})
 
 
 @require_GET

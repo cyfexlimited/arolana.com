@@ -10,6 +10,7 @@ urlpatterns = [
     path('marketing/create/', views.marketing_create_campaign, name='marketing_create_campaign'),
     path('marketing/assets/', views.marketing_assets, name='marketing_assets'),
     path('marketing/creatives/', views.marketing_creatives, name='marketing_creatives'),
+    path('marketing/creatives/<int:creative_id>/', views.marketing_creative_detail, name='marketing_creative_detail'),
     path('marketing/placements/', views.marketing_placements, name='marketing_placements'),
     path('marketing/connected-accounts/', views.marketing_connected_accounts, name='marketing_connected_accounts'),
     path('marketing/connected-accounts/<str:provider>/select/', views.marketing_connected_account_select, name='marketing_connected_account_select'),

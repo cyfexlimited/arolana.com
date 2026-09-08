@@ -1,0 +1,32 @@
+{% extends "ads/marketing/base.html" %}
+{% block ads_title %}Creative Detail{% endblock %}
+{% block ads_content %}
+<section class="ads-mkt-card">
+  <p><a href="{% url 'ads:marketing_creatives' %}?advertiser_id={{ advertiser.id }}">← Creative Library</a></p>
+  {% if created %}<p class="ads-mkt-pill">Creative created</p>{% endif %}{% if saved %}<p class="ads-mkt-pill">Changes saved</p>{% endif %}
+  <h2>{{ creative.headline }}</h2>
+  <p class="ads-mkt-muted">{{ creative.creative_type }} · {{ creative.campaign.name }}</p>
+  <p class="ads-mkt-muted">Campaign asset: {{ creative.campaign.asset_summary|default:"No campaign asset" }}</p>
+  <p>{{ creative.description }}</p>
+  <p><strong>{{ creative.cta_text }}</strong> · {{ creative.clickthrough_url }}</p>
+  {% if creative.video_url %}<p>Video URL: {{ creative.video_url }}</p>{% endif %}
+</section>
+<section class="ads-mkt-card">
+  <h2>Edit internal creative</h2>
+  {% if form_error %}<p class="ads-mkt-error" role="alert">{{ form_error }}</p>{% endif %}
+  <form method="post" class="ads-mkt-form" action="{% url 'ads:marketing_creative_detail' creative.id %}?advertiser_id={{ advertiser.id }}">
+    {% csrf_token %}<input type="hidden" name="advertiser_id" value="{{ advertiser.id }}">
+    <section>
+      <p class="ads-mkt-muted">Campaign: {{ creative.campaign.name }}. Campaign cannot be changed after creation.</p>
+      <label>Name<input name="name" maxlength="200" value="{{ form_data.name|default:creative.name }}" required></label>{% if field_errors.name %}<p class="ads-mkt-error">{{ field_errors.name }}</p>{% endif %}
+      <label>Type<select name="creative_type">{% for value,label in creative_types %}<option value="{{ value }}" {% if form_data.creative_type|default:creative.creative_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% if field_errors.creative_type %}<p class="ads-mkt-error">{{ field_errors.creative_type }}</p>{% endif %}
+      <label>Headline<input name="headline" maxlength="100" value="{{ form_data.headline|default:creative.headline }}" required></label>{% if field_errors.headline %}<p class="ads-mkt-error">{{ field_errors.headline }}</p>{% endif %}
+      <label>Description<textarea name="description" maxlength="1000">{{ form_data.description|default:creative.description }}</textarea></label>{% if field_errors.description %}<p class="ads-mkt-error">{{ field_errors.description }}</p>{% endif %}
+      <label>Call to action<input name="cta_text" maxlength="50" value="{{ form_data.cta_text|default:creative.cta_text }}" required></label>{% if field_errors.cta_text %}<p class="ads-mkt-error">{{ field_errors.cta_text }}</p>{% endif %}
+      <label>Destination URL<input name="clickthrough_url" type="url" value="{{ form_data.clickthrough_url|default:creative.clickthrough_url }}" required></label>{% if field_errors.clickthrough_url %}<p class="ads-mkt-error">{{ field_errors.clickthrough_url }}</p>{% endif %}
+      <label>Video URL <span class="ads-mkt-muted">(required only for video)</span><input name="video_url" type="url" value="{{ form_data.video_url|default:creative.video_url }}"></label>{% if field_errors.video_url %}<p class="ads-mkt-error">{{ field_errors.video_url }}</p>{% endif %}
+    </section>
+    <div class="ads-mkt-sticky"><button class="ads-mkt-btn" type="submit">Save changes</button></div>
+  </form>
+</section>
+{% endblock %}

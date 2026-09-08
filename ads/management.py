@@ -1,7 +1,11 @@
 from decimal import Decimal, InvalidOperation
+from collections.abc import Mapping
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -42,7 +46,9 @@ class AdvertiserAccessError(Exception):
 
 
 class AdvertiserValidationError(Exception):
-    pass
+    def __init__(self, code, field=None):
+        super().__init__(code)
+        self.field = field
 
 
 def authorized_identities_for_user(user):
@@ -409,30 +415,149 @@ def _campaign_fields(data, campaign=None, creating=False):
 
 
 def creative_queryset(identity):
-    return AdCreative.objects.filter(campaign__advertiser_identity=identity).order_by("-created_at")
+    return (
+        AdCreative.objects.filter(campaign__advertiser_identity=identity)
+        .select_related("campaign")
+        .prefetch_related("campaign__assets")
+        .order_by("-created_at")
+    )
+
+
+CREATIVE_TYPES = {"image", "video", "native", "carousel"}
+CREATIVE_FIELDS = {
+    "name",
+    "creative_type",
+    "headline",
+    "description",
+    "cta_text",
+    "clickthrough_url",
+    "video_url",
+}
+_creative_url_validator = URLValidator(schemes=["http", "https"])
+
+
+def serialize_creative(creative):
+    assets = list(creative.campaign.assets.all())
+    asset = assets[0] if assets else None
+    return {
+        "id": creative.pk,
+        "campaign_id": creative.campaign_id,
+        "campaign": {
+            "id": creative.campaign_id,
+            "name": creative.campaign.name,
+            "asset_summary": asset.title or asset.get_asset_type_display() if asset else "",
+        },
+        "name": creative.name,
+        "creative_type": creative.creative_type,
+        "headline": creative.headline,
+        "description": creative.description,
+        "cta_text": creative.cta_text,
+        "clickthrough_url": creative.clickthrough_url,
+        "video_url": creative.video_url,
+        "media": {
+            "has_image": bool(creative.image),
+            "has_mobile_image": bool(creative.image_mobile),
+            "has_video": bool(creative.video_url),
+        },
+        "has_image": bool(creative.image),
+        "has_mobile_image": bool(creative.image_mobile),
+        "has_video": bool(creative.video_url),
+    }
+
+
+def _creative_text(value, field, max_length, *, required=False, default=""):
+    if value is None:
+        value = default
+    if not isinstance(value, str):
+        raise AdvertiserValidationError(f"invalid_{field}", field)
+    value = value.strip()
+    if required and not value:
+        raise AdvertiserValidationError(f"{field}_required", field)
+    if len(value) > max_length:
+        raise AdvertiserValidationError(f"{field}_too_long", field)
+    return value
+
+
+def _creative_url(value, field, *, required=False, default=""):
+    value = _creative_text(value, field, 200, required=required, default=default)
+    if not value:
+        return ""
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
+        raise AdvertiserValidationError(f"invalid_{field}", field)
+    try:
+        _creative_url_validator(value)
+    except ValidationError as exc:
+        raise AdvertiserValidationError(f"invalid_{field}", field) from exc
+    return value
+
+
+def _validate_creative_fields(data, *, creative=None, creating=False):
+    if not isinstance(data, Mapping):
+        raise AdvertiserValidationError("invalid_creative_payload")
+    unknown = set(data) - (CREATIVE_FIELDS | ({"campaign_id"} if creating else set()))
+    if unknown:
+        raise AdvertiserValidationError("unsupported_creative_field", sorted(unknown)[0])
+
+    current = creative or AdCreative(
+        creative_type="image",
+        headline="",
+        clickthrough_url="https://arolana.com",
+        cta_text="Learn More",
+    )
+    result = {}
+    creative_type = data.get("creative_type", current.creative_type)
+    if not isinstance(creative_type, str) or creative_type not in CREATIVE_TYPES:
+        raise AdvertiserValidationError("unsupported_creative_type", "creative_type")
+    if creating or "creative_type" in data:
+        result["creative_type"] = creative_type
+
+    headline = _creative_text(data.get("headline", current.headline), "headline", 100, required=True)
+    values = {
+        "name": _creative_text(data.get("name", headline if creating else current.name), "name", 200, required=True),
+        "headline": headline,
+        "description": _creative_text(data.get("description", current.description), "description", 1000),
+        "cta_text": _creative_text(data.get("cta_text", current.cta_text), "cta_text", 50, required=True),
+        "clickthrough_url": _creative_url(
+            data.get("clickthrough_url", current.clickthrough_url),
+            "clickthrough_url",
+            required=True,
+            default="https://arolana.com",
+        ),
+        "video_url": _creative_url(data.get("video_url", current.video_url), "video_url"),
+    }
+    if creative_type == "video" and not values["video_url"]:
+        raise AdvertiserValidationError("video_url_required", "video_url")
+    if creative_type != "video" and values["video_url"]:
+        raise AdvertiserValidationError("video_url_not_allowed", "video_url")
+    for key, value in values.items():
+        if creating or key in data:
+            result[key] = value
+    return result
 
 
 def create_creative(identity, data):
+    if not isinstance(data, Mapping):
+        raise AdvertiserValidationError("invalid_creative_payload")
     try:
         campaign = AdCampaign.objects.get(pk=data.get("campaign_id"), advertiser_identity=identity)
-    except AdCampaign.DoesNotExist as exc:
+    except (TypeError, ValueError, AdCampaign.DoesNotExist) as exc:
         raise AdvertiserAccessError("campaign_not_found") from exc
-    creative_type = str(data.get("creative_type") or "image")
-    if creative_type not in {"image", "video", "native", "carousel"}:
-        raise AdvertiserValidationError("unsupported_creative_type")
-    headline = str(data.get("headline") or "").strip()[:100]
-    if not headline:
-        raise AdvertiserValidationError("headline_required")
-    return AdCreative.objects.create(
-        campaign=campaign,
-        name=str(data.get("name") or headline)[:200],
-        creative_type=creative_type,
-        headline=headline,
-        description=str(data.get("description") or "")[:1000],
-        cta_text=str(data.get("cta_text") or "Learn More")[:50],
-        clickthrough_url=str(data.get("clickthrough_url") or "https://arolana.com")[:200],
-        video_url=str(data.get("video_url") or "")[:200],
-    )
+    fields = _validate_creative_fields(data, creating=True)
+    return AdCreative.objects.create(campaign=campaign, **fields)
+
+
+def update_creative(identity, creative_id, data):
+    try:
+        creative = creative_queryset(identity).get(pk=creative_id)
+    except AdCreative.DoesNotExist as exc:
+        raise AdvertiserAccessError("creative_not_found") from exc
+    fields = _validate_creative_fields(data, creative=creative)
+    for key, value in fields.items():
+        setattr(creative, key, value)
+    if fields:
+        creative.save(update_fields=[*fields.keys(), "updated_at"])
+    return creative
 
 
 def connected_account_shells(identity):

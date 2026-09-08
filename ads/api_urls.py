@@ -17,6 +17,7 @@ urlpatterns = [
     path("management/campaigns/<int:campaign_id>/external-action/", api_views.management_campaign_external_action, name="management_campaign_external_action"),
     path("management/assets/", api_views.management_owned_assets, name="management_owned_assets"),
     path("management/creatives/", api_views.management_creatives, name="management_creatives"),
+    path("management/creatives/<int:creative_id>/", api_views.management_creative_detail, name="management_creative_detail"),
     path("management/analytics/", api_views.management_analytics, name="management_analytics"),
     path("management/connected-accounts/", api_views.management_connected_accounts, name="management_connected_accounts"),
     path("management/connected-accounts/<str:provider>/connect/", api_views.management_connected_account_connect, name="management_connected_account_connect"),

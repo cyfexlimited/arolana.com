@@ -1625,6 +1625,253 @@ class AdsV2FoundationTests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
 
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("ads.providers.requests.post", side_effect=AssertionError("provider request attempted"))
+    def test_creative_management_detail_update_and_safe_serializer(self, mock_provider_post):
+        identity = self.resolver.get_or_create_identity(
+            self.resolver.resolve_product_owner(self.product)
+        )
+        campaign = AdCampaign.objects.create(
+            name="Creative campaign",
+            advertiser_identity=identity,
+            start_date=timezone.now(),
+        )
+        asset = CampaignAsset.objects.create(
+            campaign=campaign,
+            advertiser_identity=identity,
+            asset_type=CampaignAsset.ASSET_PRODUCT,
+            content_type=ContentType.objects.get_for_model(self.product),
+            object_id=self.product.pk,
+            title="Owned product",
+        )
+        creative = AdCreative.objects.create(
+            campaign=campaign,
+            name="Original creative",
+            creative_type="image",
+            headline="Original headline",
+            description="Original description",
+            cta_text="Learn More",
+            clickthrough_url="https://arolana.com/product",
+            html_content="<script>hidden</script>",
+            dynamic_fields={"meta_image_hash": "must-not-surface"},
+            tracking_url="https://tracking.example/hidden",
+            ab_variant="secret-test",
+            is_active=False,
+        )
+        self.client.force_login(self.vendor_user)
+        detail_url = reverse("ads_api:management_creative_detail", args=[creative.pk])
+
+        listed = self.client.get(reverse("ads_api:management_creatives"))
+        self.assertEqual(listed.status_code, 200)
+        payload = listed.json()["creatives"][0]
+        self.assertEqual(payload["campaign"]["asset_summary"], asset.title)
+        self.assertTrue(payload["campaign_id"] == campaign.pk)
+        rendered = json.dumps(payload)
+        for hidden in ("html_content", "dynamic_fields", "tracking_url", "ab_variant", "is_active", "must-not-surface"):
+            self.assertNotIn(hidden, rendered)
+
+        detail = self.client.get(detail_url)
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["creative"]["headline"], "Original headline")
+
+        updated = self.client.patch(
+            detail_url,
+            data={"description": "Updated description"},
+            content_type="application/json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.content)
+        creative.refresh_from_db()
+        self.assertEqual(creative.description, "Updated description")
+        self.assertEqual(creative.name, "Original creative")
+        self.assertEqual(creative.headline, "Original headline")
+        self.assertEqual(creative.campaign_id, campaign.pk)
+        self.assertFalse(creative.is_active)
+        mock_provider_post.assert_not_called()
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_creative_management_validates_scoping_urls_types_and_immutable_campaign(self):
+        identity = self.resolver.get_or_create_identity(
+            self.resolver.resolve_product_owner(self.product)
+        )
+        campaign = AdCampaign.objects.create(
+            name="Creative campaign",
+            advertiser_identity=identity,
+            start_date=timezone.now(),
+        )
+        other_product = self._product(self.other_vendor_user, "Other product", "other-product")
+        other_identity = self.resolver.get_or_create_identity(
+            self.resolver.resolve_product_owner(other_product)
+        )
+        other_campaign = AdCampaign.objects.create(
+            name="Other creative campaign",
+            advertiser_identity=other_identity,
+            start_date=timezone.now(),
+        )
+        other_creative = AdCreative.objects.create(
+            campaign=other_campaign,
+            name="Other creative",
+            headline="Other headline",
+            clickthrough_url="https://arolana.com",
+        )
+        self.client.force_login(self.vendor_user)
+        create_url = reverse("ads_api:management_creatives")
+        base = {
+            "campaign_id": campaign.pk,
+            "creative_type": "image",
+            "headline": "Safe headline",
+            "clickthrough_url": "https://arolana.com/destination",
+        }
+        wrong_campaign = self.client.post(
+            create_url,
+            data={**base, "campaign_id": other_campaign.pk},
+            content_type="application/json",
+        )
+        self.assertEqual(wrong_campaign.status_code, 400)
+        self.assertEqual(wrong_campaign.json()["error"], "campaign_not_found")
+
+        for extra, field, error in [
+            ({"creative_type": "html5"}, "creative_type", "unsupported_creative_type"),
+            ({"headline": ""}, "headline", "headline_required"),
+            ({"name": "x" * 201}, "name", "name_too_long"),
+            ({"description": "x" * 1001}, "description", "description_too_long"),
+            ({"cta_text": "x" * 51}, "cta_text", "cta_text_too_long"),
+            ({"clickthrough_url": "javascript:alert(1)"}, "clickthrough_url", "invalid_clickthrough_url"),
+            ({"clickthrough_url": "https://not a valid host"}, "clickthrough_url", "invalid_clickthrough_url"),
+            ({"creative_type": "video"}, "video_url", "video_url_required"),
+            ({"creative_type": "video", "video_url": "ftp://video.example/item"}, "video_url", "invalid_video_url"),
+            ({"video_url": "https://video.example/item"}, "video_url", "video_url_not_allowed"),
+            ({"headline": "x" * 101}, "headline", "headline_too_long"),
+        ]:
+            response = self.client.post(create_url, data={**base, **extra}, content_type="application/json")
+            self.assertEqual(response.status_code, 400, response.content)
+            self.assertEqual(response.json()["error"], error)
+            self.assertEqual(response.json()["field_errors"], {field: error})
+
+        created = self.client.post(create_url, data={**base, "name": "Video creative", "creative_type": "video", "video_url": "https://video.example/item"}, content_type="application/json")
+        self.assertEqual(created.status_code, 201, created.content)
+        creative_id = created.json()["creative"]["id"]
+        detail_url = reverse("ads_api:management_creative_detail", args=[creative_id])
+        immutable = self.client.patch(detail_url, data={"campaign_id": other_campaign.pk}, content_type="application/json")
+        self.assertEqual(immutable.status_code, 400)
+        self.assertEqual(immutable.json()["field_errors"], {"campaign_id": "unsupported_creative_field"})
+        malformed = self.client.post(create_url, data="[]", content_type="application/json")
+        self.assertEqual(malformed.status_code, 400)
+        self.assertEqual(malformed.json()["error"], "invalid_creative_payload")
+        self.assertEqual(self.client.get(reverse("ads_api:management_creative_detail", args=[other_creative.pk])).status_code, 404)
+        self.assertEqual(self.client.patch(reverse("ads_api:management_creative_detail", args=[other_creative.pk]), data={"headline": "Nope"}, content_type="application/json").status_code, 404)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("ads.providers.requests.post", side_effect=AssertionError("provider request attempted"))
+    def test_web_creative_library_scopes_create_detail_and_update(self, mock_provider_post):
+        identity = self.resolver.get_or_create_identity(
+            self.resolver.resolve_product_owner(self.product)
+        )
+        campaign = AdCampaign.objects.create(
+            name="Owned creative campaign",
+            advertiser_identity=identity,
+            start_date=timezone.now(),
+        )
+        CampaignAsset.objects.create(
+            campaign=campaign,
+            advertiser_identity=identity,
+            asset_type=CampaignAsset.ASSET_PRODUCT,
+            content_type=ContentType.objects.get_for_model(self.product),
+            object_id=self.product.pk,
+            title="Owned product",
+        )
+        existing = AdCreative.objects.create(
+            campaign=campaign,
+            name="Existing creative",
+            headline="Existing headline",
+            description="Original description",
+            cta_text="Learn More",
+            clickthrough_url="https://arolana.com/existing",
+            html_content="<script>not shown</script>",
+            dynamic_fields={"private": "not shown"},
+        )
+        self.client.force_login(self.vendor_user)
+        list_url = f"{reverse('ads:marketing_creatives')}?advertiser_id={identity.pk}"
+        listed = self.client.get(list_url)
+        self.assertEqual(listed.status_code, 200)
+        self.assertContains(listed, "Existing headline")
+        self.assertContains(listed, "Owned product")
+        self.assertNotContains(listed, "not shown")
+
+        created = self.client.post(
+            list_url,
+            {
+                "advertiser_id": identity.pk,
+                "campaign_id": campaign.pk,
+                "name": "Web creative",
+                "creative_type": "image",
+                "headline": "Web headline",
+                "description": "Web description",
+                "cta_text": "Learn More",
+                "clickthrough_url": "https://arolana.com/web",
+                "video_url": "",
+            },
+        )
+        self.assertEqual(created.status_code, 302)
+        created_creative = AdCreative.objects.get(name="Web creative")
+        detail_url = f"{reverse('ads:marketing_creative_detail', args=[created_creative.pk])}?advertiser_id={identity.pk}"
+        self.assertIn(detail_url, created["Location"])
+        detail = self.client.get(detail_url)
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Campaign cannot be changed after creation")
+        self.assertNotContains(detail, "not shown")
+
+        updated = self.client.post(detail_url, {"advertiser_id": identity.pk, "description": "Updated description"})
+        self.assertEqual(updated.status_code, 302)
+        created_creative.refresh_from_db()
+        self.assertEqual(created_creative.description, "Updated description")
+        self.assertEqual(created_creative.name, "Web creative")
+        self.assertEqual(created_creative.headline, "Web headline")
+        self.assertEqual(created_creative.campaign_id, campaign.pk)
+        self.assertEqual(existing.campaign_id, campaign.pk)
+        mock_provider_post.assert_not_called()
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_web_creative_library_validation_csrf_and_advertiser_isolation(self):
+        identity = self.resolver.get_or_create_identity(
+            self.resolver.resolve_product_owner(self.product)
+        )
+        campaign = AdCampaign.objects.create(
+            name="Owned creative campaign",
+            advertiser_identity=identity,
+            start_date=timezone.now(),
+        )
+        creative = AdCreative.objects.create(
+            campaign=campaign,
+            name="Owned creative",
+            headline="Owned headline",
+            clickthrough_url="https://arolana.com/owned",
+        )
+        self.client.force_login(self.vendor_user)
+        list_url = f"{reverse('ads:marketing_creatives')}?advertiser_id={identity.pk}"
+        invalid = self.client.post(
+            list_url,
+            {
+                "advertiser_id": identity.pk,
+                "campaign_id": campaign.pk,
+                "creative_type": "video",
+                "headline": "Video headline",
+                "cta_text": "Learn More",
+                "clickthrough_url": "https://arolana.com/video",
+                "video_url": "",
+            },
+        )
+        self.assertEqual(invalid.status_code, 200)
+        self.assertContains(invalid, "video_url_required")
+
+        self.client.force_login(self.other_vendor_user)
+        other_detail = reverse("ads:marketing_creative_detail", args=[creative.pk])
+        self.assertEqual(self.client.get(other_detail).status_code, 404)
+
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.vendor_user)
+        csrf_response = csrf_client.post(list_url, {"advertiser_id": identity.pk, "campaign_id": campaign.pk})
+        self.assertEqual(csrf_response.status_code, 403)
+
     @override_settings(
         ADS_ADVERTISER_DASHBOARD_ENABLED=True,
         ADS_META_CONNECTION_ENABLED=False,
