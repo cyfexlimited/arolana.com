@@ -11,6 +11,7 @@ from .management import (
     AdvertiserValidationError,
     connected_account_shells,
     create_campaign,
+    update_campaign,
     create_creative,
     creative_queryset,
     current_advertiser_identity,
@@ -19,6 +20,10 @@ from .management import (
     campaign_queryset,
     serialize_campaign,
 )
+
+
+def _comma_separated_form_list(request, name):
+    return [item.strip() for item in request.POST.get(name, "").split(",") if item.strip()]
 from django.conf import settings
 from decimal import Decimal
 import json
@@ -108,7 +113,14 @@ def marketing_create_campaign(request):
     advertiser = context["advertiser"]
     if request.method == "POST":
         try:
-            campaign, _asset = create_campaign(advertiser, request.POST, submit=request.POST.get("submit") == "1")
+            data = request.POST.copy(); data["placements"] = request.POST.getlist("placements")
+            data["geo_targeting"] = _comma_separated_form_list(request, "geo_targeting")
+            data["device_targeting"] = _comma_separated_form_list(request, "device_targeting")
+            if not data.get("start_date"):
+                data.pop("start_date", None)
+            if not data.get("end_date"):
+                data.pop("end_date", None)
+            campaign, _asset = create_campaign(advertiser, data, submit=request.POST.get("submit") == "1")
             return redirect("ads:marketing_campaign_detail", campaign_id=campaign.pk)
         except (AdvertiserAccessError, AdvertiserValidationError) as exc:
             context["form_error"] = str(exc)
@@ -125,14 +137,26 @@ def marketing_create_campaign(request):
 
 @login_required
 def marketing_campaign_detail(request, campaign_id):
-    return _render_dashboard(
-        request,
-        "ads/marketing/campaign_detail.html",
-        "campaigns",
-        lambda advertiser: {
-            "campaign": serialize_campaign(get_object_or_404(campaign_queryset(advertiser), pk=campaign_id)),
-        },
-    )
+    context = _dashboard_context(request, "campaigns")
+    if not context.get("dashboard_enabled") or context.get("access_denied"):
+        return render(request, "ads/marketing/campaign_detail.html", context)
+    campaign = get_object_or_404(campaign_queryset(context["advertiser"]), pk=campaign_id)
+    if request.method == "POST":
+        try:
+            data = request.POST.copy(); data["placements"] = request.POST.getlist("placements") if "placements" in request.POST else None
+            if data["placements"] is None: del data["placements"]
+            if "geo_targeting" in request.POST:
+                data["geo_targeting"] = _comma_separated_form_list(request, "geo_targeting")
+            if "device_targeting" in request.POST:
+                data["device_targeting"] = _comma_separated_form_list(request, "device_targeting")
+            if "start_date" in request.POST and not data.get("start_date"):
+                data.pop("start_date", None)
+            update_campaign(context["advertiser"], campaign_id, data)
+            return redirect("ads:marketing_campaign_detail", campaign_id=campaign_id)
+        except (AdvertiserAccessError, AdvertiserValidationError) as exc:
+            context["form_error"] = str(exc)
+    context.update({"campaign": serialize_campaign(campaign), "placements": AdPlacement.objects.filter(is_active=True).order_by("priority", "name"), "objectives": AdCampaign.OBJECTIVE_CHOICES})
+    return render(request, "ads/marketing/campaign_detail.html", context)
 
 
 @login_required

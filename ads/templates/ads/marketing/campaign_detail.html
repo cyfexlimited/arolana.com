@@ -5,6 +5,23 @@
   {% include "ads/marketing/partials/campaign_row.html" with campaign=campaign %}
   <p class="ads-mkt-muted">Private ranking internals and credential data are not exposed.</p>
 </section>
+{% if campaign.status in "draft pending paused scheduled" %}
+<form method="post" class="ads-mkt-form">
+  {% csrf_token %}
+  {% if form_error %}<p class="ads-mkt-error" role="alert">{{ form_error }}</p>{% endif %}
+  <section><h2>Edit internal campaign</h2>
+    <input name="name" value="{{ campaign.name }}" required>
+    <select name="objective">{% for value,label in objectives %}<option value="{{ value }}" {% if campaign.objective == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <select name="budget_type"><option value="total" {% if campaign.budget.type == "total" %}selected{% endif %}>Total</option><option value="daily" {% if campaign.budget.type == "daily" %}selected{% endif %}>Daily</option><option value="lifetime" {% if campaign.budget.type == "lifetime" %}selected{% endif %}>Lifetime</option></select>
+    <input name="daily_budget" type="number" step="0.01" value="{{ campaign.budget.daily|default_if_none:'' }}"><input name="total_budget" type="number" step="0.01" value="{{ campaign.budget.total }}"><input name="max_bid" type="number" step="0.01" value="{{ campaign.max_bid|default:'0.50' }}">
+    <input name="start_date" value="{{ campaign.schedule.start_date|date:'c' }}" placeholder="Start date (ISO 8601)"><input name="end_date" value="{{ campaign.schedule.end_date|date:'c' }}" placeholder="End date (ISO 8601, optional)">
+    <select name="targeting"><option value="all" {% if campaign.targeting == "all" %}selected{% endif %}>All visitors</option><option value="logged_in" {% if campaign.targeting == "logged_in" %}selected{% endif %}>Logged in</option><option value="new" {% if campaign.targeting == "new" %}selected{% endif %}>New visitors</option><option value="returning" {% if campaign.targeting == "returning" %}selected{% endif %}>Returning visitors</option><option value="high_value" {% if campaign.targeting == "high_value" %}selected{% endif %}>High value customers</option></select>
+    <input name="geo_targeting" value="{{ campaign.geo_targeting|join:', ' }}" placeholder="Countries, e.g. NG, GH"><input name="device_targeting" value="{{ campaign.device_targeting|join:', ' }}" placeholder="Devices, e.g. mobile, desktop">
+    <label>Placements</label>{% for placement in placements %}<label><input type="checkbox" name="placements" value="{{ placement.slug }}" {% if placement.slug in campaign.placements %}checked{% endif %}> {{ placement.name }}</label>{% endfor %}
+  </section>
+  <div class="ads-mkt-sticky"><button class="ads-mkt-btn secondary" type="submit">Save changes</button>{% if campaign.status == "draft" %}<button class="ads-mkt-btn" name="status" value="pending">Submit for approval</button>{% endif %}{% if campaign.status == "pending" or campaign.status == "scheduled" %}<button class="ads-mkt-btn secondary" name="status" value="paused">Pause</button>{% endif %}</div>
+</form>
+{% endif %}
 <section class="ads-mkt-grid">
   {% for execution in campaign.execution_cards %}
     <article class="ads-mkt-card">
@@ -18,40 +35,6 @@
       <p>Clicks: {{ execution.clicks }}</p>
       <p>Last sync: {{ execution.last_sync|default:"Never" }}</p>
       {% if execution.error %}<p class="ads-mkt-error">{{ execution.error }}</p>{% endif %}
-      {% if request.user.is_staff and execution.channel != "internal" %}
-        <p class="ads-mkt-pill">TEST MODE</p>
-        <form method="post" action="{% url 'ads_api:management_campaign_external_preview' campaign.id %}">
-          {% csrf_token %}
-          <input type="hidden" name="channel" value="{{ execution.channel }}">
-          <button class="ads-mkt-button" type="submit">Preview Google Payload</button>
-        </form>
-        {% if execution.channel == "google" %}
-          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="channel" value="google">
-            <input type="hidden" name="action" value="create">
-            <button class="ads-mkt-button" type="submit">Create Test Google Campaign</button>
-          </form>
-          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="channel" value="google">
-            <input type="hidden" name="action" value="sync">
-            <button class="ads-mkt-button" type="submit">Sync Google Status</button>
-          </form>
-          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="channel" value="google">
-            <input type="hidden" name="action" value="reporting">
-            <button class="ads-mkt-button" type="submit">Fetch Test Reporting</button>
-          </form>
-          <form method="post" action="{% url 'ads_api:management_campaign_external_action' campaign.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="channel" value="google">
-            <input type="hidden" name="action" value="pause">
-            <button class="ads-mkt-button" type="submit">Pause Test Campaign</button>
-          </form>
-        {% endif %}
-      {% endif %}
     </article>
   {% endfor %}
 </section>

@@ -1,4 +1,4 @@
-<article class="ads-mkt-row">
+<a class="ads-mkt-row" style="text-decoration:none;color:inherit" href="{% url 'ads:marketing_campaign_detail' campaign.id %}">
   <div class="ads-mkt-row-main">
     <div>
       <h3 style="margin:0">{{ campaign.name }}</h3>
@@ -12,4 +12,4 @@
     {% include "ads/marketing/partials/metric.html" with label="Valid orders" value=campaign.performance.valid_orders %}
     {% include "ads/marketing/partials/metric.html" with label="Net revenue" value=campaign.performance.net_attributed_revenue %}
   </div>
-</article>
+</a>

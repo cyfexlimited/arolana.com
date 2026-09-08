@@ -23,6 +23,7 @@ from .models import (
     AdChannelExecution,
     AdvertisingCredential,
     AdEvent,
+    AdPlacement,
     AdvertisingConnectionAuditLog,
     AdvertisingOAuthState,
     CampaignAsset,
@@ -754,7 +755,14 @@ def management_owned_assets(request):
     assets = owned_asset_options(identity)
     if asset_type:
         assets = [asset for asset in assets if asset["asset_type"] == asset_type]
-    return JsonResponse({"success": True, "assets": assets})
+    return JsonResponse({
+        "success": True,
+        "assets": assets,
+        "placements": [
+            {"slug": placement.slug, "name": placement.name}
+            for placement in AdPlacement.objects.filter(is_active=True).order_by("priority", "name")
+        ],
+    })
 
 
 @require_http_methods(["GET", "POST"])

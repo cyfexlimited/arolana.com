@@ -1,10 +1,11 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from installers.models import ProviderService, ServiceProviderProfile
 from products.models import Product, ProductVideo
@@ -25,6 +26,8 @@ from .ownership import ownership_resolver
 
 
 OBJECTIVES = {value for value, _label in AdCampaign.OBJECTIVE_CHOICES}
+BUSINESS_BUDGET_TYPES = {value for value, _label in AdCampaign.BUDGET_TYPE}
+TARGETING_CHOICES = {value for value, _label in AdCampaign.TARGETING_CHOICES}
 ASSET_TYPES = {
     CampaignAsset.ASSET_PRODUCT,
     CampaignAsset.ASSET_PRODUCT_VIDEO,
@@ -178,6 +181,11 @@ def serialize_campaign(campaign, include_metrics=True):
         "objective": campaign.objective or AdCampaign.OBJECTIVE_PRODUCT_VISITS,
         "campaign_type": campaign.campaign_type,
         "status": campaign.status,
+        "targeting": campaign.targeting,
+        "geo_targeting": campaign.geo_targeting,
+        "device_targeting": campaign.device_targeting,
+        "max_bid": campaign.max_bid,
+        "placements": (assets[0].metadata or {}).get("placements", []) if assets else [],
         "approved": campaign.approved,
         "asset_summary": ", ".join(asset.title or asset.get_asset_type_display() for asset in assets) or "--",
         "channels": [channel.channel for channel in channels] or ["arolana"],
@@ -273,22 +281,15 @@ def create_campaign(identity, data, *, submit=False):
     object_id = data.get("object_id")
     asset_shell, obj = get_or_create_campaign_asset(identity, asset_type, content_type_id, object_id)
 
+    fields = _campaign_fields(data, creating=True)
+    placements = fields.pop("placements")
     campaign = AdCampaign.objects.create(
         name=name,
         advertiser_identity=identity,
         campaign_type=_campaign_type_for_asset(asset_type),
-        objective=objective,
         status="pending" if submit else "draft",
         approved=False,
-        budget_type=str(data.get("budget_type") or "total")[:10],
-        daily_budget=_decimal_or_none(data.get("daily_budget")),
-        total_budget=_decimal_or_default(data.get("total_budget"), Decimal("100.00")),
-        max_bid=_decimal_or_default(data.get("max_bid"), Decimal("0.50")),
-        start_date=data.get("start_date") or timezone.now(),
-        end_date=data.get("end_date") or None,
-        targeting=str(data.get("targeting") or "all")[:20],
-        geo_targeting=_list_value(data.get("geo_targeting")),
-        device_targeting=_list_value(data.get("device_targeting")),
+        **fields,
     )
     asset = CampaignAsset.objects.create(
         campaign=campaign,
@@ -298,7 +299,7 @@ def create_campaign(identity, data, *, submit=False):
         object_id=asset_shell.object_id,
         product_video=asset_shell.product_video,
         title=str(data.get("asset_title") or getattr(obj, "name", "") or getattr(obj, "title", "") or "")[:200],
-        metadata={"placements": _list_value(data.get("placements")), "internal_test": bool(data.get("internal_test"))},
+        metadata={"placements": placements, "internal_test": bool(data.get("internal_test"))},
     )
     AdChannelExecution.objects.get_or_create(
         campaign=campaign,
@@ -319,14 +320,92 @@ def update_campaign(identity, campaign_id, data):
         raise AdvertiserValidationError("campaign_not_editable")
     if "name" in data:
         campaign.name = str(data["name"]).strip()[:200] or campaign.name
-    if "objective" in data:
-        if data["objective"] not in OBJECTIVES:
-            raise AdvertiserValidationError("invalid_objective")
-        campaign.objective = data["objective"]
-    if "status" in data and data["status"] in {"draft", "pending", "paused"}:
-        campaign.status = data["status"]
-    campaign.save(update_fields=["name", "objective", "status", "updated_at"])
+    fields = _campaign_fields(data, campaign=campaign, creating=False)
+    placements = fields.pop("placements", None)
+    for key, value in fields.items():
+        setattr(campaign, key, value)
+    if "status" in data:
+        requested = data["status"]
+        transitions = {
+            "draft": {"draft", "pending"},
+            "pending": {"pending", "paused"},
+            "scheduled": {"scheduled", "paused"},
+            "paused": {"paused"},
+        }
+        if requested not in transitions.get(campaign.status, set()):
+            raise AdvertiserValidationError("invalid_campaign_transition")
+        campaign.status = requested
+    campaign.save()
+    if placements is not None:
+        asset = campaign.assets.first()
+        if not asset:
+            raise AdvertiserValidationError("campaign_asset_not_found")
+        asset.metadata = {**(asset.metadata or {}), "placements": placements}
+        asset.save(update_fields=["metadata", "updated_at"])
     return campaign
+
+
+def _money(value, field, default=None):
+    if value in (None, ""):
+        return default
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise AdvertiserValidationError(f"invalid_{field}") from exc
+    if result < 0:
+        raise AdvertiserValidationError(f"invalid_{field}")
+    return result
+
+
+def _date(value, field, default=None):
+    if value in (None, ""):
+        return default
+    if hasattr(value, "tzinfo"):
+        return value
+    parsed = parse_datetime(str(value))
+    if not parsed:
+        raise AdvertiserValidationError(f"invalid_{field}")
+    return timezone.make_aware(parsed) if timezone.is_naive(parsed) else parsed
+
+
+def _list_field(value, field):
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
+        raise AdvertiserValidationError(f"invalid_{field}")
+    return [item.strip()[:100] for item in value][:100]
+
+
+def _campaign_fields(data, campaign=None, creating=False):
+    current = campaign or AdCampaign(budget_type="total", total_budget=Decimal("100.00"), max_bid=Decimal("0.50"), start_date=timezone.now(), targeting="all")
+    result = {}
+    if creating or "objective" in data:
+        objective = data.get("objective", current.objective or AdCampaign.OBJECTIVE_PRODUCT_VISITS)
+        if objective not in OBJECTIVES: raise AdvertiserValidationError("invalid_objective")
+        result["objective"] = objective
+    budget_type = data.get("budget_type", current.budget_type)
+    if budget_type not in BUSINESS_BUDGET_TYPES: raise AdvertiserValidationError("invalid_budget_type")
+    daily = _money(data.get("daily_budget", current.daily_budget), "daily_budget")
+    total = _money(data.get("total_budget", current.total_budget), "total_budget")
+    if budget_type == "daily" and (daily is None or daily <= 0): raise AdvertiserValidationError("daily_budget_required")
+    if budget_type != "daily" and (total is None or total <= 0): raise AdvertiserValidationError("total_budget_required")
+    result.update({"budget_type": budget_type, "daily_budget": daily, "total_budget": total, "max_bid": _money(data.get("max_bid", current.max_bid), "max_bid")})
+    start = _date(data.get("start_date", current.start_date), "start_date")
+    end = _date(data.get("end_date", current.end_date), "end_date")
+    if end and start and end <= start: raise AdvertiserValidationError("invalid_schedule")
+    result.update({"start_date": start, "end_date": end})
+    targeting = data.get("targeting", current.targeting)
+    if targeting not in TARGETING_CHOICES: raise AdvertiserValidationError("invalid_targeting")
+    result["targeting"] = targeting
+    for key in ("geo_targeting", "device_targeting"):
+        value = _list_field(data[key], key) if key in data else getattr(current, key)
+        result[key] = value
+    if creating or "placements" in data:
+        placements = _list_field(data.get("placements", []), "placements") or []
+        valid = set(AdPlacement.objects.filter(is_active=True, slug__in=placements).values_list("slug", flat=True))
+        if set(placements) - valid: raise AdvertiserValidationError("invalid_placements")
+        result["placements"] = placements
+    return result
 
 
 def creative_queryset(identity):

@@ -1536,6 +1536,59 @@ class AdsV2FoundationTests(TestCase):
             self.assertEqual(response.json()["campaign"]["status"], "draft")
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_campaign_patch_preserves_omitted_fields_and_allows_safe_transitions(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        campaign = AdCampaign.objects.create(name="Editable", advertiser_identity=identity, objective="sales", total_budget=Decimal("25.00"), start_date=timezone.now(), geo_targeting=["NG"])
+        CampaignAsset.objects.create(campaign=campaign, advertiser_identity=identity, asset_type="product", content_type=ContentType.objects.get_for_model(self.product), object_id=self.product.pk, metadata={"placements": []})
+        self.client.force_login(self.vendor_user)
+        url = reverse("ads_api:management_campaign_detail", args=[campaign.pk])
+        response = self.client.patch(url, data={"name": "Renamed"}, content_type="application/json")
+        self.assertEqual(response.status_code, 200, response.content)
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.name, "Renamed")
+        self.assertEqual(campaign.total_budget, Decimal("25.00"))
+        self.assertEqual(campaign.geo_targeting, ["NG"])
+        pause = self.client.patch(url, data={"status": "paused"}, content_type="application/json")
+        self.assertEqual(pause.status_code, 400)
+        submit = self.client.patch(url, data={"status": "pending"}, content_type="application/json")
+        self.assertEqual(submit.status_code, 200)
+        self.assertEqual(self.client.patch(url, data={"status": "paused"}, content_type="application/json").status_code, 200)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_campaign_create_rejects_invalid_budget_schedule_targeting_and_placements(self):
+        self.client.force_login(self.vendor_user)
+        ct = ContentType.objects.get_for_model(self.product)
+        base = {"name": "Validated", "asset_type": "product", "content_type_id": ct.pk, "object_id": self.product.pk}
+        for extra, error in [({"budget_type": "daily"}, "daily_budget_required"), ({"total_budget": "-1"}, "invalid_total_budget"), ({"start_date": "bad"}, "invalid_start_date"), ({"targeting": "bad"}, "invalid_targeting"), ({"placements": ["missing"]}, "invalid_placements")]:
+            response = self.client.post(reverse("ads_api:management_campaigns"), data={**base, **extra}, content_type="application/json")
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.json()["error"], error)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_web_campaign_detail_is_scoped_and_uses_contract_actions(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        start = timezone.now()
+        campaign = AdCampaign.objects.create(name="Web campaign", advertiser_identity=identity, total_budget=Decimal("20.00"), start_date=start, geo_targeting=["NG"])
+        CampaignAsset.objects.create(campaign=campaign, advertiser_identity=identity, asset_type="product", content_type=ContentType.objects.get_for_model(self.product), object_id=self.product.pk, metadata={"placements": []})
+        self.client.force_login(self.vendor_user)
+        url = reverse("ads:marketing_campaign_detail", args=[campaign.pk])
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'name="csrfmiddlewaretoken"')
+        self.assertContains(page, "Submit for approval")
+        edited = self.client.post(url, {"name": "Web edited", "objective": "sales", "budget_type": "total", "total_budget": "30.00", "max_bid": "0.50", "start_date": start.isoformat(), "end_date": (start + timedelta(days=7)).isoformat(), "targeting": "high_value", "geo_targeting": "NG, GH", "device_targeting": "mobile, desktop", "status": "draft"})
+        self.assertEqual(edited.status_code, 302)
+        campaign.refresh_from_db(); self.assertEqual(campaign.name, "Web edited")
+        self.assertEqual(campaign.targeting, "high_value")
+        self.assertEqual(campaign.geo_targeting, ["NG", "GH"])
+        self.assertEqual(campaign.device_targeting, ["mobile", "desktop"])
+        self.assertEqual(self.client.post(url, {"status": "pending"}).status_code, 302)
+        campaign.refresh_from_db(); self.assertEqual(campaign.geo_targeting, ["NG", "GH"])
+        self.assertEqual(self.client.post(url, {"status": "paused"}).status_code, 302)
+        self.client.force_login(self.other_vendor_user)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
     def test_creative_management_is_limited_to_owned_campaigns_and_safe_types(self):
         identity = self.resolver.get_or_create_identity(
             self.resolver.resolve_product_owner(self.product)
