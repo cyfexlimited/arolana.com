@@ -769,6 +769,66 @@ class ExternalAdvertisingAccount(BaseModel):
                 raise ValidationError("Do not store credentials in external_account_id.")
 
 
+class AdvertisingMediaAsset(BaseModel):
+    """Provider media prepared for one connected advertising account only.
+
+    The source fingerprint is deliberately opaque: it permits idempotency without
+    persisting a storage path, provider response, or credential material.
+    """
+
+    MEDIA_IMAGE = "image"
+    MEDIA_VIDEO = "video"
+    MEDIA_TYPE_CHOICES = [
+        (MEDIA_IMAGE, "Image"),
+        (MEDIA_VIDEO, "Video"),
+    ]
+
+    STATUS_PENDING = "pending"
+    STATUS_PROCESSING = "processing"
+    STATUS_READY = "ready"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_READY, "Ready"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    external_account = models.ForeignKey(
+        ExternalAdvertisingAccount,
+        on_delete=models.CASCADE,
+        related_name="media_assets",
+    )
+    provider = models.CharField(max_length=30, choices=ExternalAdvertisingAccount.CHANNEL_CHOICES, db_index=True)
+    media_type = models.CharField(max_length=10, choices=MEDIA_TYPE_CHOICES, db_index=True)
+    source_fingerprint = models.CharField(max_length=64, db_index=True)
+    provider_media_id = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    failure_code = models.CharField(max_length=80, blank=True)
+    failure_message = models.CharField(max_length=240, blank=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["external_account", "provider", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["external_account", "provider", "media_type", "source_fingerprint"],
+                name="unique_ads_account_media_source",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.external_account_id and self.provider != self.external_account.channel:
+            raise ValidationError("Media provider must match the connected external account channel.")
+
+    def __str__(self):
+        return f"{self.provider} {self.media_type} media for account #{self.external_account_id}"
+
+
 class AdvertisingCredential(BaseModel):
     """Encrypted OAuth credential material for external advertising accounts."""
 

@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .credentials import credential_encryption_service
+from .media_assets import MediaAssetError, advertising_media_asset_service
 from .models import (
     AdvertisingConnectionAuditLog,
     AdvertisingCredential,
@@ -773,7 +774,7 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
             "targeting": data.get("targeting") or {},
         }
 
-    def build_creative_payload(self, execution, creative=None):
+    def build_creative_payload(self, execution, creative=None, media_asset=None):
         if creative is None:
             creative = execution.campaign.creatives.filter(is_active=True).first()
         if creative is None:
@@ -817,8 +818,22 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
                 stage="creative_payload",
             )
 
-        creative_metadata = creative.dynamic_fields or {}
-        image_hash = str(creative_metadata.get("meta_image_hash") or "").strip()
+        try:
+            media_asset = media_asset or advertising_media_asset_service.resolve_for_creative(
+                execution=execution,
+                creative=creative,
+            )
+        except MediaAssetError as exc:
+            raise ProviderAPIError(str(exc), stage="creative_payload") from exc
+        if media_asset.external_account_id != execution.external_account_id:
+            raise ProviderAPIError("meta_media_external_account_mismatch", stage="creative_payload")
+        if media_asset.provider != self.provider:
+            raise ProviderAPIError("meta_media_provider_mismatch", stage="creative_payload")
+        if media_asset.media_type != "image":
+            raise ProviderAPIError("meta_media_type_unsupported", stage="creative_payload")
+        if media_asset.status != "ready":
+            raise ProviderAPIError("meta_creative_media_not_ready", stage="creative_payload")
+        image_hash = str(media_asset.provider_media_id or "").strip()
         if not re.fullmatch(r"[a-fA-F0-9]{16,128}", image_hash):
             raise ProviderAPIError(
                 "meta_creative_image_hash_required",

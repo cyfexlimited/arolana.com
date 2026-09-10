@@ -45,6 +45,7 @@ from .models import (
     AdChannelReportingSnapshot,
     AdvertisingConnectionAuditLog,
     AdvertisingCredential,
+    AdvertisingMediaAsset,
     AdvertisingOAuthState,
     AdvertiserIdentity,
     CampaignAsset,
@@ -52,6 +53,7 @@ from .models import (
 )
 from .credentials import CredentialEncryptionError, credential_encryption_service
 from .execution import OBJECTIVE_MAPPING, external_campaign_execution_service
+from .media_assets import MediaAssetError, advertising_media_asset_service, sanitize_failure
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -4084,19 +4086,22 @@ class AdsV2FoundationTests(TestCase):
         creative = campaign.creatives.filter(is_active=True).first()
         creative.creative_type = "image"
         creative.cta_text = "Shop Now"
-        creative.dynamic_fields = {
-            "meta_image_hash": "0123456789abcdef0123456789abcdef",
-        }
+        creative.image.name = "ads/creatives/mock-meta-image.jpg"
         creative.save(
             update_fields=[
                 "creative_type",
                 "cta_text",
-                "dynamic_fields",
+                "image",
                 "updated_at",
             ]
         )
         execution.external_campaign_id = "meta-campaign-123"
         execution.external_ad_group_id = "meta-ad-set-456"
+        media = advertising_media_asset_service.resolve_for_creative(
+            execution=execution,
+            creative=creative,
+        )
+        advertising_media_asset_service.mock_upload_meta_image(media)
         return campaign, execution, creative
 
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
@@ -4130,10 +4135,11 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(story["link_data"]["link"], creative.clickthrough_url)
         self.assertEqual(story["link_data"]["name"], creative.headline)
         self.assertEqual(story["link_data"]["message"], creative.description)
-        self.assertEqual(
-            story["link_data"]["image_hash"],
-            "0123456789abcdef0123456789abcdef",
+        media = advertising_media_asset_service.resolve_for_creative(
+            execution=execution,
+            creative=creative,
         )
+        self.assertEqual(story["link_data"]["image_hash"], media.provider_media_id)
         self.assertEqual(
             story["link_data"]["call_to_action"],
             {
@@ -4162,7 +4168,7 @@ class AdsV2FoundationTests(TestCase):
 
     @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     @patch("ads.providers.requests.post")
-    def test_meta_creative_payload_requires_page_and_meta_image_hash(self, mock_post):
+    def test_meta_creative_payload_requires_page_and_ready_account_media(self, mock_post):
         _campaign, execution, creative = self._meta_creative_fixture()
         execution.external_account.metadata = {}
 
@@ -4174,11 +4180,16 @@ class AdsV2FoundationTests(TestCase):
         )
 
         execution.external_account.metadata = {"meta_page_id": "112233445566778"}
-        creative.dynamic_fields = {}
-        creative.image.name = "ads/creatives/local-only.jpg"
+        media = advertising_media_asset_service.resolve_for_creative(
+            execution=execution,
+            creative=creative,
+        )
+        media.status = AdvertisingMediaAsset.STATUS_PENDING
+        media.provider_media_id = ""
+        media.save(update_fields=["status", "provider_media_id", "updated_at"])
         with self.assertRaises(ProviderAPIError) as missing_hash:
             provider_for("meta").create_creative(execution, creative)
-        self.assertEqual(str(missing_hash.exception), "meta_creative_image_hash_required")
+        self.assertEqual(str(missing_hash.exception), "meta_creative_media_not_ready")
         self.assertEqual(missing_hash.exception.stage, "creative_payload")
         mock_post.assert_not_called()
 
@@ -4580,7 +4591,6 @@ class AdsV2FoundationTests(TestCase):
         self.assertIn("meta_page_selected_at", execution.external_account.metadata)
         self.assertNotIn("access_token", execution.external_account.metadata)
 
-        creative.dynamic_fields = {"meta_image_hash": "0123456789abcdef0123456789abcdef"}
         story = json.loads(
             provider_for("meta").build_creative_payload(execution, creative)["object_story_spec"]
         )
@@ -5993,6 +6003,186 @@ class AdsV2FoundationTests(TestCase):
         credential = type("Credential", (), {"encrypted_access_token": "encrypted"})()
 
         self.assertEqual(provider_for("google").list_ad_accounts(credential), [])
+
+
+class AdvertisingMediaAssetFoundationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="media-owner",
+            email="media-owner@example.com",
+            password="testpass123",
+        )
+        self.identity = AdvertiserIdentity.objects.create(
+            owner_type=AdvertiserIdentity.OWNER_PLATFORM,
+            user=self.user,
+            display_name="Media advertiser",
+        )
+        self.campaign = AdCampaign.objects.create(
+            name="Media campaign",
+            advertiser_identity=self.identity,
+            start_date=timezone.now(),
+        )
+        self.creative = AdCreative.objects.create(
+            campaign=self.campaign,
+            name="Media creative",
+            creative_type="image",
+            headline="Media headline",
+            cta_text="Shop Now",
+            clickthrough_url="https://arolana.com/media",
+        )
+        self.creative.image.name = "ads/creatives/media-source.jpg"
+        self.creative.save(update_fields=["image", "updated_at"])
+        self.account = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=self.identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id="media-meta-account",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+            metadata={"meta_page_id": "112233445566778"},
+        )
+        self.execution = AdChannelExecution.objects.create(
+            campaign=self.campaign,
+            advertiser_identity=self.identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account=self.account,
+        )
+
+    def resolve(self):
+        return advertising_media_asset_service.resolve_for_creative(
+            execution=self.execution,
+            creative=self.creative,
+        )
+
+    def test_get_or_create_is_account_and_provider_scoped(self):
+        first = self.resolve()
+        duplicate = self.resolve()
+        self.assertEqual(first.pk, duplicate.pk)
+        self.assertEqual(first.status, AdvertisingMediaAsset.STATUS_PENDING)
+        self.assertEqual(len(first.source_fingerprint), 64)
+        self.assertNotIn("ads/creatives", first.source_fingerprint)
+
+        other_account = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=self.identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id="media-meta-account-other",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+        other = advertising_media_asset_service.get_or_create(
+            external_account=other_account,
+            provider="meta",
+            media_type="image",
+            source_identity="ads/creatives/media-source.jpg",
+        )
+        self.assertNotEqual(first.pk, other.pk)
+        with self.assertRaisesRegex(MediaAssetError, "media_provider_account_mismatch"):
+            advertising_media_asset_service.get_or_create(
+                external_account=self.account,
+                provider="google",
+                media_type="image",
+                source_identity="ads/creatives/media-source.jpg",
+            )
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("real network request attempted"))
+    def test_mock_meta_image_upload_is_deterministic_idempotent_and_network_free(self, mock_request):
+        media = self.resolve()
+        ready = advertising_media_asset_service.mock_upload_meta_image(media)
+        first_hash = ready.provider_media_id
+        self.assertEqual(ready.status, AdvertisingMediaAsset.STATUS_READY)
+        self.assertEqual(ready.attempt_count, 1)
+        self.assertRegex(first_hash, r"^[a-f0-9]{64}$")
+
+        repeated = advertising_media_asset_service.mock_upload_meta_image(ready)
+        self.assertEqual(repeated.pk, ready.pk)
+        self.assertEqual(repeated.provider_media_id, first_hash)
+        self.assertEqual(repeated.attempt_count, 1)
+        mock_request.assert_not_called()
+
+    def test_state_transitions_failure_retry_and_sanitization_are_bounded(self):
+        media = self.resolve()
+        processing = advertising_media_asset_service.mark_processing(media)
+        self.assertEqual(processing.status, AdvertisingMediaAsset.STATUS_PROCESSING)
+        self.assertEqual(processing.attempt_count, 1)
+        self.assertIsNotNone(processing.last_attempted_at)
+
+        failed = advertising_media_asset_service.mark_failed(
+            processing,
+            code="Provider Failure!",
+            message="Bearer secret value must never be stored " + ("x" * 500),
+        )
+        self.assertEqual(failed.status, AdvertisingMediaAsset.STATUS_FAILED)
+        self.assertEqual(failed.failure_code, "provider_failure")
+        self.assertEqual(failed.failure_message, "provider_media_error")
+        retried = advertising_media_asset_service.mark_processing(failed)
+        self.assertEqual(retried.attempt_count, 2)
+        safe_code, safe_message = sanitize_failure("Bad code!", "safe detail")
+        self.assertEqual(safe_code, "bad_code")
+        self.assertEqual(safe_message, "safe detail")
+
+    def test_video_state_foundation_exists_without_upload(self):
+        self.creative.creative_type = "video"
+        self.creative.video_url = "https://arolana.com/media/video.mp4"
+        self.creative.save(update_fields=["creative_type", "video_url", "updated_at"])
+        media = self.resolve()
+        self.assertEqual(media.media_type, AdvertisingMediaAsset.MEDIA_VIDEO)
+        self.assertEqual(media.status, AdvertisingMediaAsset.STATUS_PENDING)
+        advertising_media_asset_service.mark_processing(media)
+        media.refresh_from_db()
+        self.assertEqual(media.status, AdvertisingMediaAsset.STATUS_PROCESSING)
+        self.assertFalse(media.provider_media_id)
+
+    def test_creative_requires_ready_media_for_its_authorized_account(self):
+        media = self.resolve()
+        self.creative.dynamic_fields = {"meta_image_hash": "f" * 64}
+        self.creative.save(update_fields=["dynamic_fields", "updated_at"])
+        with self.assertRaises(ProviderAPIError) as pending:
+            provider_for("meta").build_creative_payload(self.execution, self.creative)
+        self.assertEqual(str(pending.exception), "meta_creative_media_not_ready")
+
+        advertising_media_asset_service.mock_upload_meta_image(media)
+        payload = provider_for("meta").build_creative_payload(self.execution, self.creative)
+        story = json.loads(payload["object_story_spec"])
+        self.assertEqual(story["link_data"]["image_hash"], media.provider_media_id)
+        self.assertNotEqual(story["link_data"]["image_hash"], self.creative.dynamic_fields["meta_image_hash"])
+
+    def test_creative_rejects_cross_account_and_cross_advertiser_media(self):
+        media = advertising_media_asset_service.mock_upload_meta_image(self.resolve())
+        other_account = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=self.identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id="different-media-account",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+        wrong_media = advertising_media_asset_service.get_or_create(
+            external_account=other_account,
+            provider="meta",
+            media_type="image",
+            source_identity="ads/creatives/media-source.jpg",
+        )
+        advertising_media_asset_service.mock_upload_meta_image(wrong_media)
+        with self.assertRaises(ProviderAPIError) as cross_account:
+            provider_for("meta").build_creative_payload(self.execution, self.creative, wrong_media)
+        self.assertEqual(str(cross_account.exception), "meta_media_external_account_mismatch")
+
+        other_user = get_user_model().objects.create_user("media-other", password="testpass123")
+        other_identity = AdvertiserIdentity.objects.create(
+            owner_type=AdvertiserIdentity.OWNER_PLATFORM,
+            user=other_user,
+            display_name="Other advertiser",
+        )
+        self.account.advertiser_identity = other_identity
+        self.account.save(update_fields=["advertiser_identity", "updated_at"])
+        with self.assertRaisesRegex(MediaAssetError, "media_external_account_advertiser_mismatch"):
+            advertising_media_asset_service.resolve_for_creative(
+                execution=self.execution,
+                creative=self.creative,
+            )
+        self.assertIsNotNone(media.pk)
+
+    def test_media_model_has_no_credential_or_raw_response_fields(self):
+        field_names = {field.name for field in AdvertisingMediaAsset._meta.get_fields()}
+        for forbidden in {"access_token", "refresh_token", "page_token", "raw_response", "metadata"}:
+            self.assertNotIn(forbidden, field_names)
+        with self.assertRaisesRegex(MediaAssetError, "invalid_provider_media_id"):
+            advertising_media_asset_service.mark_ready(self.resolve(), "Bearer credential-value")
 
 
 @skipUnlessDBFeature("has_select_for_update")
