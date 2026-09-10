@@ -59,6 +59,7 @@ from .media_assets import MediaAssetError, advertising_media_asset_service, sani
 from .creative_preparation import CreativePreparationError, canonical_meta_payload, creative_preparation_service, payload_fingerprint
 from .ad_resource_management import AdResourceError, advertising_ad_resource_service, canonical_meta_ad_payload, status as ad_resource_status
 from .meta_readiness import check as meta_readiness_check
+from .meta_verification import verify as meta_verification_check
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -6599,6 +6600,57 @@ class MetaPublishReadinessTests(TestCase):
         self.client.force_login(other_user)
         denied = self.client.get(url, {"advertiser_id": other_identity.pk, "external_account_id": self.account.pk})
         self.assertEqual(denied.status_code, 404); mock_request.assert_not_called()
+
+
+class MetaLiveVerificationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("m13-owner@example.com", username="m13-owner", password="testpass123")
+        self.identity = AdvertiserIdentity.objects.create(owner_type="platform", user=self.user, display_name="M13")
+        self.campaign = AdCampaign.objects.create(name="M13 campaign", advertiser_identity=self.identity, status="pending", start_date=timezone.now())
+        self.creative = AdCreative.objects.create(campaign=self.campaign, name="M13 image", creative_type="image", headline="Headline", description="Body", cta_text="Shop Now", clickthrough_url="https://arolana.com/m13")
+        self.account = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="meta", external_account_id="act_123", status="connected", metadata={"meta_page_id": "456", "meta_page_name": "Selected"})
+
+    def credential(self):
+        return AdvertisingCredential.objects.create(external_account=self.account, provider="meta", encrypted_access_token=credential_encryption_service.encrypt("m13-access-token"))
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("real network request attempted"))
+    @patch("ads.providers.requests.get")
+    def test_live_verification_is_get_only_scoped_safe_and_does_not_mutate(self, mock_get, mock_request):
+        self.credential()
+        mock_get.side_effect = [
+            SimpleNamespace(status_code=200, json=lambda: {"data": [{"id": "act_123"}]}),
+            SimpleNamespace(status_code=200, json=lambda: {"data": [{"id": "456", "name": "Selected", "tasks": []}]}),
+        ]
+        before = (self.account.status, self.account.metadata.copy(), self.account.updated_at)
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("ads_api:management_creative_meta_verification_check", args=[self.creative.pk]), data={"external_account_id": self.account.pk}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(response.status_code, 200, response.content); verification = response.json()["verification"]
+        self.assertEqual(verification["status"], "verified"); self.assertTrue(verification["verified"]); self.assertEqual(verification["blockers"], [])
+        self.assertEqual(mock_get.call_count, 2)
+        for call in mock_get.call_args_list: self.assertEqual(call.kwargs.get("timeout"), 20)
+        self.account.refresh_from_db(); self.assertEqual((self.account.status, self.account.metadata, self.account.updated_at), before)
+        self.assertNotIn("token", str(response.content).lower()); self.assertNotIn("raw", str(response.content).lower()); mock_request.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_verification_maps_account_page_connection_and_provider_failures_safely(self, mock_get):
+        self.credential()
+        cases = [
+            (None, [], "meta_account_required"),
+            (self.account.pk, [], "meta_provider_unavailable"),
+        ]
+        for account_id, replies, expected in cases:
+            with self.subTest(expected=expected):
+                mock_get.reset_mock(); mock_get.side_effect = replies or __import__("requests").exceptions.Timeout()
+                self.assertIn(expected, meta_verification_check(self.identity, self.creative, account_id)["blockers"])
+        mock_get.side_effect = [SimpleNamespace(status_code=200, json=lambda: {"data": [{"id": "999"}]})]
+        self.assertIn("meta_account_mismatch", meta_verification_check(self.identity, self.creative, self.account.pk)["blockers"])
+        mock_get.side_effect = [SimpleNamespace(status_code=200, json=lambda: {"data": [{"id": "123"}]}), SimpleNamespace(status_code=200, json=lambda: {"data": [{"id": "999", "name": "Other"}]})]
+        self.assertIn("meta_page_not_accessible", meta_verification_check(self.identity, self.creative, self.account.pk)["blockers"])
+        self.account.metadata = {}; self.account.save(update_fields=["metadata", "updated_at"])
+        mock_get.reset_mock()
+        self.assertIn("meta_page_required", meta_verification_check(self.identity, self.creative, self.account.pk)["blockers"]); mock_get.assert_not_called()
 
 
 @skipUnlessDBFeature("has_select_for_update")

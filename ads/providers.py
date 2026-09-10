@@ -327,6 +327,21 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
     max_page_discovery_pages = 10
     max_page_discovery_items = 250
 
+    def _read_only_get(self, url, *, credential, params=None):
+        """The sole M13 Graph boundary: deliberately permits GET only."""
+        if not isinstance(url, str) or not url.startswith("https://graph.facebook.com/v24.0/"):
+            raise ProviderAPIError("meta_provider_unavailable", stage="live_verification")
+        try:
+            return requests.get(url, headers=self._bearer_headers(credential), params=params or {}, timeout=20)
+        except requests.Timeout as exc:
+            raise ProviderAPIError("meta_provider_unavailable", stage="live_verification") from exc
+        except requests.RequestException as exc:
+            raise ProviderAPIError("meta_provider_unavailable", stage="live_verification") from exc
+
+    @staticmethod
+    def _normalized_meta_account_id(value):
+        return str(value or "").strip().removeprefix("act_")
+
     def scope_string(self):
         return ",".join(self.default_scopes)
 
@@ -372,12 +387,7 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
             params = {"fields": "id,name,category,tasks", "limit": 100}
             if after:
                 params["after"] = after
-            response = requests.get(
-                self.page_discovery_url,
-                headers=self._bearer_headers(credential),
-                params=params,
-                timeout=20,
-            )
+            response = self._read_only_get(self.page_discovery_url, credential=credential, params=params)
             if response.status_code in {401, 403}:
                 raise ProviderAuthorizationError(
                     "meta_authorization_failed",
@@ -449,6 +459,43 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
                 stage="page_discovery",
             )
         return pages
+
+    def verify_connected_account_and_page(self, credential, external_account):
+        """Live GET-only verification with no response persistence or mutation."""
+        if credential.provider != self.provider or external_account.channel != self.provider:
+            raise ProviderAPIError("meta_account_mismatch", stage="live_verification")
+        if credential.revoked_at:
+            raise ProviderAuthorizationError("credential_revoked", stage="live_verification")
+        expected_account_id = self._normalized_meta_account_id(external_account.external_account_id)
+        selected_page_id = str((external_account.metadata or {}).get("meta_page_id") or "").strip()
+        if not expected_account_id:
+            raise ProviderAPIError("meta_account_mismatch", stage="live_verification")
+        if not re.fullmatch(r"\d+", selected_page_id):
+            raise ProviderAPIError("meta_page_required", stage="live_verification")
+        response = self._read_only_get(
+            "https://graph.facebook.com/v24.0/me/adaccounts",
+            credential=credential,
+            params={"fields": "id", "limit": 250},
+        )
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError("meta_authorization_failed", stage="live_verification", http_status=response.status_code)
+        if response.status_code == 429:
+            raise ProviderAPIError("meta_provider_unavailable", stage="live_verification", http_status=429)
+        if response.status_code >= 400:
+            raise ProviderAPIError("meta_provider_unavailable", stage="live_verification", http_status=response.status_code)
+        try:
+            payload = response.json()
+        except (ValueError, TypeError) as exc:
+            raise ProviderAPIError("meta_response_invalid", stage="live_verification") from exc
+        rows = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(rows, list):
+            raise ProviderAPIError("meta_response_invalid", stage="live_verification")
+        if expected_account_id not in {self._normalized_meta_account_id(row.get("id")) for row in rows if isinstance(row, dict)}:
+            raise ProviderAPIError("meta_account_mismatch", stage="live_verification")
+        pages = self.list_facebook_pages(credential)
+        if not any(page.page_id == selected_page_id for page in pages):
+            raise ProviderAPIError("meta_page_not_accessible", stage="live_verification")
+        return {"account_verified": True, "page_verified": True}
 
 
     def create_campaign(self, execution, payload, *, idempotency_key=None):

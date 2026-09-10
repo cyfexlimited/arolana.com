@@ -40,6 +40,7 @@ from .media_management import (
 from .preparation_management import status as preparation_status, prepare as prepare_creative, safe as safe_preparation
 from .ad_resource_management import AdResourceError, status as ad_resource_status, prepare as prepare_ad_resource, safe as safe_ad_resource
 from .meta_readiness import check as meta_readiness_check
+from .meta_verification import verify as meta_verification_check
 from .management import (
     AdvertiserAccessError,
     AdvertiserValidationError,
@@ -875,6 +876,20 @@ def management_creative_meta_readiness(request, creative_id):
         "success": True,
         "readiness": _json_safe(meta_readiness_check(identity, creative, request.GET.get("external_account_id"))),
     })
+
+
+@require_POST
+def management_creative_meta_verification_check(request, creative_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    creative = _preparation_creative(identity, creative_id)
+    if not creative:
+        return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    data = _json_management_body(request)
+    return JsonResponse({"success": True, "verification": _json_safe(meta_verification_check(
+        identity, creative, data.get("external_account_id"),
+    ))})
 
 
 def _ad_resource_action(request, creative_id, retry=False):
