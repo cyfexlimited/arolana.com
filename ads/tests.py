@@ -6005,6 +6005,188 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(provider_for("google").list_ad_accounts(credential), [])
 
 
+    def _m7_creative_media_context(self, *, creative_type="image"):
+        identity = self.resolver.get_or_create_identity(
+            self.resolver.resolve_product_owner(self.product)
+        )
+        self.product.main_image.name = "products/m7/projector.jpg"
+        self.product.save(update_fields=["main_image", "updated_at"])
+        campaign = AdCampaign.objects.create(
+            name="M7 media campaign", advertiser_identity=identity, start_date=timezone.now()
+        )
+        asset = CampaignAsset.objects.create(
+            campaign=campaign,
+            advertiser_identity=identity,
+            asset_type=CampaignAsset.ASSET_PRODUCT,
+            content_type=ContentType.objects.get_for_model(self.product),
+            object_id=self.product.pk,
+            title="Owned projector",
+        )
+        creative = AdCreative.objects.create(
+            campaign=campaign,
+            name="M7 creative",
+            creative_type=creative_type,
+            headline="Prepared creative",
+            cta_text="Shop Now",
+            clickthrough_url="https://arolana.com/projector",
+            video_url="https://video.example/m7" if creative_type == "video" else "",
+        )
+        account = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id=f"m7-meta-{uuid4()}",
+            display_name="M7 Meta account",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+        return identity, campaign, asset, creative, account
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("provider request attempted"))
+    def test_creative_media_management_selects_owned_source_and_mock_prepares_without_network(self, mock_request):
+        identity, _campaign, asset, creative, account = self._m7_creative_media_context()
+        self.client.force_login(self.vendor_user)
+        url = reverse("ads_api:management_creative_media", args=[creative.pk])
+        inspection = self.client.get(url, {"advertiser_id": identity.pk, "external_account_id": account.pk})
+        self.assertEqual(inspection.status_code, 200, inspection.content)
+        self.assertEqual(inspection.json()["sources"], [{
+            "asset_id": asset.pk, "media_type": "image", "source_type": "product_image", "summary": "Owned projector",
+        }])
+        self.assertNotIn("provider_media_id", json.dumps(inspection.json()))
+
+        attached = self.client.post(
+            url,
+            data={"external_account_id": account.pk, "asset_id": asset.pk},
+            content_type="application/json",
+            QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        self.assertEqual(attached.status_code, 201, attached.content)
+        media = attached.json()["media"]
+        self.assertEqual(media["status"], "pending")
+        self.assertFalse(media["ready"])
+        self.assertEqual(AdvertisingMediaAsset.objects.count(), 1)
+        creative.refresh_from_db()
+        self.assertEqual(creative.image.name, "products/m7/projector.jpg")
+
+        prepared = self.client.post(
+            reverse("ads_api:management_creative_media_prepare", args=[creative.pk, media["id"]]),
+            QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        self.assertEqual(prepared.status_code, 200, prepared.content)
+        self.assertTrue(prepared.json()["media"]["ready"])
+        repeated = self.client.post(
+            reverse("ads_api:management_creative_media_prepare", args=[creative.pk, media["id"]]),
+            QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        self.assertEqual(repeated.status_code, 200)
+        self.assertEqual(repeated.json()["media"]["attempt_count"], 1)
+        mock_request.assert_not_called()
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_creative_media_management_rejects_cross_advertiser_account_and_incompatible_source(self):
+        identity, _campaign, asset, creative, account = self._m7_creative_media_context()
+        self.client.force_login(self.vendor_user)
+        url = reverse("ads_api:management_creative_media", args=[creative.pk])
+        other_product = self._product(self.other_vendor_user, "Other source", "m7-other-source")
+        other_product.main_image.name = "products/m7/other.jpg"
+        other_product.save(update_fields=["main_image", "updated_at"])
+        other_identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(other_product))
+        other_account = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=other_identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id=f"m7-other-{uuid4()}",
+            status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+        )
+        rejected_account = self.client.post(
+            url,
+            data={"external_account_id": other_account.pk, "asset_id": asset.pk},
+            content_type="application/json",
+            QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        self.assertEqual(rejected_account.status_code, 400)
+        self.assertEqual(rejected_account.json()["error"], "external_account_not_found")
+        rejected_source = self.client.post(
+            url,
+            data={"external_account_id": account.pk, "asset_id": 999999},
+            content_type="application/json",
+            QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        self.assertEqual(rejected_source.status_code, 400)
+        self.assertEqual(rejected_source.json()["error"], "media_source_not_found")
+
+        video = ProductVideo.objects.create(
+            product=self.product, vendor=self.vendor, title="M7 video", source="youtube",
+            youtube_url="https://video.example/m7", moderation_status="approved",
+        )
+        video_asset = CampaignAsset.objects.create(
+            campaign=creative.campaign, advertiser_identity=identity,
+            asset_type=CampaignAsset.ASSET_PRODUCT_VIDEO,
+            content_type=ContentType.objects.get_for_model(video), object_id=video.pk, product_video=video,
+        )
+        incompatible = self.client.post(
+            url,
+            data={"external_account_id": account.pk, "asset_id": video_asset.pk},
+            content_type="application/json",
+            QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        self.assertEqual(incompatible.status_code, 400)
+        self.assertEqual(incompatible.json()["error"], "media_type_incompatible")
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_creative_media_management_supports_video_selection_and_only_failed_retry(self):
+        identity, _campaign, _asset, creative, account = self._m7_creative_media_context(creative_type="video")
+        video = ProductVideo.objects.create(
+            product=self.product, vendor=self.vendor, title="M7 video", source="youtube",
+            youtube_url="https://video.example/m7", moderation_status="approved",
+        )
+        asset = CampaignAsset.objects.create(
+            campaign=creative.campaign, advertiser_identity=identity,
+            asset_type=CampaignAsset.ASSET_PRODUCT_VIDEO,
+            content_type=ContentType.objects.get_for_model(video), object_id=video.pk, product_video=video,
+        )
+        self.client.force_login(self.vendor_user)
+        attach_url = reverse("ads_api:management_creative_media", args=[creative.pk])
+        attached = self.client.post(
+            attach_url, data={"external_account_id": account.pk, "asset_id": asset.pk},
+            content_type="application/json", QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        self.assertEqual(attached.status_code, 201, attached.content)
+        media = AdvertisingMediaAsset.objects.get(pk=attached.json()["media"]["id"])
+        self.assertEqual(media.media_type, "video")
+        prepare_url = reverse("ads_api:management_creative_media_prepare", args=[creative.pk, media.pk])
+        self.assertEqual(self.client.post(prepare_url, QUERY_STRING=f"advertiser_id={identity.pk}").json()["error"], "meta_media_type_unsupported")
+        advertising_media_asset_service.mark_failed(media, code="mock_failure", message="safe")
+        retry_url = reverse("ads_api:management_creative_media_retry", args=[creative.pk, media.pk])
+        self.assertEqual(self.client.post(retry_url, QUERY_STRING=f"advertiser_id={identity.pk}").json()["error"], "meta_media_type_unsupported")
+        media.refresh_from_db()
+        self.assertEqual(media.attempt_count, 0)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("provider request attempted"))
+    def test_creative_media_management_retries_only_failed_image_media(self, mock_request):
+        identity, _campaign, asset, creative, account = self._m7_creative_media_context()
+        self.client.force_login(self.vendor_user)
+        attach_url = reverse("ads_api:management_creative_media", args=[creative.pk])
+        attached = self.client.post(
+            attach_url, data={"external_account_id": account.pk, "asset_id": asset.pk},
+            content_type="application/json", QUERY_STRING=f"advertiser_id={identity.pk}",
+        )
+        media = AdvertisingMediaAsset.objects.get(pk=attached.json()["media"]["id"])
+        retry_url = reverse("ads_api:management_creative_media_retry", args=[creative.pk, media.pk])
+        inappropriate = self.client.post(retry_url, QUERY_STRING=f"advertiser_id={identity.pk}")
+        self.assertEqual(inappropriate.status_code, 400)
+        self.assertEqual(inappropriate.json()["error"], "media_retry_not_allowed")
+        advertising_media_asset_service.mark_failed(media, code="mock_failed", message="safe failure")
+        prepare_url = reverse("ads_api:management_creative_media_prepare", args=[creative.pk, media.pk])
+        failed_prepare = self.client.post(prepare_url, QUERY_STRING=f"advertiser_id={identity.pk}")
+        self.assertEqual(failed_prepare.status_code, 400)
+        self.assertEqual(failed_prepare.json()["error"], "media_prepare_not_allowed")
+        retried = self.client.post(retry_url, QUERY_STRING=f"advertiser_id={identity.pk}")
+        self.assertEqual(retried.status_code, 200, retried.content)
+        self.assertTrue(retried.json()["media"]["ready"])
+        self.assertEqual(retried.json()["media"]["attempt_count"], 1)
+        mock_request.assert_not_called()
+
+
 class AdvertisingMediaAssetFoundationTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(

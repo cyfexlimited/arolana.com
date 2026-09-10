@@ -28,7 +28,14 @@ from .models import (
     AdvertisingConnectionAuditLog,
     AdvertisingOAuthState,
     CampaignAsset,
+    AdvertisingMediaAsset,
     ExternalAdvertisingAccount,
+)
+from .media_assets import MediaAssetError
+from .media_management import (
+    attach_creative_media_source,
+    media_for_creative,
+    prepare_creative_media,
 )
 from .management import (
     AdvertiserAccessError,
@@ -814,6 +821,105 @@ def management_creative_detail(request, creative_id):
             response["field_errors"] = {exc.field: str(exc)}
         return JsonResponse(response, status=400)
     return JsonResponse({"success": True, "creative": _json_safe(serialize_creative(creative))})
+
+
+def _safe_media_payload(media, source=None):
+    if not media:
+        return None
+    return {
+        "id": media.pk,
+        "source_type": source.source_type if source else "selected_campaign_media",
+        "source_summary": source.summary if source else "Selected campaign media",
+        "media_type": media.media_type,
+        "status": media.status,
+        "ready": media.status == AdvertisingMediaAsset.STATUS_READY,
+        "attempt_count": media.attempt_count,
+        "failure_code": media.failure_code,
+        "failure_message": media.failure_message,
+        "last_attempted_at": media.last_attempted_at,
+        "updated_at": media.updated_at,
+    }
+
+
+def _creative_media_context(identity, creative, account_id=None):
+    accounts, sources, media = media_for_creative(identity, creative, account_id=account_id)
+    selected_source = None
+    if media:
+        for source in sources:
+            if source.media_type == media.media_type:
+                from .media_assets import source_fingerprint
+                if source_fingerprint(source.source_identity) == media.source_fingerprint:
+                    selected_source = source
+                    break
+    return {
+        "accounts": [
+            {"id": account.pk, "display_name": account.display_name[:200] or "Meta account", "status": account.status}
+            for account in accounts
+        ],
+        "sources": [source.payload() for source in sources],
+        "media": _safe_media_payload(media, selected_source),
+    }
+
+
+@require_http_methods(["GET", "POST"])
+def management_creative_media(request, creative_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    try:
+        creative = creative_queryset(identity).get(pk=creative_id)
+    except AdCreative.DoesNotExist:
+        return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    try:
+        if request.method == "GET":
+            context = _creative_media_context(identity, creative, request.GET.get("external_account_id"))
+        else:
+            data = _json_management_body(request)
+            media, source = attach_creative_media_source(
+                identity,
+                creative,
+                account_id=data.get("external_account_id"),
+                asset_id=data.get("asset_id"),
+            )
+            context = _creative_media_context(identity, creative, media.external_account_id)
+            context["media"] = _safe_media_payload(media, source)
+    except MediaAssetError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+    return JsonResponse({"success": True, **_json_safe(context)}, status=201 if request.method == "POST" else 200)
+
+
+@require_POST
+def management_creative_media_prepare(request, creative_id, media_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    try:
+        creative = creative_queryset(identity).get(pk=creative_id)
+    except AdCreative.DoesNotExist:
+        return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    try:
+        media = prepare_creative_media(identity, creative, media_id)
+        context = _creative_media_context(identity, creative, media.external_account_id)
+        return JsonResponse({"success": True, **_json_safe(context)})
+    except MediaAssetError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+
+
+@require_POST
+def management_creative_media_retry(request, creative_id, media_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    try:
+        creative = creative_queryset(identity).get(pk=creative_id)
+    except AdCreative.DoesNotExist:
+        return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    try:
+        media = prepare_creative_media(identity, creative, media_id, retry=True)
+        context = _creative_media_context(identity, creative, media.external_account_id)
+        return JsonResponse({"success": True, **_json_safe(context)})
+    except MediaAssetError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
 
 
 @require_GET
