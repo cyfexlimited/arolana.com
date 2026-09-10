@@ -829,6 +829,40 @@ class AdvertisingMediaAsset(BaseModel):
         return f"{self.provider} {self.media_type} media for account #{self.external_account_id}"
 
 
+class AdvertisingCreativePreparation(BaseModel):
+    """Internal, account-scoped provider-creative preparation state.
+
+    This is deliberately not an AdChannelExecution resource: no external
+    creative has been created, and mock IDs must never drive publishing.
+    """
+    STATUS_PENDING = "pending"
+    STATUS_PREPARED = "prepared"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PREPARED, "Prepared"), (STATUS_FAILED, "Failed")]
+
+    creative = models.ForeignKey(AdCreative, on_delete=models.CASCADE, related_name="provider_preparations")
+    external_account = models.ForeignKey(ExternalAdvertisingAccount, on_delete=models.CASCADE, related_name="creative_preparations")
+    provider = models.CharField(max_length=30, choices=ExternalAdvertisingAccount.CHANNEL_CHOICES, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    payload_fingerprint = models.CharField(max_length=64, db_index=True)
+    mock_resource_id = models.CharField(max_length=200, blank=True)
+    failure_code = models.CharField(max_length=80, blank=True)
+    failure_message = models.CharField(max_length=240, blank=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["creative", "external_account", "provider", "payload_fingerprint"], name="unique_ads_creative_preparation_payload")]
+        indexes = [models.Index(fields=["external_account", "provider", "status"])]
+
+    def clean(self):
+        super().clean()
+        if self.external_account_id and self.provider != self.external_account.channel:
+            raise ValidationError("Creative preparation provider must match external account channel.")
+        if self.creative_id and self.external_account_id and self.creative.campaign.advertiser_identity_id != self.external_account.advertiser_identity_id:
+            raise ValidationError("Creative preparation advertiser must match external account advertiser.")
+
+
 class AdvertisingCredential(BaseModel):
     """Encrypted OAuth credential material for external advertising accounts."""
 

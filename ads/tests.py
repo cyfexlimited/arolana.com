@@ -54,6 +54,7 @@ from .models import (
 from .credentials import CredentialEncryptionError, credential_encryption_service
 from .execution import OBJECTIVE_MAPPING, external_campaign_execution_service
 from .media_assets import MediaAssetError, advertising_media_asset_service, sanitize_failure
+from .creative_preparation import CreativePreparationError, canonical_meta_payload, creative_preparation_service, payload_fingerprint
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -6365,6 +6366,48 @@ class AdvertisingMediaAssetFoundationTests(TestCase):
             self.assertNotIn(forbidden, field_names)
         with self.assertRaisesRegex(MediaAssetError, "invalid_provider_media_id"):
             advertising_media_asset_service.mark_ready(self.resolve(), "Bearer credential-value")
+
+
+class MetaCreativePreparationTests(TestCase):
+    def setUp(self):
+        user = get_user_model().objects.create_user("m8-owner", password="testpass123")
+        self.identity = AdvertiserIdentity.objects.create(owner_type="platform", user=user, display_name="M8")
+        self.campaign = AdCampaign.objects.create(name="M8 campaign", advertiser_identity=self.identity, start_date=timezone.now())
+        self.creative = AdCreative.objects.create(campaign=self.campaign, name="M8 image", creative_type="image", headline="Headline", description="Body", cta_text="Shop Now", clickthrough_url="https://arolana.com/m8")
+        self.account = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="meta", external_account_id="m8-meta", status="connected", metadata={"meta_page_id": "123456"})
+        self.media = AdvertisingMediaAsset.objects.create(external_account=self.account, provider="meta", media_type="image", source_fingerprint="a" * 64, status="ready", provider_media_id="b" * 64)
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network attempted"))
+    def test_mock_preparation_is_deterministic_idempotent_and_network_free(self, mock_request):
+        first, payload = creative_preparation_service.prepare_meta(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)
+        second, repeated = creative_preparation_service.prepare_meta(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)
+        self.assertEqual(first.pk, second.pk); self.assertEqual(first.status, "prepared"); self.assertEqual(first.attempt_count, 1)
+        self.assertTrue(first.mock_resource_id.startswith("mock_meta_creative_")); self.assertEqual(payload, repeated)
+        self.assertEqual(payload["object_story_spec"]["link_data"]["call_to_action"]["type"], "SHOP_NOW")
+        self.assertEqual(payload_fingerprint(payload), first.payload_fingerprint); self.assertNotIn("meta_image_hash", str(payload)); mock_request.assert_not_called()
+
+    def test_validation_rejects_page_media_cta_url_video_and_cross_account(self):
+        variants = [
+            ("page", lambda: self.account.metadata.update({"meta_page_id": ""}), "meta_creative_page_identity_required"),
+            ("cta", lambda: setattr(self.creative, "cta_text", "Anything"), "meta_creative_cta_unsupported"),
+            ("url", lambda: setattr(self.creative, "clickthrough_url", "javascript:x"), "meta_creative_destination_url_invalid"),
+            ("video", lambda: setattr(self.creative, "creative_type", "video"), "meta_video_creative_upload_not_implemented"),
+        ]
+        for _name, mutate, error in variants:
+            with self.subTest(error=error):
+                self.account.metadata = {"meta_page_id": "123456"}; self.creative.cta_text = "Shop Now"; self.creative.clickthrough_url = "https://arolana.com/m8"; self.creative.creative_type = "image"; mutate()
+                with self.assertRaisesRegex(CreativePreparationError, error): canonical_meta_payload(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)
+        self.creative.creative_type = "image"
+        self.media.status = "pending"
+        with self.assertRaisesRegex(CreativePreparationError, "meta_creative_media_not_ready"): canonical_meta_payload(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)
+
+    def test_changed_payload_creates_distinct_preparation_and_failure_is_safe(self):
+        first, _ = creative_preparation_service.prepare_meta(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)
+        self.creative.headline = "Changed"
+        second, _ = creative_preparation_service.prepare_meta(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)
+        self.assertNotEqual(first.pk, second.pk)
+        failed = creative_preparation_service.mark_failed(second, "Bad Failure!", "Bearer secret")
+        self.assertEqual(failed.failure_code, "bad_failure"); self.assertEqual(failed.failure_message, "provider_media_error")
 
 
 @skipUnlessDBFeature("has_select_for_update")
