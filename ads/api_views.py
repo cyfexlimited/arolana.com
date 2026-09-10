@@ -38,6 +38,7 @@ from .media_management import (
     prepare_creative_media,
 )
 from .preparation_management import status as preparation_status, prepare as prepare_creative, safe as safe_preparation
+from .ad_resource_management import AdResourceError, status as ad_resource_status, prepare as prepare_ad_resource, safe as safe_ad_resource
 from .management import (
     AdvertiserAccessError,
     AdvertiserValidationError,
@@ -850,6 +851,35 @@ def _preparation_action(request, creative_id, retry=False):
 def management_creative_preparation_prepare(request, creative_id): return _preparation_action(request, creative_id)
 @require_POST
 def management_creative_preparation_retry(request, creative_id): return _preparation_action(request, creative_id, retry=True)
+
+
+@require_GET
+def management_creative_ad_resource(request, creative_id):
+    identity, error = _management_identity(request)
+    if error: return error
+    creative = _preparation_creative(identity, creative_id)
+    if not creative: return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    return JsonResponse({"success": True, "ad_resource": _json_safe(safe_ad_resource(ad_resource_status(identity, creative, request.GET.get("external_account_id"))))})
+
+
+def _ad_resource_action(request, creative_id, retry=False):
+    identity, error = _management_identity(request)
+    if error: return error
+    creative = _preparation_creative(identity, creative_id)
+    if not creative: return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    try:
+        result = prepare_ad_resource(identity, creative, _json_management_body(request).get("external_account_id"), retry=retry)
+    except AdResourceError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+    return JsonResponse({"success": True, "ad_resource": _json_safe(safe_ad_resource(result))})
+
+
+@require_POST
+def management_creative_ad_resource_prepare(request, creative_id): return _ad_resource_action(request, creative_id)
+
+
+@require_POST
+def management_creative_ad_resource_retry(request, creative_id): return _ad_resource_action(request, creative_id, retry=True)
 
 
 def _safe_media_payload(media, source=None):

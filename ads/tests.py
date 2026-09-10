@@ -44,6 +44,8 @@ from .models import (
     AdChannelExecution,
     AdChannelReportingSnapshot,
     AdvertisingConnectionAuditLog,
+    AdvertisingAdResource,
+    AdvertisingCreativePreparation,
     AdvertisingCredential,
     AdvertisingMediaAsset,
     AdvertisingOAuthState,
@@ -53,8 +55,9 @@ from .models import (
 )
 from .credentials import CredentialEncryptionError, credential_encryption_service
 from .execution import OBJECTIVE_MAPPING, external_campaign_execution_service
-from .media_assets import MediaAssetError, advertising_media_asset_service, sanitize_failure
+from .media_assets import MediaAssetError, advertising_media_asset_service, sanitize_failure, source_fingerprint
 from .creative_preparation import CreativePreparationError, canonical_meta_payload, creative_preparation_service, payload_fingerprint
+from .ad_resource_management import AdResourceError, advertising_ad_resource_service, canonical_meta_ad_payload, status as ad_resource_status
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -6424,6 +6427,96 @@ class MetaCreativePreparationTests(TestCase):
         stale = self.client.get(url, {"advertiser_id": self.identity.pk, "external_account_id": self.account.pk})
         self.assertEqual(stale.json()["preparation"]["status"], "stale")
         self.assertNotIn("mock_resource_id", str(stale.content)); self.assertNotIn("provider_media_id", str(stale.content)); mock_request.assert_not_called()
+
+
+class MetaAdResourceFoundationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("m10-owner", password="testpass123")
+        self.identity = AdvertiserIdentity.objects.create(owner_type="platform", user=self.user, display_name="M10")
+        self.campaign = AdCampaign.objects.create(name="M10 campaign", advertiser_identity=self.identity, status="pending", start_date=timezone.now())
+        self.creative = AdCreative.objects.create(campaign=self.campaign, name="M10 image", creative_type="image", headline="Headline", description="Body", cta_text="Shop Now", clickthrough_url="https://arolana.com/m10")
+        self.creative.image.name = "ads/creatives/m10.jpg"; self.creative.save(update_fields=["image", "updated_at"])
+        self.account = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="meta", external_account_id="m10-meta", status="connected", metadata={"meta_page_id": "123456"})
+        self.media = AdvertisingMediaAsset.objects.create(external_account=self.account, provider="meta", media_type="image", source_fingerprint=source_fingerprint("ads/creatives/m10.jpg"), status="ready", provider_media_id="c" * 64)
+        self.execution = AdChannelExecution.objects.create(campaign=self.campaign, advertiser_identity=self.identity, channel="meta", external_account=self.account, status="paused", external_campaign_id="mock_meta_campaign_m10", external_ad_group_id="mock_meta_adset_m10")
+
+    def prepare_creative(self):
+        return creative_preparation_service.prepare_meta(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)[0]
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network attempted"))
+    def test_mock_ad_is_paused_deterministic_idempotent_and_network_free(self, mock_request):
+        preparation = self.prepare_creative()
+        first, payload = advertising_ad_resource_service.prepare_meta(campaign=self.campaign, creative=self.creative, execution=self.execution, creative_preparation=preparation, external_account=self.account, media_asset=self.media)
+        second, repeated = advertising_ad_resource_service.prepare_meta(campaign=self.campaign, creative=self.creative, execution=self.execution, creative_preparation=preparation, external_account=self.account, media_asset=self.media)
+        self.assertEqual(first.pk, second.pk); self.assertEqual(first.status, "prepared"); self.assertEqual(first.attempt_count, 1)
+        self.assertTrue(first.mock_resource_id.startswith("mock_meta_ad_")); self.assertEqual(payload, repeated); self.assertEqual(payload["status"], "PAUSED")
+        self.assertEqual(payload_fingerprint(payload), first.payload_fingerprint); self.assertNotIn(self.execution.external_ad_group_id, str(payload)); self.assertNotIn(preparation.mock_resource_id, str(payload)); mock_request.assert_not_called()
+
+    def test_preconditions_reject_account_page_media_preparation_type_and_parent(self):
+        variants = [
+            ("account", lambda: None, None, "meta_account_required"),
+            ("page", lambda: self.account.metadata.update({"meta_page_id": ""}), self.account.pk, "meta_page_required"),
+            ("media", lambda: setattr(self.media, "status", "failed"), self.account.pk, "media_not_ready"),
+            ("type", lambda: setattr(self.creative, "creative_type", "native"), self.account.pk, "unsupported_creative_type"),
+            ("parent", lambda: setattr(self.execution, "external_ad_group_id", "real-adset"), self.account.pk, "parent_adset_not_ready"),
+        ]
+        for _name, mutate, account_id, expected in variants:
+            with self.subTest(expected=expected):
+                self.account.metadata = {"meta_page_id": "123456"}; self.media.status = "ready"; self.creative.creative_type = "image"; self.execution.external_ad_group_id = "mock_meta_adset_m10"; mutate()
+                self.account.save(update_fields=["metadata", "updated_at"]); self.media.save(update_fields=["status", "updated_at"]); self.creative.save(update_fields=["creative_type", "updated_at"]); self.execution.save(update_fields=["external_ad_group_id", "updated_at"])
+                result = ad_resource_status(self.identity, self.creative, account_id)
+                self.assertIn(expected, result["blockers"])
+        self.execution.external_ad_group_id = "mock_meta_adset_m10"; self.execution.save(update_fields=["external_ad_group_id", "updated_at"])
+        self.assertIn("creative_not_prepared", ad_resource_status(self.identity, self.creative, self.account.pk)["blockers"])
+        self.prepare_creative()
+        self.assertEqual(ad_resource_status(self.identity, self.creative, self.account.pk)["status"], "ready_to_prepare")
+
+    def test_staleness_tracks_creative_page_media_campaign_and_account_context(self):
+        preparation = self.prepare_creative()
+        advertising_ad_resource_service.prepare_meta(campaign=self.campaign, creative=self.creative, execution=self.execution, creative_preparation=preparation, external_account=self.account, media_asset=self.media)
+        self.creative.headline = "Changed"; self.creative.save(update_fields=["headline", "updated_at"])
+        state = ad_resource_status(self.identity, self.creative, self.account.pk)
+        self.assertEqual(state["status"], "stale"); self.assertIn("creative_preparation_stale", state["blockers"])
+        self.creative.headline = "Headline"; self.creative.save(update_fields=["headline", "updated_at"])
+        self.account.metadata = {"meta_page_id": "987654"}; self.account.save(update_fields=["metadata", "updated_at"])
+        self.assertEqual(ad_resource_status(self.identity, self.creative, self.account.pk)["status"], "stale")
+        self.account.metadata = {"meta_page_id": "123456"}; self.account.save(update_fields=["metadata", "updated_at"])
+        self.campaign.max_bid = "1.50"; self.campaign.save(update_fields=["max_bid", "updated_at"])
+        self.assertEqual(ad_resource_status(self.identity, self.creative, self.account.pk)["status"], "stale")
+        self.campaign.max_bid = "0.50"; self.campaign.save(update_fields=["max_bid", "updated_at"])
+        self.media.provider_media_id = "d" * 64; self.media.save(update_fields=["provider_media_id", "updated_at"])
+        self.assertEqual(ad_resource_status(self.identity, self.creative, self.account.pk)["status"], "stale")
+        other = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="meta", external_account_id="m10-other", status="connected", metadata={"meta_page_id": "123456"})
+        self.assertIn("parent_adset_not_ready", ad_resource_status(self.identity, self.creative, other.pk)["blockers"])
+        wrong_provider = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="google", external_account_id="m10-google", status="connected")
+        self.assertIn("meta_account_required", ad_resource_status(self.identity, self.creative, wrong_provider.pk)["blockers"])
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network attempted"))
+    def test_management_is_scoped_safe_and_retry_only_allows_failed(self, mock_request):
+        self.client.force_login(self.user)
+        self.prepare_creative()
+        prepare_url = reverse("ads_api:management_creative_ad_resource_prepare", args=[self.creative.pk])
+        result = self.client.post(prepare_url, data={"external_account_id": self.account.pk}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(result.status_code, 200, result.content); self.assertEqual(result.json()["ad_resource"]["status"], "prepared")
+        self.assertNotIn("mock_meta_ad", str(result.content)); self.assertNotIn("provider_media_id", str(result.content)); self.assertNotIn("mock_resource_id", str(result.content))
+        resource = AdvertisingAdResource.objects.get(); failed = advertising_ad_resource_service.mark_failed(resource, "Bad Failure!", "Bearer secret")
+        self.assertEqual(failed.failure_code, "bad_failure"); self.assertEqual(failed.failure_message, "provider_media_error")
+        retry_url = reverse("ads_api:management_creative_ad_resource_retry", args=[self.creative.pk])
+        retry = self.client.post(retry_url, data={"external_account_id": self.account.pk}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(retry.status_code, 200, retry.content); self.assertEqual(retry.json()["ad_resource"]["attempt_count"], 2)
+        no_retry = self.client.post(retry_url, data={"external_account_id": self.account.pk}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(no_retry.status_code, 400); self.assertEqual(no_retry.json()["error"], "ad_resource_retry_not_allowed")
+        other_user = get_user_model().objects.create_user("m10-resource-other@example.com", username="m10-resource-other", password="testpass123")
+        other_identity = AdvertiserIdentity.objects.create(owner_type="platform", user=other_user, display_name="Other")
+        self.client.force_login(other_user)
+        denied = self.client.get(reverse("ads_api:management_creative_ad_resource", args=[self.creative.pk]), {"advertiser_id": other_identity.pk, "external_account_id": self.account.pk})
+        self.assertEqual(denied.status_code, 404); mock_request.assert_not_called()
+
+    def test_ad_resource_model_excludes_credentials_raw_payload_and_provider_ids(self):
+        fields = {field.name for field in AdvertisingAdResource._meta.get_fields()}
+        for forbidden in {"access_token", "refresh_token", "page_token", "raw_response", "metadata", "external_ad_id", "external_creative_id", "provider_media_id"}:
+            self.assertNotIn(forbidden, fields)
 
 
 @skipUnlessDBFeature("has_select_for_update")

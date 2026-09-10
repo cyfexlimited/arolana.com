@@ -863,6 +863,52 @@ class AdvertisingCreativePreparation(BaseModel):
             raise ValidationError("Creative preparation advertiser must match external account advertiser.")
 
 
+class AdvertisingAdResource(BaseModel):
+    """Mock-only provider Ad resource state, separate from channel execution.
+
+    An execution owns its provider campaign/ad-set lifecycle.  This model keeps
+    immutable, fingerprinted Ad-resource attempts so changed inputs make older
+    mock resources stale instead of overwriting them.
+    """
+    STATUS_PENDING = "pending"
+    STATUS_PREPARED = "prepared"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [(STATUS_PENDING, "Pending"), (STATUS_PREPARED, "Prepared"), (STATUS_FAILED, "Failed")]
+
+    campaign = models.ForeignKey(AdCampaign, on_delete=models.CASCADE, related_name="provider_ad_resources")
+    creative = models.ForeignKey(AdCreative, on_delete=models.CASCADE, related_name="provider_ad_resources")
+    execution = models.ForeignKey("AdChannelExecution", on_delete=models.CASCADE, related_name="ad_resources")
+    creative_preparation = models.ForeignKey(AdvertisingCreativePreparation, on_delete=models.PROTECT, related_name="ad_resources")
+    external_account = models.ForeignKey(ExternalAdvertisingAccount, on_delete=models.CASCADE, related_name="ad_resources")
+    provider = models.CharField(max_length=30, choices=ExternalAdvertisingAccount.CHANNEL_CHOICES, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    payload_fingerprint = models.CharField(max_length=64, db_index=True)
+    mock_resource_id = models.CharField(max_length=200, blank=True)
+    failure_code = models.CharField(max_length=80, blank=True)
+    failure_message = models.CharField(max_length=240, blank=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["execution", "creative_preparation", "payload_fingerprint"], name="unique_ads_ad_resource_payload")]
+        indexes = [models.Index(fields=["external_account", "provider", "status"])]
+
+    def clean(self):
+        super().clean()
+        if self.provider != ExternalAdvertisingAccount.CHANNEL_META:
+            raise ValidationError("Mock Ad resources currently support Meta only.")
+        if self.external_account_id and self.provider != self.external_account.channel:
+            raise ValidationError("Ad resource provider must match external account channel.")
+        if self.campaign_id and self.creative_id and self.creative.campaign_id != self.campaign_id:
+            raise ValidationError("Ad resource creative must belong to campaign.")
+        if self.campaign_id and self.external_account_id and self.campaign.advertiser_identity_id != self.external_account.advertiser_identity_id:
+            raise ValidationError("Ad resource advertiser must match external account advertiser.")
+        if self.execution_id and (self.execution.campaign_id != self.campaign_id or self.execution.external_account_id != self.external_account_id or self.execution.channel != self.provider):
+            raise ValidationError("Ad resource execution context must match campaign, account, and provider.")
+        if self.creative_preparation_id and (self.creative_preparation.creative_id != self.creative_id or self.creative_preparation.external_account_id != self.external_account_id or self.creative_preparation.provider != self.provider):
+            raise ValidationError("Ad resource creative preparation context must match.")
+
+
 class AdvertisingCredential(BaseModel):
     """Encrypted OAuth credential material for external advertising accounts."""
 
