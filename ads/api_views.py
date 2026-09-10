@@ -37,6 +37,7 @@ from .media_management import (
     media_for_creative,
     prepare_creative_media,
 )
+from .preparation_management import status as preparation_status, prepare as prepare_creative, safe as safe_preparation
 from .management import (
     AdvertiserAccessError,
     AdvertiserValidationError,
@@ -821,6 +822,34 @@ def management_creative_detail(request, creative_id):
             response["field_errors"] = {exc.field: str(exc)}
         return JsonResponse(response, status=400)
     return JsonResponse({"success": True, "creative": _json_safe(serialize_creative(creative))})
+
+def _preparation_creative(identity, creative_id):
+    try: return creative_queryset(identity).get(pk=creative_id)
+    except AdCreative.DoesNotExist: return None
+
+@require_GET
+def management_creative_preparation(request, creative_id):
+    identity, error = _management_identity(request)
+    if error: return error
+    creative = _preparation_creative(identity, creative_id)
+    if not creative: return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    return JsonResponse({"success": True, "preparation": _json_safe(safe_preparation(preparation_status(identity, creative, request.GET.get("external_account_id"))))})
+
+def _preparation_action(request, creative_id, retry=False):
+    identity, error = _management_identity(request)
+    if error: return error
+    creative = _preparation_creative(identity, creative_id)
+    if not creative: return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    try:
+        result = prepare_creative(identity, creative, _json_management_body(request).get("external_account_id"), retry=retry)
+    except Exception as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+    return JsonResponse({"success": True, "preparation": _json_safe(safe_preparation(result))})
+
+@require_POST
+def management_creative_preparation_prepare(request, creative_id): return _preparation_action(request, creative_id)
+@require_POST
+def management_creative_preparation_retry(request, creative_id): return _preparation_action(request, creative_id, retry=True)
 
 
 def _safe_media_payload(media, source=None):

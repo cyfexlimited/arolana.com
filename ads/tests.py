@@ -6409,6 +6409,22 @@ class MetaCreativePreparationTests(TestCase):
         failed = creative_preparation_service.mark_failed(second, "Bad Failure!", "Bearer secret")
         self.assertEqual(failed.failure_code, "bad_failure"); self.assertEqual(failed.failure_message, "provider_media_error")
 
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network attempted"))
+    def test_management_preparation_status_prepare_retry_and_staleness_are_safe(self, mock_request):
+        self.client.force_login(self.identity.user)
+        url = reverse("ads_api:management_creative_preparation", args=[self.creative.pk])
+        base = self.client.get(url, {"advertiser_id": self.identity.pk, "external_account_id": self.account.pk})
+        self.assertEqual(base.json()["preparation"]["status"], "not_ready")
+        self.creative.image.name = "m8.jpg"; self.creative.save(update_fields=["image", "updated_at"])
+        self.media.source_fingerprint = __import__("hashlib").sha256(b"m8.jpg").hexdigest(); self.media.save(update_fields=["source_fingerprint", "updated_at"])
+        prepared = self.client.post(reverse("ads_api:management_creative_preparation_prepare", args=[self.creative.pk]), data={"external_account_id": self.account.pk}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(prepared.status_code, 200, prepared.content); self.assertTrue(prepared.json()["preparation"]["prepared"])
+        self.creative.headline = "Changed"; self.creative.save(update_fields=["headline", "updated_at"])
+        stale = self.client.get(url, {"advertiser_id": self.identity.pk, "external_account_id": self.account.pk})
+        self.assertEqual(stale.json()["preparation"]["status"], "stale")
+        self.assertNotIn("mock_resource_id", str(stale.content)); self.assertNotIn("provider_media_id", str(stale.content)); mock_request.assert_not_called()
+
 
 @skipUnlessDBFeature("has_select_for_update")
 class OAuthStateConcurrencyTests(TransactionTestCase):
