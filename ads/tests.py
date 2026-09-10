@@ -58,6 +58,7 @@ from .execution import OBJECTIVE_MAPPING, external_campaign_execution_service
 from .media_assets import MediaAssetError, advertising_media_asset_service, sanitize_failure, source_fingerprint
 from .creative_preparation import CreativePreparationError, canonical_meta_payload, creative_preparation_service, payload_fingerprint
 from .ad_resource_management import AdResourceError, advertising_ad_resource_service, canonical_meta_ad_payload, status as ad_resource_status
+from .meta_readiness import check as meta_readiness_check
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -6517,6 +6518,87 @@ class MetaAdResourceFoundationTests(TestCase):
         fields = {field.name for field in AdvertisingAdResource._meta.get_fields()}
         for forbidden in {"access_token", "refresh_token", "page_token", "raw_response", "metadata", "external_ad_id", "external_creative_id", "provider_media_id"}:
             self.assertNotIn(forbidden, fields)
+
+
+class MetaPublishReadinessTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("m12-owner", password="testpass123")
+        self.identity = AdvertiserIdentity.objects.create(owner_type="platform", user=self.user, display_name="M12")
+        self.campaign = AdCampaign.objects.create(name="M12 campaign", advertiser_identity=self.identity, status="pending", start_date=timezone.now())
+        self.creative = AdCreative.objects.create(campaign=self.campaign, name="M12 image", creative_type="image", headline="Headline", description="Body", cta_text="Shop Now", clickthrough_url="https://arolana.com/m12")
+        self.creative.image.name = "ads/creatives/m12.jpg"; self.creative.save(update_fields=["image", "updated_at"])
+        self.account = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="meta", external_account_id="m12-meta", status="connected", metadata={"meta_page_id": "123456"})
+        self.media = AdvertisingMediaAsset.objects.create(external_account=self.account, provider="meta", media_type="image", source_fingerprint=source_fingerprint("ads/creatives/m12.jpg"), status="ready", provider_media_id="e" * 64)
+        self.execution = AdChannelExecution.objects.create(campaign=self.campaign, advertiser_identity=self.identity, channel="meta", external_account=self.account, status="paused", external_campaign_id="mock_meta_campaign_m12", external_ad_group_id="mock_meta_adset_m12")
+
+    def prepare_ready_chain(self):
+        # Management actions operate on fresh ORM records, as the API does.
+        creative = AdCreative.objects.select_related("campaign").get(pk=self.creative.pk)
+        account = ExternalAdvertisingAccount.objects.get(pk=self.account.pk)
+        media = AdvertisingMediaAsset.objects.get(pk=self.media.pk)
+        execution = AdChannelExecution.objects.get(pk=self.execution.pk)
+        preparation, _ = creative_preparation_service.prepare_meta(campaign=creative.campaign, creative=creative, external_account=account, media_asset=media)
+        advertising_ad_resource_service.prepare_meta(campaign=creative.campaign, creative=creative, execution=execution, creative_preparation=preparation, external_account=account, media_asset=media)
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network attempted"))
+    def test_readiness_is_read_only_deterministic_and_safe(self, mock_request):
+        self.prepare_ready_chain()
+        before = list(AdvertisingAdResource.objects.values_list("pk", "status", "attempt_count", "updated_at"))
+        fresh = AdCreative.objects.select_related("campaign").get(pk=self.creative.pk)
+        first = meta_readiness_check(self.identity, fresh, self.account.pk)
+        second = meta_readiness_check(self.identity, fresh, self.account.pk)
+        self.assertTrue(first["ready"]); self.assertEqual(first["status"], "ready")
+        self.assertEqual((first["ready"], first["status"], first["blockers"]), (second["ready"], second["status"], second["blockers"]))
+        self.assertEqual(before, list(AdvertisingAdResource.objects.values_list("pk", "status", "attempt_count", "updated_at")))
+        self.assertEqual(set(first), {"ready", "status", "blockers", "checked_at"})
+        self.assertNotIn("mock_meta", str(first)); self.assertNotIn("provider_media_id", str(first)); self.assertNotIn("token", str(first)); mock_request.assert_not_called()
+
+    def test_preflight_blockers_cover_account_page_campaign_parents_media_preparation_and_resource(self):
+        cases = [
+            ("account", lambda: None, None, "meta_account_required"),
+            ("page", lambda: self.account.metadata.update({"meta_page_id": ""}), self.account.pk, "meta_page_required"),
+            ("campaign", lambda: setattr(self.campaign, "status", "draft"), self.account.pk, "campaign_not_eligible"),
+            ("parent-campaign", lambda: setattr(self.execution, "external_campaign_id", "bad"), self.account.pk, "parent_campaign_not_ready"),
+            ("parent-adset", lambda: setattr(self.execution, "external_ad_group_id", "bad"), self.account.pk, "parent_adset_not_ready"),
+            ("media", lambda: setattr(self.media, "status", "failed"), self.account.pk, "media_not_ready"),
+            ("type", lambda: setattr(self.creative, "creative_type", "native"), self.account.pk, "unsupported_creative_type"),
+        ]
+        for _name, mutate, account_id, expected in cases:
+            with self.subTest(expected=expected):
+                self.account.metadata = {"meta_page_id": "123456"}; self.campaign.status = "pending"; self.execution.external_campaign_id = "mock_meta_campaign_m12"; self.execution.external_ad_group_id = "mock_meta_adset_m12"; self.media.status = "ready"; self.creative.creative_type = "image"; mutate()
+                self.account.save(update_fields=["metadata", "updated_at"]); self.campaign.save(update_fields=["status", "updated_at"]); self.execution.save(update_fields=["external_campaign_id", "external_ad_group_id", "updated_at"]); self.media.save(update_fields=["status", "updated_at"]); self.creative.save(update_fields=["creative_type", "updated_at"])
+                self.assertIn(expected, meta_readiness_check(self.identity, self.creative, account_id)["blockers"])
+        self.account.metadata = {"meta_page_id": "123456"}; self.account.save(update_fields=["metadata", "updated_at"])
+        self.creative.creative_type = "image"; self.creative.save(update_fields=["creative_type", "updated_at"])
+        self.media.status = "ready"; self.media.save(update_fields=["status", "updated_at"])
+        self.execution.external_campaign_id = "mock_meta_campaign_m12"; self.execution.external_ad_group_id = "mock_meta_adset_m12"; self.execution.save(update_fields=["external_campaign_id", "external_ad_group_id", "updated_at"])
+        self.campaign.status = "pending"; self.campaign.save(update_fields=["status", "updated_at"])
+        self.assertIn("creative_not_prepared", meta_readiness_check(self.identity, self.creative, self.account.pk)["blockers"])
+        preparation, _ = creative_preparation_service.prepare_meta(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=self.media)
+        self.assertIn("ad_resource_not_prepared", meta_readiness_check(self.identity, self.creative, self.account.pk)["blockers"])
+        advertising_ad_resource_service.prepare_meta(campaign=self.campaign, creative=self.creative, execution=self.execution, creative_preparation=preparation, external_account=self.account, media_asset=self.media)
+        self.assertTrue(meta_readiness_check(self.identity, self.creative, self.account.pk)["ready"])
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network attempted"))
+    def test_readiness_endpoint_is_scoped_stale_aware_and_safe(self, mock_request):
+        self.client.force_login(self.user); self.prepare_ready_chain()
+        self.assertEqual(AdvertisingAdResource.objects.get().status, AdvertisingAdResource.STATUS_PREPARED)
+        url = reverse("ads_api:management_creative_meta_readiness", args=[self.creative.pk])
+        ready = self.client.get(url, {"advertiser_id": self.identity.pk, "external_account_id": self.account.pk})
+        self.assertEqual(ready.status_code, 200); self.assertTrue(ready.json()["readiness"]["ready"], ready.content)
+        self.creative.headline = "Changed"; self.creative.save(update_fields=["headline", "updated_at"])
+        stale = self.client.get(url, {"advertiser_id": self.identity.pk, "external_account_id": self.account.pk})
+        self.assertFalse(stale.json()["readiness"]["ready"]); self.assertIn("creative_preparation_stale", stale.json()["readiness"]["blockers"])
+        other = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="google", external_account_id="m12-google", status="connected")
+        invalid = self.client.get(url, {"advertiser_id": self.identity.pk, "external_account_id": other.pk})
+        self.assertIn("meta_account_invalid", invalid.json()["readiness"]["blockers"])
+        other_suffix = uuid4().hex[:8]
+        other_user = get_user_model().objects.create_user(f"m12-other-{other_suffix}@example.com", username=f"m12-other-{other_suffix}", password="testpass123")
+        other_identity = AdvertiserIdentity.objects.create(owner_type="platform", user=other_user, display_name="Other")
+        self.client.force_login(other_user)
+        denied = self.client.get(url, {"advertiser_id": other_identity.pk, "external_account_id": self.account.pk})
+        self.assertEqual(denied.status_code, 404); mock_request.assert_not_called()
 
 
 @skipUnlessDBFeature("has_select_for_update")

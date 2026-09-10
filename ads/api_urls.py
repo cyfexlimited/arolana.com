@@ -22,6 +22,7 @@ urlpatterns = [
     path("management/creatives/<int:creative_id>/preparation/prepare/", api_views.management_creative_preparation_prepare, name="management_creative_preparation_prepare"),
     path("management/creatives/<int:creative_id>/preparation/retry/", api_views.management_creative_preparation_retry, name="management_creative_preparation_retry"),
     path("management/creatives/<int:creative_id>/ad-resource/", api_views.management_creative_ad_resource, name="management_creative_ad_resource"),
+    path("management/creatives/<int:creative_id>/meta-readiness/", api_views.management_creative_meta_readiness, name="management_creative_meta_readiness"),
     path("management/creatives/<int:creative_id>/ad-resource/prepare/", api_views.management_creative_ad_resource_prepare, name="management_creative_ad_resource_prepare"),
     path("management/creatives/<int:creative_id>/ad-resource/retry/", api_views.management_creative_ad_resource_retry, name="management_creative_ad_resource_retry"),
     path("management/creatives/<int:creative_id>/media/", api_views.management_creative_media, name="management_creative_media"),
