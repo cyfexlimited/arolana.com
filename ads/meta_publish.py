@@ -15,7 +15,7 @@ from .ad_resource_management import AdResourceError, status as ad_resource_statu
 from .creative_preparation import CreativePreparationError, canonical_meta_payload, payload_fingerprint
 from .media_assets import sanitize_failure
 from .meta_readiness import check as readiness_check
-from .meta_permissions import check as meta_permissions_check
+from .meta_permissions import snapshot as meta_permission_snapshot
 from .meta_verification import context_fingerprint
 from .models import MetaPublicationAttempt, MetaVerificationReceipt
 from .providers import ProviderAPIError, ProviderAuthorizationError, provider_for
@@ -276,10 +276,10 @@ def execute(identity, creative, account_id):
     attempt, state, blockers = _current_attempt(identity, creative, account_id)
     if blockers:
         return None, blockers
-    # M16 intentionally performs this GET-only check only after the kill
-    # switch.  A disabled execute request therefore causes no hidden provider
-    # traffic, while an enabled future execution requires current permission.
-    permissions = meta_permissions_check(identity, account_id)
+    # M17 requires a fresh M16 receipt after the kill switch.  Execute never
+    # silently performs OAuth or a provider GET; Staff must explicitly check
+    # permissions first.
+    permissions = meta_permission_snapshot(identity, account_id)
     if not permissions["ready"]:
         return None, list(permissions.get("blockers") or ["meta_reconnect_required"])
     # Serialize same-plan execution.  The locked row also carries every

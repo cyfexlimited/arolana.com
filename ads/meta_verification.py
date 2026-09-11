@@ -78,6 +78,9 @@ def verify(identity, creative, account_id=None, *, persist_receipt=False):
     except (ProviderAuthorizationError, ProviderAPIError) as exc:
         blocker = _provider_failure(exc)
         return _result("unavailable" if blocker == "meta_provider_unavailable" else "not_verified", [blocker])
+    if (account.metadata or {}).get("meta_page_verification_required") is True:
+        account.metadata = {**(account.metadata or {}), "meta_page_verification_required": False}
+        account.save(update_fields=["metadata", "updated_at"])
     if persist_receipt:
         record_verified_receipt(creative, account)
     return _result("verified")

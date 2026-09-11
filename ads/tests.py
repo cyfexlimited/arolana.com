@@ -49,6 +49,7 @@ from .models import (
     AdvertisingCredential,
     AdvertisingMediaAsset,
     MetaPublicationAttempt,
+    MetaPermissionReceipt,
     MetaVerificationReceipt,
     AdvertisingOAuthState,
     AdvertiserIdentity,
@@ -64,11 +65,12 @@ from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
 from .meta_verification import record_verified_receipt
 from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute, live_writes_enabled
-from .meta_permissions import REQUIRED_META_ADS_SCOPES, check as meta_permissions_check
+from .meta_permissions import REQUIRED_META_ADS_SCOPES, check as meta_permissions_check, snapshot as meta_permission_snapshot
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
     ProviderAuthorizationError,
+    DiscoveredAdAccount,
     audit_connection,
     provider_for,
     save_credential_tokens,
@@ -4599,6 +4601,7 @@ class AdsV2FoundationTests(TestCase):
     @patch("ads.providers.MetaAdsProvider.list_facebook_pages")
     def test_meta_page_selection_rediscovers_and_persists_only_server_values(self, mock_pages):
         _campaign, execution, creative = self._meta_creative_fixture()
+        execution.external_account.metadata["meta_page_verification_required"] = True
         execution.external_account.metadata.pop("meta_page_id", None)
         execution.external_account.metadata.pop("meta_page_name", None)
         execution.external_account.save(update_fields=["metadata", "updated_at"])
@@ -4624,6 +4627,7 @@ class AdsV2FoundationTests(TestCase):
         self.assertEqual(execution.external_account.metadata["meta_page_id"], "101")
         self.assertEqual(execution.external_account.metadata["meta_page_name"], "Server Page")
         self.assertIn("meta_page_selected_at", execution.external_account.metadata)
+        self.assertFalse(execution.external_account.metadata["meta_page_verification_required"])
         self.assertNotIn("access_token", execution.external_account.metadata)
 
         story = json.loads(
@@ -6738,7 +6742,7 @@ class MetaPublishDryRunTests(MetaPublishReadinessTests):
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
     @patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("provider write invoked"))
-    @patch("ads.meta_publish.meta_permissions_check", side_effect=AssertionError("permission check invoked"))
+    @patch("ads.meta_publish.meta_permission_snapshot", side_effect=AssertionError("permission snapshot invoked"))
     @patch("requests.sessions.Session.request", side_effect=AssertionError("real network request attempted"))
     def test_execute_is_kill_switched_and_client_cannot_bypass(self, mock_request, mock_permissions, mock_execute):
         self.client.force_login(self.user); self._ready()
@@ -6764,7 +6768,7 @@ class MetaLiveExecutionTests(MetaPublishDryRunTests):
     def setUp(self):
         super().setUp()
         permission_patch = patch(
-            "ads.meta_publish.meta_permissions_check",
+            "ads.meta_publish.meta_permission_snapshot",
             return_value={"ready": True, "blockers": []},
         )
         permission_patch.start()
@@ -6934,7 +6938,7 @@ class MetaLiveExecutionTests(MetaPublishDryRunTests):
 
     @override_settings(META_ADS_LIVE_WRITES_ENABLED=True)
     @patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("write reached adapter"))
-    @patch("ads.meta_publish.meta_permissions_check", return_value={"ready": False, "blockers": ["meta_ads_management_permission_required"]})
+    @patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": False, "blockers": ["meta_ads_management_permission_required"]})
     def test_enabled_execution_requires_current_ads_management_permission(self, mock_permissions, mock_create):
         self._plan()
         result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
@@ -7069,6 +7073,90 @@ class MetaPermissionReadinessTests(MetaLiveVerificationTests):
         self.client.force_login(other_user)
         denied = self.client.post(url, data={}, content_type="application/json", QUERY_STRING=f"advertiser_id={other_identity.pk}")
         self.assertEqual(denied.status_code, 404)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_META_CONNECTION_ENABLED=True, ADS_META_CLIENT_ID="meta-client", ADS_META_CLIENT_SECRET="meta-secret", ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_reconnect_intent_is_account_bound_one_time_and_uses_canonical_scopes(self):
+        self.credential()
+        self.client.force_login(self.user)
+        url = reverse("ads_api:management_meta_account_reconnect", args=[self.account.pk])
+        response = self.client.post(url, data=json.dumps({"mobile_oauth": False, "scope": "unrelated"}), content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(response.status_code, 200, response.content)
+        state = AdvertisingOAuthState.objects.get()
+        self.assertEqual(state.user_id, self.user.pk)
+        self.assertEqual(state.advertiser_identity_id, self.identity.pk)
+        self.assertEqual(state.metadata["reconnect_account_id"], self.account.pk)
+        self.assertEqual(state.metadata["reconnect_external_account_id"], self.account.external_account_id)
+        from urllib.parse import parse_qs, urlparse
+        self.assertEqual(parse_qs(urlparse(response.json()["authorization_url"]).query)["scope"], [",".join(REQUIRED_META_ADS_SCOPES)])
+        state.used_at = timezone.now(); state.save(update_fields=["used_at", "updated_at"])
+        reused = self.client.get(reverse("ads_api:management_connected_account_callback", args=["meta"]), {"state": state.state, "code": "ignored"})
+        self.assertEqual(reused.status_code, 400)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_META_CONNECTION_ENABLED=True, ADS_META_CLIENT_ID="meta-client", ADS_META_CLIENT_SECRET="meta-secret", ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_reconnect_rejects_expired_state_and_other_advertiser_account(self):
+        self.credential()
+        self.client.force_login(self.user)
+        url = reverse("ads_api:management_meta_account_reconnect", args=[self.account.pk])
+        started = self.client.post(url, data="{}", content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(started.status_code, 200, started.content)
+        state = AdvertisingOAuthState.objects.get()
+        state.expires_at = timezone.now() - timedelta(seconds=1)
+        state.save(update_fields=["expires_at", "updated_at"])
+        expired = self.client.get(reverse("ads_api:management_connected_account_callback", args=["meta"]), {"state": state.state, "code": "expired-code"})
+        self.assertEqual(expired.status_code, 400)
+
+        other_user = get_user_model().objects.create_user("m17-other@example.com", password="testpass123")
+        other_identity = AdvertiserIdentity.objects.create(owner_type="platform", user=other_user, display_name="M17 Other")
+        self.client.force_login(other_user)
+        denied = self.client.post(url, data="{}", content_type="application/json", QUERY_STRING=f"advertiser_id={other_identity.pk}")
+        self.assertEqual(denied.status_code, 404)
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_META_CONNECTION_ENABLED=True, ADS_META_CLIENT_ID="meta-client", ADS_META_CLIENT_SECRET="meta-secret", ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.MetaAdsProvider.check_ads_permissions", return_value=list(REQUIRED_META_ADS_SCOPES))
+    @patch("ads.providers.MetaAdsProvider.list_ad_accounts", return_value=[DiscoveredAdAccount(external_account_id="act_123", display_name="Same Meta")])
+    @patch("ads.providers.MetaAdsProvider.exchange_code", return_value={"access_token": "fresh-m17-token", "scope": list(REQUIRED_META_ADS_SCOPES), "expires_in": 3600})
+    def test_reconnect_replaces_same_account_invalidates_page_then_records_safe_permission_receipt(self, mock_exchange, mock_accounts, mock_permissions):
+        old = self.credential(); old_version = old.credential_version
+        self.account.metadata["meta_page_verification_required"] = False; self.account.save(update_fields=["metadata", "updated_at"])
+        self.client.force_login(self.user)
+        connect = self.client.post(reverse("ads_api:management_meta_account_reconnect", args=[self.account.pk]), data="{}", content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        state = AdvertisingOAuthState.objects.get()
+        callback = self.client.get(reverse("ads_api:management_connected_account_callback", args=["meta"]), {"state": state.state, "code": "m17-code"})
+        self.assertEqual(callback.status_code, 200, callback.content)
+        self.assertTrue(callback.json()["reconnected"])
+        self.assertEqual(ExternalAdvertisingAccount.objects.filter(advertiser_identity=self.identity, channel="meta").count(), 1)
+        self.account.refresh_from_db(); self.account.credential.refresh_from_db()
+        self.assertEqual(self.account.metadata["meta_page_id"], "456")
+        self.assertTrue(self.account.metadata["meta_page_verification_required"])
+        self.assertGreater(self.account.credential.credential_version, old_version)
+        self.assertTrue(MetaPermissionReceipt.objects.filter(external_account=self.account, status="ready").exists())
+        self.assertNotIn("fresh-m17-token", callback.content.decode())
+        mock_exchange.assert_called_once(); mock_accounts.assert_called_once(); mock_permissions.assert_called_once()
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_META_CONNECTION_ENABLED=True, ADS_META_CLIENT_ID="meta-client", ADS_META_CLIENT_SECRET="meta-secret", ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.MetaAdsProvider.list_ad_accounts", return_value=[DiscoveredAdAccount(external_account_id="act_other", display_name="Other Meta")])
+    @patch("ads.providers.MetaAdsProvider.exchange_code", return_value={"access_token": "mismatch-token", "scope": list(REQUIRED_META_ADS_SCOPES), "expires_in": 3600})
+    def test_reconnect_account_mismatch_leaves_existing_token_and_page_untouched(self, _exchange, _accounts):
+        old = self.credential(); old_token = bytes(old.encrypted_access_token)
+        self.client.force_login(self.user)
+        self.client.post(reverse("ads_api:management_meta_account_reconnect", args=[self.account.pk]), data="{}", content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        state = AdvertisingOAuthState.objects.get()
+        response = self.client.get(reverse("ads_api:management_connected_account_callback", args=["meta"]), {"state": state.state, "code": "mismatch-code"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"], "meta_reconnect_account_mismatch")
+        self.account.refresh_from_db(); self.account.credential.refresh_from_db()
+        self.assertEqual(bytes(self.account.credential.encrypted_access_token), old_token)
+        self.assertFalse(self.account.metadata.get("meta_page_verification_required"))
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_permission_receipt_freshness_invalidates_after_token_version_change(self, mock_get):
+        credential = self.credential()
+        mock_get.return_value = SimpleNamespace(status_code=200, json=lambda: self._permissions_response(REQUIRED_META_ADS_SCOPES))
+        self.assertTrue(meta_permissions_check(self.identity, self.account.pk)["ready"])
+        self.assertTrue(meta_permission_snapshot(self.identity, self.account.pk)["ready"])
+        credential.credential_version += 1; credential.save(update_fields=["credential_version", "updated_at"])
+        self.assertEqual(meta_permission_snapshot(self.identity, self.account.pk)["status"], "not_verified")
 
 
 @skipUnlessDBFeature("has_select_for_update")

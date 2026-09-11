@@ -34,6 +34,7 @@ urlpatterns = [
     path("management/analytics/", api_views.management_analytics, name="management_analytics"),
     path("management/connected-accounts/", api_views.management_connected_accounts, name="management_connected_accounts"),
     path("management/connected-accounts/<str:provider>/connect/", api_views.management_connected_account_connect, name="management_connected_account_connect"),
+    path("management/connected-accounts/meta/<int:account_id>/reconnect/", api_views.management_meta_account_reconnect, name="management_meta_account_reconnect"),
     path("management/connected-accounts/<str:provider>/callback/", api_views.management_connected_account_callback, name="management_connected_account_callback"),
     path("management/connected-accounts/<str:provider>/accounts/", api_views.management_connected_account_accounts, name="management_connected_account_accounts"),
     path("management/connected-accounts/<str:provider>/<int:account_id>/pages/", api_views.management_connected_account_pages, name="management_connected_account_pages"),

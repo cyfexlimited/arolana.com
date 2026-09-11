@@ -561,6 +561,7 @@ def update_creative(identity, creative_id, data):
 
 
 def connected_account_shells(identity):
+    from .meta_permissions import snapshot as meta_permission_snapshot
     existing = {}
     for account in identity.external_accounts.exclude(status=ExternalAdvertisingAccount.STATUS_REVOKED):
         existing.setdefault(account.channel, []).append(account)
@@ -586,6 +587,11 @@ def connected_account_shells(identity):
                     "permission_summary": (account.metadata or {}).get("permission_summary", ""),
                     "meta_page_id": (account.metadata or {}).get("meta_page_id", ""),
                     "meta_page_name": (account.metadata or {}).get("meta_page_name", ""),
+                    "meta_page_verification_required": (account.metadata or {}).get("meta_page_verification_required") is True,
+                    "meta_permission_status": (
+                        meta_permission_snapshot(identity, account.pk)["status"]
+                        if account.channel == ExternalAdvertisingAccount.CHANNEL_META else ""
+                    ),
                 }
                 for account in existing.get(channel, [])
             ],

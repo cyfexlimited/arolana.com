@@ -47,6 +47,8 @@ def check(identity, creative, account_id=None):
         blockers.append("provider_context_mismatch")
     elif not _page_is_selected(account):
         blockers.append("meta_page_required")
+    elif (account.metadata or {}).get("meta_page_verification_required") is True:
+        blockers.append("meta_page_verification_required")
     elif creative.campaign.status not in {"pending", "scheduled"}:
         blockers.append("campaign_not_eligible")
 

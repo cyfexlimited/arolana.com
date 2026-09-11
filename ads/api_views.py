@@ -42,7 +42,7 @@ from .ad_resource_management import AdResourceError, status as ad_resource_statu
 from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
 from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute
-from .meta_permissions import check as meta_permissions_check
+from .meta_permissions import check as meta_permissions_check, invalidate as invalidate_meta_permissions, snapshot as meta_permission_snapshot
 from .management import (
     AdvertiserAccessError,
     AdvertiserValidationError,
@@ -1076,6 +1076,7 @@ def _safe_discovered_account(account):
 
 
 def _safe_external_account(account):
+    permissions = meta_permission_snapshot(account.advertiser_identity, account.pk) if account.channel == ExternalAdvertisingAccount.CHANNEL_META else None
     return {
         "id": account.pk,
         "channel": account.channel,
@@ -1089,6 +1090,8 @@ def _safe_external_account(account):
         "permission_summary": account.metadata.get("permission_summary", ""),
         "meta_page_id": account.metadata.get("meta_page_id", ""),
         "meta_page_name": account.metadata.get("meta_page_name", ""),
+        "meta_page_verification_required": (account.metadata or {}).get("meta_page_verification_required") is True,
+        "meta_permission_status": permissions["status"] if permissions else "",
     }
 
 
@@ -1096,36 +1099,37 @@ def _provider_error_response(exc, status=400):
     return JsonResponse({"success": False, "error": str(exc)}, status=status)
 
 
+def _start_connected_account_oauth(request, identity, provider, *, reconnect_account=None):
+    """Create a server-bound initial-connect or exact-account reconnect intent."""
+    data = _json_management_body(request)
+    mobile_session = _staff_mobile_ads_session(request) if data.get("mobile_oauth") is True else None
+    if data.get("mobile_oauth") is True and not mobile_session:
+        return None, JsonResponse({"success": False, "error": "authentication_required"}, status=401)
+    adapter = provider_for(provider)
+    if not adapter.configured():
+        raise ProviderConfigurationError("provider_not_configured")
+    metadata = {}
+    if mobile_session:
+        metadata.update({"mobile_staff_session_id": mobile_session.pk, "mobile_return_url": MOBILE_ADS_OAUTH_RETURN_URL})
+    if reconnect_account:
+        metadata.update({"reconnect_account_id": reconnect_account.pk, "reconnect_external_account_id": reconnect_account.external_account_id})
+    oauth_state = create_oauth_state(
+        request, identity, provider, metadata=metadata or None,
+        session_key="" if mobile_session else None,
+    )
+    return oauth_state, None
+
+
 @require_POST
 def management_connected_account_connect(request, provider):
     identity, error = _management_identity(request)
     if error:
         return error
-    data = _json_management_body(request)
-    mobile_session = _staff_mobile_ads_session(request) if data.get("mobile_oauth") is True else None
-    if data.get("mobile_oauth") is True and not mobile_session:
-        return JsonResponse({"success": False, "error": "authentication_required"}, status=401)
     try:
+        oauth_state, response = _start_connected_account_oauth(request, identity, provider)
+        if response:
+            return response
         adapter = provider_for(provider)
-        if not adapter.configured():
-            raise ProviderConfigurationError("provider_not_configured")
-        oauth_state = create_oauth_state(
-            request,
-            identity,
-            provider,
-            # Native WebBrowser cannot carry the app's bearer token through the
-            # Google redirect. Bind the state to its active server-side mobile
-            # session instead of weakening the existing browser-session path.
-            metadata=(
-                {
-                    "mobile_staff_session_id": mobile_session.pk,
-                    "mobile_return_url": MOBILE_ADS_OAUTH_RETURN_URL,
-                }
-                if mobile_session
-                else None
-            ),
-            session_key="" if mobile_session else None,
-        )
         authorization_url = adapter.get_authorization_url(request, oauth_state)
     except ProviderConfigurationError as exc:
         return _provider_error_response(exc, status=503)
@@ -1137,6 +1141,38 @@ def management_connected_account_connect(request, provider):
             "state_expires_at": oauth_state.expires_at.isoformat(),
         }
     )
+
+
+@require_POST
+def management_meta_account_reconnect(request, account_id):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    try:
+        account = identity.external_accounts.get(
+            pk=account_id,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            status__in=[
+                ExternalAdvertisingAccount.STATUS_CONNECTED,
+                ExternalAdvertisingAccount.STATUS_EXPIRED,
+                ExternalAdvertisingAccount.STATUS_REAUTHORIZATION_REQUIRED,
+            ],
+        )
+    except ExternalAdvertisingAccount.DoesNotExist:
+        return JsonResponse({"success": False, "error": "meta_reconnect_account_mismatch"}, status=404)
+    try:
+        oauth_state, response = _start_connected_account_oauth(request, identity, "meta", reconnect_account=account)
+        if response:
+            return response
+        return JsonResponse({
+            "success": True,
+            "provider": "meta",
+            "authorization_url": provider_for("meta").get_authorization_url(request, oauth_state),
+            "state_expires_at": oauth_state.expires_at.isoformat(),
+            "reconnect": True,
+        })
+    except ProviderConfigurationError as exc:
+        return _provider_error_response(exc, status=503)
 
 
 @require_GET
@@ -1159,6 +1195,8 @@ def management_connected_account_callback(request, provider):
     oauth_state = None
     identity = None
     safe_token_summary = {}
+    reconnected = False
+    permission_state = None
     try:
         adapter = provider_for(provider)
         oauth_state = validate_oauth_state(request, provider, state_value)
@@ -1174,24 +1212,80 @@ def management_connected_account_callback(request, provider):
             failure_stage = "code_exchange"
             token_data = adapter.exchange_code(code, request)
             safe_token_summary = token_data.pop("_safe_token_summary", {})
-            failure_stage = "external_account_creation"
-            pending_account = ExternalAdvertisingAccount.objects.create(
-                advertiser_identity=identity,
-                channel=provider,
-                external_account_id=f"pending:{oauth_state.pk}",
-                display_name=f"{provider.title()} pending account selection",
-                status=ExternalAdvertisingAccount.STATUS_PENDING,
-                metadata={"oauth_state_id": oauth_state.pk},
-            )
-            failure_stage = "credential_encryption"
-            credential = save_credential_tokens(pending_account, provider, token_data)
-            failure_stage = "list_accessible_customers"
-            discovered_accounts = [_safe_discovered_account(account) for account in adapter.list_ad_accounts(credential)]
-            pending_account.metadata = {
-                "oauth_state_id": oauth_state.pk,
-                "discovered_accounts": discovered_accounts,
-            }
-            pending_account.save(update_fields=["metadata", "updated_at"])
+            reconnect_account_id = (oauth_state.metadata or {}).get("reconnect_account_id")
+            if provider == ExternalAdvertisingAccount.CHANNEL_META and reconnect_account_id:
+                failure_stage = "reconnect_account_validation"
+                try:
+                    reconnect_account = ExternalAdvertisingAccount.objects.select_for_update().get(
+                        pk=int(reconnect_account_id), advertiser_identity=identity,
+                        channel=ExternalAdvertisingAccount.CHANNEL_META,
+                    )
+                except (ExternalAdvertisingAccount.DoesNotExist, TypeError, ValueError) as exc:
+                    raise ProviderAuthorizationError("meta_reconnect_account_mismatch") from exc
+                # Use a short-lived encrypted shell only to ask Meta which ad
+                # accounts this new grant can access. It is deleted in the same
+                # transaction and never returned to the client.
+                pending_account = ExternalAdvertisingAccount.objects.create(
+                    advertiser_identity=identity, channel=provider,
+                    external_account_id=f"pending:{oauth_state.pk}",
+                    display_name="Meta reconnect validation", status=ExternalAdvertisingAccount.STATUS_PENDING,
+                    metadata={"oauth_state_id": oauth_state.pk},
+                )
+                failure_stage = "credential_encryption"
+                pending_credential = save_credential_tokens(pending_account, provider, token_data)
+                failure_stage = "reconnect_account_discovery"
+                discovered_accounts = [_safe_discovered_account(account) for account in adapter.list_ad_accounts(pending_credential)]
+                expected_id = str((oauth_state.metadata or {}).get("reconnect_external_account_id") or "")
+                selected = next((item for item in discovered_accounts if item["external_account_id"] == expected_id), None)
+                if not selected:
+                    raise ProviderAuthorizationError("meta_reconnect_account_mismatch")
+                existing_credential = AdvertisingCredential.objects.select_for_update().filter(external_account=reconnect_account).first()
+                if existing_credential is None:
+                    existing_credential = AdvertisingCredential(external_account=reconnect_account, provider=provider)
+                existing_credential.provider = provider
+                existing_credential.encrypted_access_token = pending_credential.encrypted_access_token
+                existing_credential.encrypted_refresh_token = pending_credential.encrypted_refresh_token
+                existing_credential.access_token_expires_at = pending_credential.access_token_expires_at
+                existing_credential.refresh_token_expires_at = pending_credential.refresh_token_expires_at
+                existing_credential.scopes = pending_credential.scopes
+                existing_credential.revoked_at = None
+                existing_credential.metadata = pending_credential.metadata
+                existing_credential.credential_version = max(existing_credential.credential_version, pending_credential.credential_version) + 1
+                existing_credential.save()
+                selected_metadata = _safe_metadata(selected)
+                # Keep the explicit Page reference, but force a later M13
+                # GET-only Page verification after new token material arrives.
+                reconnect_account.metadata = {
+                    **(reconnect_account.metadata or {}), **selected_metadata,
+                    "meta_page_verification_required": True,
+                }
+                reconnect_account.display_name = selected.get("display_name", "")[:200]
+                reconnect_account.status = ExternalAdvertisingAccount.STATUS_CONNECTED
+                reconnect_account.connected_at = timezone.now()
+                reconnect_account.save(update_fields=["metadata", "display_name", "status", "connected_at", "updated_at"])
+                invalidate_meta_permissions(reconnect_account, existing_credential)
+                pending_account.delete()
+                pending_account = reconnect_account
+                reconnected = True
+            else:
+                failure_stage = "external_account_creation"
+                pending_account = ExternalAdvertisingAccount.objects.create(
+                    advertiser_identity=identity,
+                    channel=provider,
+                    external_account_id=f"pending:{oauth_state.pk}",
+                    display_name=f"{provider.title()} pending account selection",
+                    status=ExternalAdvertisingAccount.STATUS_PENDING,
+                    metadata={"oauth_state_id": oauth_state.pk},
+                )
+                failure_stage = "credential_encryption"
+                credential = save_credential_tokens(pending_account, provider, token_data)
+                failure_stage = "list_accessible_customers"
+                discovered_accounts = [_safe_discovered_account(account) for account in adapter.list_ad_accounts(credential)]
+                pending_account.metadata = {
+                    "oauth_state_id": oauth_state.pk,
+                    "discovered_accounts": discovered_accounts,
+                }
+                pending_account.save(update_fields=["metadata", "updated_at"])
             failure_stage = "account_selection_session"
             audit_connection(
                 provider,
@@ -1253,11 +1347,18 @@ def management_connected_account_callback(request, provider):
             return redirect("/ads/marketing/connected-accounts/?oauth_error=connection_failed")
         return _provider_error_response(exc, status=400)
 
+    # A reconnect is successful even if its follow-up GET is unavailable. The
+    # persisted receipt then stays not-verified; it can never be treated ready.
+    if reconnected:
+        permission_state = meta_permissions_check(identity, pending_account.pk)
+
     mobile_redirect = _mobile_oauth_redirect_response(
         oauth_state,
         provider=provider,
         connection_id=pending_account.pk,
-        status=ExternalAdvertisingAccount.STATUS_PENDING,
+        status=pending_account.status,
+        reconnect="1" if reconnected else None,
+        permission_status=(permission_state or {}).get("status"),
     )
     if mobile_redirect:
         return mobile_redirect
@@ -1275,6 +1376,8 @@ def management_connected_account_callback(request, provider):
             "connection_id": pending_account.pk,
             "status": pending_account.status,
             "accounts": discovered_accounts,
+            "reconnected": reconnected,
+            "permission_status": (permission_state or {}).get("status", "not_verified"),
         }
     )
 
@@ -1405,6 +1508,9 @@ def management_connected_account_page_select(request, provider, account_id):
             "meta_page_id": selected.page_id,
             "meta_page_name": selected.name,
             "meta_page_selected_at": timezone.now().isoformat(),
+            # Discovery immediately precedes this explicit selection, so this
+            # Page reference is fresh for the replacement credential.
+            "meta_page_verification_required": False,
         }
         account.save(update_fields=["metadata", "updated_at"])
     except (ProviderAuthorizationError, ProviderAPIError) as exc:

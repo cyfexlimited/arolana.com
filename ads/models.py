@@ -926,6 +926,44 @@ class MetaVerificationReceipt(BaseModel):
             raise ValidationError("Verification receipt advertiser must match.")
 
 
+class MetaPermissionReceipt(BaseModel):
+    """Safe, account-bound evidence from the explicit M16 permission GET.
+
+    It contains no provider response or credential material.  A credential
+    replacement changes ``credential_version`` and makes the previous receipt
+    unusable without needing to expose that version to a client.
+    """
+    STATUS_READY = "ready"
+    STATUS_RECONNECT_REQUIRED = "reconnect_required"
+    STATUS_NOT_VERIFIED = "not_verified"
+    STATUS_UNAVAILABLE = "unavailable"
+    STATUS_CHOICES = [
+        (STATUS_READY, "Ready"),
+        (STATUS_RECONNECT_REQUIRED, "Reconnect required"),
+        (STATUS_NOT_VERIFIED, "Not verified"),
+        (STATUS_UNAVAILABLE, "Unavailable"),
+    ]
+
+    external_account = models.OneToOneField(
+        ExternalAdvertisingAccount, on_delete=models.CASCADE, related_name="meta_permission_receipt"
+    )
+    advertiser_identity = models.ForeignKey(
+        AdvertiserIdentity, on_delete=models.PROTECT, related_name="meta_permission_receipts"
+    )
+    credential_version = models.PositiveIntegerField()
+    context_fingerprint = models.CharField(max_length=64, db_index=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_NOT_VERIFIED, db_index=True)
+    granted_permissions = models.JSONField(default=list, blank=True)
+    missing_permissions = models.JSONField(default=list, blank=True)
+    checked_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    invalidated_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    def clean(self):
+        super().clean()
+        if self.external_account_id and self.advertiser_identity_id and self.external_account.advertiser_identity_id != self.advertiser_identity_id:
+            raise ValidationError("Permission receipt advertiser must match account.")
+
+
 class MetaPublicationAttempt(BaseModel):
     """One immutable-plan Meta publication history record.
 
