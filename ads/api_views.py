@@ -42,6 +42,7 @@ from .ad_resource_management import AdResourceError, status as ad_resource_statu
 from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
 from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute
+from .meta_permissions import check as meta_permissions_check
 from .management import (
     AdvertiserAccessError,
     AdvertiserValidationError,
@@ -1366,6 +1367,22 @@ def management_connected_account_pages(request, provider, account_id):
 
 
 @require_POST
+def management_meta_account_permissions_check(request, account_id):
+    """Explicit command wrapper for M16's live, GET-only provider check."""
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    try:
+        _meta_page_account(identity, ExternalAdvertisingAccount.CHANNEL_META, account_id)
+    except (ProviderAuthorizationError, ProviderAPIError) as exc:
+        return _meta_page_error_response(exc)
+    return JsonResponse({
+        "success": True,
+        "permissions": _json_safe(meta_permissions_check(identity, account_id)),
+    })
+
+
+@require_POST
 def management_connected_account_page_select(request, provider, account_id):
     identity, error = _management_identity(request)
     if error:
@@ -1480,7 +1497,14 @@ def management_connected_account_select(request, provider):
                     existing_credential.refresh_token_expires_at = pending_credential.refresh_token_expires_at
                 existing_credential.access_token_expires_at = pending_credential.access_token_expires_at
                 existing_credential.credential_version = pending_credential.credential_version
-                existing_credential.scopes = pending_credential.scopes or existing_credential.scopes
+                # Meta may omit a scope echo from its token response.  Never
+                # retain an older permission claim after reconnect in that
+                # case; M16's explicit GET-only check becomes authoritative.
+                existing_credential.scopes = (
+                    pending_credential.scopes
+                    if provider == ExternalAdvertisingAccount.CHANNEL_META
+                    else pending_credential.scopes or existing_credential.scopes
+                )
                 existing_credential.revoked_at = None
                 existing_credential.metadata = pending_credential.metadata or existing_credential.metadata
                 existing_credential.save()
@@ -1488,7 +1512,10 @@ def management_connected_account_select(request, provider):
                 existing_account.display_name = selected.get("display_name", "")[:200]
                 existing_account.status = ExternalAdvertisingAccount.STATUS_CONNECTED
                 existing_account.connected_at = now
-                existing_account.metadata = selected_metadata
+                # A reconnect refreshes account discovery data but must not
+                # silently discard an explicit, advertiser-owned Meta Page
+                # selection or other safe account context.
+                existing_account.metadata = {**(existing_account.metadata or {}), **selected_metadata}
                 existing_account.save(update_fields=["display_name", "status", "connected_at", "metadata", "updated_at"])
                 # The credential is now on the established row; deleting the shell
                 # also removes its encrypted duplicate through the one-to-one FK.

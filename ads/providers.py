@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from .credentials import credential_encryption_service
 from .media_assets import MediaAssetError, advertising_media_asset_service
+from .meta_permissions import REQUIRED_META_ADS_SCOPES, normalize_granted_scopes
 from .models import (
     AdvertisingConnectionAuditLog,
     AdvertisingCredential,
@@ -322,7 +323,9 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
     connection_flag = "ADS_META_CONNECTION_ENABLED"
     authorization_base_url = "https://www.facebook.com/v24.0/dialog/oauth"
     token_url = "https://graph.facebook.com/v24.0/oauth/access_token"
-    default_scopes = ["ads_read", "business_management", "pages_show_list"]
+    # Ads-only, backend-owned authorization set.  Do not reuse social
+    # publishing scopes or accept client-supplied additions.
+    default_scopes = list(REQUIRED_META_ADS_SCOPES)
     page_discovery_url = "https://graph.facebook.com/v24.0/me/accounts"
     max_page_discovery_pages = 10
     max_page_discovery_items = 250
@@ -400,7 +403,7 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
             return self._post(external_account, "ads", {**payload, "status": "PAUSED"}, stage="ad_create")
 
     def _read_only_get(self, url, *, credential, params=None):
-        """The sole M13 Graph boundary: deliberately permits GET only."""
+        """The M13/M16 Graph read boundary: deliberately permits GET only."""
         if not isinstance(url, str) or not url.startswith("https://graph.facebook.com/v24.0/"):
             raise ProviderAPIError("meta_provider_unavailable", stage="live_verification")
         try:
@@ -568,6 +571,40 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
         if not any(page.page_id == selected_page_id for page in pages):
             raise ProviderAPIError("meta_page_not_accessible", stage="live_verification")
         return {"account_verified": True, "page_verified": True}
+
+    def check_ads_permissions(self, credential, external_account):
+        """Read the current token's granted Ads permissions; GET-only."""
+        if credential.provider != self.provider or external_account.channel != self.provider:
+            raise ProviderAPIError("meta_account_mismatch", stage="permission_check")
+        if credential.revoked_at:
+            raise ProviderAuthorizationError("credential_revoked", stage="permission_check")
+        response = self._read_only_get(
+            "https://graph.facebook.com/v24.0/me/permissions",
+            credential=credential,
+            params={"limit": 100},
+        )
+        if response.status_code in {401, 403}:
+            raise ProviderAuthorizationError("meta_auth_failed", stage="permission_check", http_status=response.status_code)
+        if response.status_code == 429:
+            raise ProviderAPIError("meta_rate_limited", stage="permission_check", http_status=response.status_code)
+        if response.status_code >= 400:
+            raise ProviderAPIError("meta_provider_unavailable", stage="permission_check", http_status=response.status_code)
+        try:
+            payload = response.json()
+        except (ValueError, TypeError) as exc:
+            raise ProviderAPIError("meta_permission_response_invalid", stage="permission_check") from exc
+        rows = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(rows, list):
+            raise ProviderAPIError("meta_permission_response_invalid", stage="permission_check")
+        granted = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            permission = str(row.get("permission") or "").strip().lower()
+            status = str(row.get("status") or "").strip().lower()
+            if permission in REQUIRED_META_ADS_SCOPES and status == "granted":
+                granted.append(permission)
+        return granted
 
 
     def create_campaign(self, execution, payload, *, idempotency_key=None):
@@ -2010,7 +2047,12 @@ def save_credential_tokens(external_account, provider, token_data, scopes=None):
     if refresh_expires_in is not None:
         credential.refresh_token_expires_at = timezone.now() + timedelta(seconds=int(refresh_expires_in))
     credential.scopes = scopes or token_data.get("scope", [])
-    if isinstance(credential.scopes, str):
+    if provider == ExternalAdvertisingAccount.CHANNEL_META:
+        # Keep only the canonical server-owned Ads permission names.  The
+        # explicit M16 GET check is still authoritative, but an OAuth token
+        # response must never persist unrelated provider scopes either.
+        credential.scopes = normalize_granted_scopes(credential.scopes)
+    elif isinstance(credential.scopes, str):
         credential.scopes = credential.scopes.replace(",", " ").split()
     credential.revoked_at = None
     credential.save()

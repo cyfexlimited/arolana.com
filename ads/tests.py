@@ -64,6 +64,7 @@ from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
 from .meta_verification import record_verified_receipt
 from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute, live_writes_enabled
+from .meta_permissions import REQUIRED_META_ADS_SCOPES, check as meta_permissions_check
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -2833,6 +2834,30 @@ class AdsV2FoundationTests(TestCase):
         self.assertFalse(ExternalAdvertisingAccount.objects.filter(pk=pending.pk).exists())
         self.assertNotIn("fresh-access-token", response.content.decode("utf-8"))
         self.assertNotIn("fresh-refresh-token", response.content.decode("utf-8"))
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_meta_reconnect_preserves_selected_page_and_never_retains_stale_scope_claims(self):
+        identity = self.resolver.get_or_create_identity(self.resolver.resolve_product_owner(self.product))
+        existing = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity, channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id="123456", status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+            metadata={"meta_page_id": "987", "meta_page_name": "Selected", "currency": "NGN"},
+        )
+        save_credential_tokens(existing, "meta", {"access_token": "old-meta-token", "expires_in": 3600, "scope": list(REQUIRED_META_ADS_SCOPES)})
+        pending = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=identity, channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id="pending:meta-reconnect", status=ExternalAdvertisingAccount.STATUS_PENDING,
+            metadata={"discovered_accounts": [{"external_account_id": "123456", "display_name": "Fresh Meta", "currency": "NGN"}]},
+        )
+        save_credential_tokens(pending, "meta", {"access_token": "fresh-meta-token", "expires_in": 3600, "scope": ["ads_read"]})
+        self.client.force_login(self.vendor_user)
+        response = self.client.post(reverse("ads_api:management_connected_account_select", args=["meta"]), data=json.dumps({"connection_id": pending.pk, "external_account_id": "123456"}), content_type="application/json")
+        self.assertEqual(response.status_code, 200, response.content)
+        existing.refresh_from_db()
+        self.assertEqual(existing.metadata["meta_page_id"], "987")
+        self.assertEqual(existing.metadata["meta_page_name"], "Selected")
+        self.assertEqual(existing.credential.scopes, ["ads_read"])
+        self.assertNotIn("fresh-meta-token", response.content.decode())
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
     def test_google_reconnect_preserves_existing_refresh_token_when_pending_connection_has_none(self):
@@ -6713,13 +6738,14 @@ class MetaPublishDryRunTests(MetaPublishReadinessTests):
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
     @patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("provider write invoked"))
+    @patch("ads.meta_publish.meta_permissions_check", side_effect=AssertionError("permission check invoked"))
     @patch("requests.sessions.Session.request", side_effect=AssertionError("real network request attempted"))
-    def test_execute_is_kill_switched_and_client_cannot_bypass(self, mock_request, mock_execute):
+    def test_execute_is_kill_switched_and_client_cannot_bypass(self, mock_request, mock_permissions, mock_execute):
         self.client.force_login(self.user); self._ready()
         url = reverse("ads_api:management_creative_meta_publish_execute", args=[self.creative.pk])
         response = self.client.post(url + "?advertiser_id=%s&live=true&force=true" % self.identity.pk, data={"external_account_id": self.account.pk, "live": True, "confirm": True}, content_type="application/json")
         self.assertEqual(response.status_code, 409); self.assertEqual(response.json()["error"], "meta_live_writes_disabled")
-        mock_execute.assert_not_called(); mock_request.assert_not_called()
+        mock_execute.assert_not_called(); mock_permissions.assert_not_called(); mock_request.assert_not_called()
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
     def test_dry_run_endpoint_is_scoped_safe_and_live_setting_is_server_only(self):
@@ -6737,6 +6763,12 @@ class MetaLiveExecutionTests(MetaPublishDryRunTests):
 
     def setUp(self):
         super().setUp()
+        permission_patch = patch(
+            "ads.meta_publish.meta_permissions_check",
+            return_value={"ready": True, "blockers": []},
+        )
+        permission_patch.start()
+        self.addCleanup(permission_patch.stop)
         self.campaign.objective = AdCampaign.OBJECTIVE_PRODUCT_VISITS
         self.campaign.budget_type = "daily"
         self.campaign.daily_budget = Decimal("10.00")
@@ -6899,6 +6931,144 @@ class MetaLiveExecutionTests(MetaPublishDryRunTests):
             writer.create_campaign(self.account, {"name": "x", "objective": "OUTCOME_TRAFFIC", "status": "ACTIVE"})
         self.assertEqual(str(error.exception), "meta_live_writes_disabled")
         mock_post.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True)
+    @patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("write reached adapter"))
+    @patch("ads.meta_publish.meta_permissions_check", return_value={"ready": False, "blockers": ["meta_ads_management_permission_required"]})
+    def test_enabled_execution_requires_current_ads_management_permission(self, mock_permissions, mock_create):
+        self._plan()
+        result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertIsNone(result)
+        self.assertEqual(blockers, ["meta_ads_management_permission_required"])
+        mock_permissions.assert_called_once_with(self.identity, self.account.pk)
+        mock_create.assert_not_called()
+
+
+class MetaPermissionReadinessTests(MetaLiveVerificationTests):
+    def _permissions_response(self, granted):
+        return {"data": [{"permission": scope, "status": "granted"} for scope in granted]}
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("non-GET network attempted"))
+    @patch("ads.providers.requests.get")
+    def test_canonical_scopes_and_read_only_permission_check_are_safe(self, mock_get, mock_request):
+        self.credential()
+        provider = provider_for("meta")
+        self.assertEqual(tuple(provider.default_scopes), REQUIRED_META_ADS_SCOPES)
+        self.assertEqual(provider.scope_string(), ",".join(REQUIRED_META_ADS_SCOPES))
+        mock_get.return_value = SimpleNamespace(status_code=200, json=lambda: self._permissions_response([*REQUIRED_META_ADS_SCOPES, "unexpected_scope"]))
+        result = meta_permissions_check(self.identity, self.account.pk)
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["granted_permissions"], list(REQUIRED_META_ADS_SCOPES))
+        self.assertEqual(result["missing_permissions"], [])
+        self.account.credential.refresh_from_db()
+        self.assertEqual(self.account.credential.scopes, list(REQUIRED_META_ADS_SCOPES))
+        self.assertNotIn("unexpected_scope", str(result))
+        self.assertEqual(mock_get.call_args.args[0], "https://graph.facebook.com/v24.0/me/permissions")
+        mock_request.assert_not_called()
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_missing_required_scope_requires_reconnect_without_affecting_connection(self, mock_get):
+        self.credential()
+        mock_get.return_value = SimpleNamespace(status_code=200, json=lambda: self._permissions_response(["ads_read", "business_management", "pages_show_list"]))
+        result = meta_permissions_check(self.identity, self.account.pk)
+        self.assertFalse(result["ready"])
+        self.assertTrue(result["reconnect_required"])
+        self.assertEqual(result["status"], "reconnect_required")
+        self.assertEqual(result["blockers"], ["meta_ads_management_permission_required"])
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.status, ExternalAdvertisingAccount.STATUS_CONNECTED)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_each_missing_canonical_permission_is_not_ready_and_unknown_is_ignored(self, mock_get):
+        self.credential()
+        for missing in REQUIRED_META_ADS_SCOPES:
+            with self.subTest(missing=missing):
+                mock_get.return_value = SimpleNamespace(
+                    status_code=200,
+                    json=lambda missing=missing: self._permissions_response([scope for scope in REQUIRED_META_ADS_SCOPES if scope != missing] + ["unrelated_permission"]),
+                )
+                result = meta_permissions_check(self.identity, self.account.pk)
+                self.assertFalse(result["ready"])
+                self.assertEqual(result["missing_permissions"], [missing])
+                self.assertNotIn("unrelated_permission", result["granted_permissions"])
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_permission_provider_failures_are_safe_and_never_expose_graph_data(self, mock_get):
+        self.credential()
+        for response in (
+            SimpleNamespace(status_code=401, json=lambda: {"error": {"message": "access token secret"}}),
+            SimpleNamespace(status_code=429, json=lambda: {}),
+            SimpleNamespace(status_code=200, json=lambda: {"data": "bad"}),
+        ):
+            with self.subTest(status=response.status_code):
+                mock_get.return_value = response
+                result = meta_permissions_check(self.identity, self.account.pk)
+                self.assertFalse(result["ready"])
+                self.assertNotIn("secret", str(result).lower())
+                self.assertNotIn("token", str(result).lower())
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_permission_auth_failure_requires_safe_reconnect(self, mock_get):
+        self.credential()
+        mock_get.return_value = SimpleNamespace(status_code=401, json=lambda: {"error": {"message": "access token secret"}})
+        result = meta_permissions_check(self.identity, self.account.pk)
+        self.assertEqual(result["status"], "reconnect_required")
+        self.assertTrue(result["reconnect_required"])
+        self.assertEqual(result["blockers"], ["meta_auth_failed"])
+        self.assertNotIn("secret", str(result).lower())
+
+    @override_settings(ADS_META_CONNECTION_ENABLED=True, ADS_META_CLIENT_ID="meta-client", ADS_META_CLIENT_SECRET="meta-secret")
+    def test_oauth_url_uses_only_canonical_backend_scopes(self):
+        from types import SimpleNamespace as Namespace
+        from urllib.parse import parse_qs, urlparse
+        provider = provider_for("meta")
+        request = Namespace(build_absolute_uri=lambda _path: "https://example.test/callback")
+        url = provider.get_authorization_url(request, Namespace(state="state-value"))
+        query = parse_qs(urlparse(url).query)
+        self.assertEqual(query["scope"], [",".join(REQUIRED_META_ADS_SCOPES)])
+        self.assertNotIn("scope_override", query)
+
+    @override_settings(ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_meta_oauth_scope_snapshot_is_canonical_and_ignores_unrelated_values(self):
+        pending = ExternalAdvertisingAccount.objects.create(
+            advertiser_identity=self.identity,
+            channel=ExternalAdvertisingAccount.CHANNEL_META,
+            external_account_id="pending:canonical-scope-snapshot",
+            status=ExternalAdvertisingAccount.STATUS_PENDING,
+        )
+        credential = save_credential_tokens(
+            pending,
+            "meta",
+            {
+                "access_token": "m16-scope-token",
+                "expires_in": 3600,
+                "scope": "ads_read, ads_management unrelated_provider_scope",
+            },
+        )
+        self.assertEqual(credential.scopes, ["ads_read", "ads_management"])
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("ads.providers.requests.get")
+    def test_permission_endpoint_is_owner_scoped_and_hides_provider_details(self, mock_get):
+        self.credential()
+        mock_get.return_value = SimpleNamespace(status_code=200, json=lambda: self._permissions_response(["ads_read"]))
+        self.client.force_login(self.user)
+        url = reverse("ads_api:management_meta_account_permissions_check", args=[self.account.pk])
+        response = self.client.post(url, data={}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(response.status_code, 200, response.content)
+        permissions = response.json()["permissions"]
+        self.assertEqual(permissions["missing_permissions"], ["ads_management", "business_management", "pages_show_list"])
+        self.assertNotIn("token", str(response.content).lower())
+        other_user = get_user_model().objects.create_user("m16-other@example.com", password="testpass123")
+        other_identity = AdvertiserIdentity.objects.create(owner_type="platform", user=other_user, display_name="Other")
+        self.client.force_login(other_user)
+        denied = self.client.post(url, data={}, content_type="application/json", QUERY_STRING=f"advertiser_id={other_identity.pk}")
+        self.assertEqual(denied.status_code, 404)
 
 
 @skipUnlessDBFeature("has_select_for_update")
