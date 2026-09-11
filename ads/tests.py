@@ -63,7 +63,7 @@ from .ad_resource_management import AdResourceError, advertising_ad_resource_ser
 from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
 from .meta_verification import record_verified_receipt
-from .meta_publish import dry_run as meta_publish_dry_run, live_writes_enabled
+from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute, live_writes_enabled
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -6712,7 +6712,7 @@ class MetaPublishDryRunTests(MetaPublishReadinessTests):
         self.assertEqual(meta_publish_dry_run(self.identity, self.creative, self.account.pk)[1], ["meta_live_verification_stale"])
 
     @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
-    @patch("ads.meta_publish.MetaLivePublishAdapter.execute", side_effect=AssertionError("provider write invoked"))
+    @patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("provider write invoked"))
     @patch("requests.sessions.Session.request", side_effect=AssertionError("real network request attempted"))
     def test_execute_is_kill_switched_and_client_cannot_bypass(self, mock_request, mock_execute):
         self.client.force_login(self.user); self._ready()
@@ -6730,6 +6730,175 @@ class MetaPublishDryRunTests(MetaPublishReadinessTests):
         publication = response.json()["publication"]
         self.assertEqual(set(publication), {"mode", "status", "can_live_publish", "live_writes_enabled", "blockers", "checked_at", "plan_summary"})
         self.assertFalse(publication["live_writes_enabled"])
+
+
+class MetaLiveExecutionTests(MetaPublishDryRunTests):
+    """M15 execution tests patch the seam, never the Graph network."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign.objective = AdCampaign.OBJECTIVE_PRODUCT_VISITS
+        self.campaign.budget_type = "daily"
+        self.campaign.daily_budget = Decimal("10.00")
+        self.campaign.geo_targeting = ["NG"]
+        self.campaign.save(update_fields=["objective", "budget_type", "daily_budget", "geo_targeting", "updated_at"])
+
+    def _plan(self):
+        self._ready()
+        publication, blockers = meta_publish_dry_run(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, [])
+        return MetaPublicationAttempt.objects.get(plan_fingerprint=MetaPublicationAttempt.objects.get().plan_fingerprint)
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network attempted"))
+    def test_enabled_execution_is_ordered_paused_safe_and_does_not_expose_ids(self, mock_request):
+        self._plan()
+        order = []
+        def created(name, identifier):
+            def _create(*_args):
+                order.append(name)
+                return identifier
+            return _create
+        with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=created("campaign", "live-campaign")) as campaign, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", side_effect=created("adset", "live-adset")) as adset, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", side_effect=created("creative", "live-creative")) as creative, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", side_effect=created("ad", "live-ad")) as ad:
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, [])
+        self.assertEqual(result["status"], "completed")
+        self.assertTrue(result["live"])
+        self.assertEqual(result["initial_status"], "PAUSED")
+        self.assertNotIn("live-campaign", str(result))
+        self.assertEqual(campaign.call_args.args[1]["status"], "PAUSED")
+        self.assertEqual(adset.call_args.args[1]["status"], "PAUSED")
+        self.assertEqual(ad.call_args.args[1]["status"], "PAUSED")
+        self.assertEqual(order, ["campaign", "adset", "creative", "ad"])
+        attempt = MetaPublicationAttempt.objects.get()
+        self.assertEqual(attempt.status, MetaPublicationAttempt.STATUS_COMPLETED)
+        self.assertEqual((attempt.external_campaign_id, attempt.external_adset_id, attempt.external_creative_id, attempt.external_ad_id), ("live-campaign", "live-adset", "live-creative", "live-ad"))
+        mock_request.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True)
+    def test_completed_execution_is_idempotent_and_partial_retry_reuses_parents(self):
+        self._plan()
+        with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", return_value="live-campaign") as campaign, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", side_effect=ProviderAPIError("meta_adset_create_failed", stage="adset_create")) as adset:
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertIsNone(result); self.assertEqual(blockers, ["meta_adset_create_failed"])
+        attempt = MetaPublicationAttempt.objects.get()
+        self.assertEqual(attempt.external_campaign_id, "live-campaign")
+        self.assertEqual(attempt.status, MetaPublicationAttempt.STATUS_FAILED)
+        with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("duplicate campaign")) as no_campaign, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", return_value="live-adset") as retry_adset, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", return_value="live-creative"), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", return_value="live-ad"):
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, []); self.assertEqual(result["status"], "completed")
+        no_campaign.assert_not_called(); self.assertEqual(retry_adset.call_count, 1)
+        with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("duplicate")) as no_write:
+            again, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, []); self.assertEqual(again["status"], "completed"); no_write.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True)
+    def test_execution_requires_existing_fresh_plan_and_receipt(self):
+        self._ready()
+        result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertIsNone(result); self.assertEqual(blockers, ["meta_publish_plan_required"])
+        self._plan()
+        receipt = MetaPublicationAttempt.objects.get().verification_receipt
+        receipt.expires_at = timezone.now() - timedelta(seconds=1)
+        receipt.save(update_fields=["expires_at", "updated_at"])
+        result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertIsNone(result); self.assertEqual(blockers, ["meta_live_verification_stale"])
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True)
+    @patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("write should be blocked"))
+    def test_changed_prepared_context_blocks_execution_without_regenerating_plan(self, mock_create):
+        self._plan()
+        self.creative.headline = "Changed after dry run"
+        self.creative.save(update_fields=["headline", "updated_at"])
+        result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertIsNone(result)
+        self.assertIn("creative_preparation_stale", blockers)
+        mock_create.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True)
+    def test_retry_after_creative_or_ad_failure_reuses_completed_dependencies(self):
+        for failed_method, expected_id in (("create_adcreative", "live-adset"), ("create_ad", "live-creative")):
+            with self.subTest(failed_method=failed_method):
+                MetaPublicationAttempt.objects.all().delete()
+                self._plan()
+                methods = {
+                    "create_campaign": patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", return_value="live-campaign"),
+                    "create_adset": patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", return_value="live-adset"),
+                    "create_adcreative": patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", return_value="live-creative"),
+                    "create_ad": patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", return_value="live-ad"),
+                }
+                methods[failed_method] = patch("ads.meta_publish.MetaLivePublishAdapter." + failed_method, side_effect=ProviderAPIError("broken", stage="test"))
+                with methods["create_campaign"], methods["create_adset"], methods["create_adcreative"], methods["create_ad"]:
+                    result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+                self.assertIsNone(result); self.assertTrue(blockers)
+                attempt = MetaPublicationAttempt.objects.get()
+                self.assertTrue(getattr(attempt, "external_adset_id" if failed_method == "create_adcreative" else "external_creative_id"))
+                with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("duplicate campaign")) as campaign, \
+                     patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", side_effect=AssertionError("duplicate adset")) as adset, \
+                     patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", return_value="live-creative") as creative, \
+                     patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", return_value="live-ad") as ad:
+                    result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+                self.assertEqual(blockers, []); self.assertEqual(result["status"], "completed")
+                campaign.assert_not_called(); adset.assert_not_called()
+                if failed_method == "create_ad": creative.assert_not_called()
+                else: ad.assert_called_once()
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, META_ADS_LIVE_WRITES_ENABLED=True)
+    def test_execute_api_hides_provider_identifiers(self):
+        self.client.force_login(self.user)
+        self._plan()
+        url = reverse("ads_api:management_creative_meta_publish_execute", args=[self.creative.pk])
+        with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", return_value="provider-campaign"), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", return_value="provider-adset"), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", return_value="provider-creative"), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", return_value="provider-ad"):
+            response = self.client.post(url, data={"external_account_id": self.account.pk}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertNotIn("provider-", str(response.content))
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, ADS_CREDENTIAL_ENCRYPTION_KEY="test-credential-key")
+    def test_provider_adapter_maps_http_and_malformed_responses_without_raw_data(self):
+        self._ready()
+        credential = AdvertisingCredential.objects.create(
+            external_account=self.account, provider="meta",
+            encrypted_access_token=credential_encryption_service.encrypt("m15-token"),
+        )
+        self.account.external_account_id = "act_123"
+        self.account.save(update_fields=["external_account_id", "updated_at"])
+        writer = provider_for("meta").LiveWriteAdapter(provider_for("meta"))
+        for http_status, exception_type, expected in (
+            (401, ProviderAuthorizationError, "meta_auth_failed"),
+            (429, ProviderAPIError, "meta_rate_limited"),
+            (400, ProviderAPIError, "meta_invalid_request"),
+            (500, ProviderAPIError, "meta_provider_unavailable"),
+        ):
+            with self.subTest(http_status=http_status), patch("ads.providers.requests.post", return_value=SimpleNamespace(status_code=http_status, json=lambda: {"error": {"message": "sensitive raw graph response"}})):
+                with self.assertRaises(exception_type) as error:
+                    writer.create_campaign(self.account, {"name": "x", "objective": "OUTCOME_TRAFFIC"})
+            self.assertEqual(str(error.exception), expected)
+            self.assertNotIn("sensitive", str(error.exception))
+        with patch("ads.providers.requests.post", return_value=SimpleNamespace(status_code=200, json=lambda: {})):
+            with self.assertRaises(ProviderAPIError) as error:
+                writer.create_campaign(self.account, {"name": "x", "objective": "OUTCOME_TRAFFIC"})
+        self.assertEqual(str(error.exception), "meta_response_invalid")
+        self.assertNotIn("m15-token", str(error.exception))
+        self.assertFalse({"raw_response", "access_token", "page_token"} & {field.name for field in MetaPublicationAttempt._meta.get_fields()})
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=False)
+    @patch("ads.providers.requests.post", side_effect=AssertionError("disabled write reached network"))
+    def test_provider_adapter_has_its_own_default_closed_gate(self, mock_post):
+        writer = provider_for("meta").LiveWriteAdapter(provider_for("meta"))
+        with self.assertRaises(ProviderAPIError) as error:
+            writer.create_campaign(self.account, {"name": "x", "objective": "OUTCOME_TRAFFIC", "status": "ACTIVE"})
+        self.assertEqual(str(error.exception), "meta_live_writes_disabled")
+        mock_post.assert_not_called()
 
 
 @skipUnlessDBFeature("has_select_for_update")

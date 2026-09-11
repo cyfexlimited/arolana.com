@@ -327,6 +327,78 @@ class MetaAdsProvider(AdvertisingProviderAdapter):
     max_page_discovery_pages = 10
     max_page_discovery_items = 250
 
+    # This adapter is deliberately separate from the M13 `_read_only_get`
+    # boundary.  It has fixed v24 resource routes and accepts only canonical
+    # payloads assembled by the publication orchestrator.
+    class LiveWriteAdapter:
+        timeout_seconds = 20
+
+        def __init__(self, provider):
+            self.provider = provider
+
+        @staticmethod
+        def _account_id(external_account):
+            value = str(getattr(external_account, "external_account_id", "") or "").strip()
+            if value.startswith("act_"):
+                value = value[4:]
+            return value if re.fullmatch(r"\d+", value) else ""
+
+        def _post(self, external_account, resource, payload, *, stage):
+            # Defense in depth: no request body, role, or test fixture can
+            # bypass the server-owned boolean kill switch.
+            if getattr(settings, "META_ADS_LIVE_WRITES_ENABLED", False) is not True:
+                raise ProviderAPIError("meta_live_writes_disabled", stage=stage)
+            credential = getattr(external_account, "credential", None)
+            if not credential:
+                raise ProviderAuthorizationError("missing_credential", stage=stage)
+            if credential.revoked_at:
+                raise ProviderAuthorizationError("credential_revoked", stage=stage)
+            if credential.provider != "meta" or external_account.channel != "meta":
+                raise ProviderAPIError("meta_account_mismatch", stage=stage)
+            account_id = self._account_id(external_account)
+            if not account_id:
+                raise ProviderAPIError("missing_external_account_id", stage=stage)
+            try:
+                response = requests.post(
+                    f"https://graph.facebook.com/v24.0/act_{account_id}/{resource}",
+                    headers=self.provider._bearer_headers(credential),
+                    data=payload,
+                    timeout=self.timeout_seconds,
+                )
+            except requests.Timeout as exc:
+                raise ProviderAPIError("meta_provider_unavailable", stage=stage) from exc
+            except requests.RequestException as exc:
+                raise ProviderAPIError("meta_provider_unavailable", stage=stage) from exc
+            if response.status_code in {401, 403}:
+                raise ProviderAuthorizationError("meta_auth_failed", stage=stage, http_status=response.status_code)
+            if response.status_code == 429:
+                raise ProviderAPIError("meta_rate_limited", stage=stage, http_status=response.status_code)
+            if response.status_code >= 500:
+                raise ProviderAPIError("meta_provider_unavailable", stage=stage, http_status=response.status_code)
+            if response.status_code >= 400:
+                raise ProviderAPIError("meta_invalid_request", stage=stage, http_status=response.status_code)
+            try:
+                data = response.json()
+            except (ValueError, TypeError) as exc:
+                raise ProviderAPIError("meta_response_invalid", stage=stage) from exc
+            identifier = str(data.get("id") or "").strip() if isinstance(data, dict) else ""
+            if not identifier or len(identifier) > 200:
+                raise ProviderAPIError("meta_response_invalid", stage=stage)
+            return identifier
+
+        def create_campaign(self, external_account, payload):
+            safe_payload = {**payload, "status": "PAUSED", "special_ad_categories": "[]"}
+            return self._post(external_account, "campaigns", safe_payload, stage="campaign_create")
+
+        def create_adset(self, external_account, payload):
+            return self._post(external_account, "adsets", {**payload, "status": "PAUSED"}, stage="adset_create")
+
+        def create_adcreative(self, external_account, payload):
+            return self._post(external_account, "adcreatives", payload, stage="creative_create")
+
+        def create_ad(self, external_account, payload):
+            return self._post(external_account, "ads", {**payload, "status": "PAUSED"}, stage="ad_create")
+
     def _read_only_get(self, url, *, credential, params=None):
         """The sole M13 Graph boundary: deliberately permits GET only."""
         if not isinstance(url, str) or not url.startswith("https://graph.facebook.com/v24.0/"):

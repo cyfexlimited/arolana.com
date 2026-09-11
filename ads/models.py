@@ -927,12 +927,40 @@ class MetaVerificationReceipt(BaseModel):
 
 
 class MetaPublicationAttempt(BaseModel):
-    """Immutable-fingerprint dry-run history; it never stores provider payloads."""
+    """One immutable-plan Meta publication history record.
+
+    The external IDs belong here, not on the mock M8--M10 records or the
+    shared channel execution.  A dry-run and a future live attempt therefore
+    remain distinguishable and an interrupted live chain can be resumed
+    without creating another provider resource.
+    """
     MODE_DRY_RUN = "dry_run"
     STATUS_READY = "ready"
     STATUS_STALE = "stale"
+    STATUS_FAILED = "failed"
+    STATUS_COMPLETED = "completed"
+    STAGE_PENDING = "pending"
+    STAGE_CREATING_CAMPAIGN = "creating_campaign"
+    STAGE_CAMPAIGN_CREATED = "campaign_created"
+    STAGE_CREATING_ADSET = "creating_adset"
+    STAGE_ADSET_CREATED = "adset_created"
+    STAGE_CREATING_CREATIVE = "creating_creative"
+    STAGE_CREATIVE_CREATED = "creative_created"
+    STAGE_CREATING_AD = "creating_ad"
+    STAGE_COMPLETED = "completed"
+    STAGE_FAILED = "failed"
     MODE_CHOICES = [(MODE_DRY_RUN, "Dry run")]
-    STATUS_CHOICES = [(STATUS_READY, "Ready"), (STATUS_STALE, "Stale")]
+    STATUS_CHOICES = [
+        (STATUS_READY, "Ready"), (STATUS_STALE, "Stale"),
+        (STATUS_FAILED, "Failed"), (STATUS_COMPLETED, "Completed"),
+    ]
+    STAGE_CHOICES = [
+        (STAGE_PENDING, "Pending"), (STAGE_CREATING_CAMPAIGN, "Creating campaign"),
+        (STAGE_CAMPAIGN_CREATED, "Campaign created"), (STAGE_CREATING_ADSET, "Creating ad set"),
+        (STAGE_ADSET_CREATED, "Ad set created"), (STAGE_CREATING_CREATIVE, "Creating creative"),
+        (STAGE_CREATIVE_CREATED, "Creative created"), (STAGE_CREATING_AD, "Creating ad"),
+        (STAGE_COMPLETED, "Completed"), (STAGE_FAILED, "Failed"),
+    ]
 
     campaign = models.ForeignKey(AdCampaign, on_delete=models.CASCADE, related_name="meta_publication_attempts")
     creative = models.ForeignKey(AdCreative, on_delete=models.CASCADE, related_name="meta_publication_attempts")
@@ -947,6 +975,13 @@ class MetaPublicationAttempt(BaseModel):
     plan_fingerprint = models.CharField(max_length=64, db_index=True)
     attempt_count = models.PositiveIntegerField(default=0)
     last_attempted_at = models.DateTimeField(null=True, blank=True)
+    stage = models.CharField(max_length=30, choices=STAGE_CHOICES, default=STAGE_PENDING, db_index=True)
+    external_campaign_id = models.CharField(max_length=200, blank=True)
+    external_adset_id = models.CharField(max_length=200, blank=True)
+    external_creative_id = models.CharField(max_length=200, blank=True)
+    external_ad_id = models.CharField(max_length=200, blank=True)
+    failure_code = models.CharField(max_length=80, blank=True)
+    failure_message = models.CharField(max_length=240, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["creative", "external_account", "plan_fingerprint"], name="unique_meta_publication_dry_run_plan")]
@@ -955,7 +990,7 @@ class MetaPublicationAttempt(BaseModel):
     def clean(self):
         super().clean()
         if self.mode != self.MODE_DRY_RUN:
-            raise ValidationError("Only dry-run Meta publication attempts are supported.")
+            raise ValidationError("Only dry-run-origin Meta publication attempts are supported.")
         if self.creative_id and self.campaign_id and self.creative.campaign_id != self.campaign_id:
             raise ValidationError("Publication creative must belong to campaign.")
         if self.campaign_id and self.advertiser_identity_id and self.campaign.advertiser_identity_id != self.advertiser_identity_id:
