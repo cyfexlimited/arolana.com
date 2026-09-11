@@ -41,6 +41,7 @@ from .preparation_management import status as preparation_status, prepare as pre
 from .ad_resource_management import AdResourceError, status as ad_resource_status, prepare as prepare_ad_resource, safe as safe_ad_resource
 from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
+from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute
 from .management import (
     AdvertiserAccessError,
     AdvertiserValidationError,
@@ -888,8 +889,33 @@ def management_creative_meta_verification_check(request, creative_id):
         return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
     data = _json_management_body(request)
     return JsonResponse({"success": True, "verification": _json_safe(meta_verification_check(
-        identity, creative, data.get("external_account_id"),
+        identity, creative, data.get("external_account_id"), persist_receipt=True,
     ))})
+
+
+def _meta_publish_action(request, creative_id, *, execute=False):
+    identity, error = _management_identity(request)
+    if error:
+        return error
+    creative = _preparation_creative(identity, creative_id)
+    if not creative:
+        return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    account_id = _json_management_body(request).get("external_account_id")
+    publication, blockers = (meta_publish_execute if execute else meta_publish_dry_run)(identity, creative, account_id)
+    if blockers:
+        status = 409 if blockers == ["meta_live_writes_disabled"] else 400
+        return JsonResponse({"success": False, "error": blockers[0], "blockers": blockers}, status=status)
+    return JsonResponse({"success": True, "publication": _json_safe(publication)})
+
+
+@require_POST
+def management_creative_meta_publish_dry_run(request, creative_id):
+    return _meta_publish_action(request, creative_id)
+
+
+@require_POST
+def management_creative_meta_publish_execute(request, creative_id):
+    return _meta_publish_action(request, creative_id, execute=True)
 
 
 def _ad_resource_action(request, creative_id, retry=False):

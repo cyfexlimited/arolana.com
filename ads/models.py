@@ -909,6 +909,61 @@ class AdvertisingAdResource(BaseModel):
             raise ValidationError("Ad resource creative preparation context must match.")
 
 
+class MetaVerificationReceipt(BaseModel):
+    """Safe, short-lived evidence of a successful M13 read-only check."""
+    creative = models.ForeignKey(AdCreative, on_delete=models.CASCADE, related_name="meta_verification_receipts")
+    external_account = models.ForeignKey(ExternalAdvertisingAccount, on_delete=models.CASCADE, related_name="meta_verification_receipts")
+    context_fingerprint = models.CharField(max_length=64, db_index=True)
+    verified_at = models.DateTimeField(default=timezone.now, db_index=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["creative", "external_account", "expires_at"])]
+
+    def clean(self):
+        super().clean()
+        if self.creative_id and self.external_account_id and self.creative.campaign.advertiser_identity_id != self.external_account.advertiser_identity_id:
+            raise ValidationError("Verification receipt advertiser must match.")
+
+
+class MetaPublicationAttempt(BaseModel):
+    """Immutable-fingerprint dry-run history; it never stores provider payloads."""
+    MODE_DRY_RUN = "dry_run"
+    STATUS_READY = "ready"
+    STATUS_STALE = "stale"
+    MODE_CHOICES = [(MODE_DRY_RUN, "Dry run")]
+    STATUS_CHOICES = [(STATUS_READY, "Ready"), (STATUS_STALE, "Stale")]
+
+    campaign = models.ForeignKey(AdCampaign, on_delete=models.CASCADE, related_name="meta_publication_attempts")
+    creative = models.ForeignKey(AdCreative, on_delete=models.CASCADE, related_name="meta_publication_attempts")
+    advertiser_identity = models.ForeignKey(AdvertiserIdentity, on_delete=models.PROTECT, related_name="meta_publication_attempts")
+    external_account = models.ForeignKey(ExternalAdvertisingAccount, on_delete=models.CASCADE, related_name="meta_publication_attempts")
+    execution = models.ForeignKey("AdChannelExecution", on_delete=models.PROTECT, related_name="meta_publication_attempts")
+    creative_preparation = models.ForeignKey(AdvertisingCreativePreparation, on_delete=models.PROTECT, related_name="meta_publication_attempts")
+    ad_resource = models.ForeignKey(AdvertisingAdResource, on_delete=models.PROTECT, related_name="meta_publication_attempts")
+    verification_receipt = models.ForeignKey(MetaVerificationReceipt, on_delete=models.PROTECT, related_name="publication_attempts")
+    mode = models.CharField(max_length=20, choices=MODE_CHOICES, default=MODE_DRY_RUN)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_READY, db_index=True)
+    plan_fingerprint = models.CharField(max_length=64, db_index=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["creative", "external_account", "plan_fingerprint"], name="unique_meta_publication_dry_run_plan")]
+        indexes = [models.Index(fields=["external_account", "status"])]
+
+    def clean(self):
+        super().clean()
+        if self.mode != self.MODE_DRY_RUN:
+            raise ValidationError("Only dry-run Meta publication attempts are supported.")
+        if self.creative_id and self.campaign_id and self.creative.campaign_id != self.campaign_id:
+            raise ValidationError("Publication creative must belong to campaign.")
+        if self.campaign_id and self.advertiser_identity_id and self.campaign.advertiser_identity_id != self.advertiser_identity_id:
+            raise ValidationError("Publication advertiser must match campaign.")
+        if self.external_account_id and self.advertiser_identity_id and self.external_account.advertiser_identity_id != self.advertiser_identity_id:
+            raise ValidationError("Publication advertiser must match account.")
+
+
 class AdvertisingCredential(BaseModel):
     """Encrypted OAuth credential material for external advertising accounts."""
 

@@ -1,7 +1,12 @@
-"""Explicit, request-scoped live Meta verification; provider reads only."""
+"""Explicit M13 live Meta verification; provider reads only."""
+import hashlib
+import json
+from datetime import timedelta
+
+from django.conf import settings
 from django.utils import timezone
 
-from .models import ExternalAdvertisingAccount
+from .models import ExternalAdvertisingAccount, MetaVerificationReceipt
 from .providers import ProviderAPIError, ProviderAuthorizationError, provider_for
 
 
@@ -23,6 +28,25 @@ def _result(status, blockers=()):
     return {"verified": status == "verified", "status": status, "blockers": list(blockers), "checked_at": timezone.now().isoformat()}
 
 
+def context_fingerprint(creative, account):
+    """Opaque identity/page binding for verification freshness; no page ID leaks."""
+    page_id = str((account.metadata or {}).get("meta_page_id") or "").strip()
+    value = {"creative": creative.pk, "campaign": creative.campaign_id, "account": account.pk, "page": page_id}
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def record_verified_receipt(creative, account):
+    now = timezone.now()
+    max_age = max(1, min(int(getattr(settings, "META_ADS_VERIFICATION_MAX_AGE_SECONDS", 600)), 3600))
+    return MetaVerificationReceipt.objects.create(
+        creative=creative,
+        external_account=account,
+        context_fingerprint=context_fingerprint(creative, account),
+        verified_at=now,
+        expires_at=now + timedelta(seconds=max_age),
+    )
+
+
 def _provider_failure(exc):
     reason = str(exc)
     if isinstance(exc, ProviderAuthorizationError):
@@ -36,8 +60,8 @@ def _provider_failure(exc):
     }.get(reason, "meta_provider_unavailable")
 
 
-def verify(identity, creative, account_id=None):
-    """Perform the sole explicit live check; do not write locally or remotely."""
+def verify(identity, creative, account_id=None, *, persist_receipt=False):
+    """Perform the sole explicit live check.  Provider work remains GET-only."""
     account, error = _account(identity, account_id)
     if error:
         return _result("not_verified", [error])
@@ -54,4 +78,6 @@ def verify(identity, creative, account_id=None):
     except (ProviderAuthorizationError, ProviderAPIError) as exc:
         blocker = _provider_failure(exc)
         return _result("unavailable" if blocker == "meta_provider_unavailable" else "not_verified", [blocker])
+    if persist_receipt:
+        record_verified_receipt(creative, account)
     return _result("verified")

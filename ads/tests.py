@@ -48,6 +48,8 @@ from .models import (
     AdvertisingCreativePreparation,
     AdvertisingCredential,
     AdvertisingMediaAsset,
+    MetaPublicationAttempt,
+    MetaVerificationReceipt,
     AdvertisingOAuthState,
     AdvertiserIdentity,
     CampaignAsset,
@@ -60,6 +62,8 @@ from .creative_preparation import CreativePreparationError, canonical_meta_paylo
 from .ad_resource_management import AdResourceError, advertising_ad_resource_service, canonical_meta_ad_payload, status as ad_resource_status
 from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
+from .meta_verification import record_verified_receipt
+from .meta_publish import dry_run as meta_publish_dry_run, live_writes_enabled
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -6651,6 +6655,81 @@ class MetaLiveVerificationTests(TestCase):
         self.account.metadata = {}; self.account.save(update_fields=["metadata", "updated_at"])
         mock_get.reset_mock()
         self.assertIn("meta_page_required", meta_verification_check(self.identity, self.creative, self.account.pk)["blockers"]); mock_get.assert_not_called()
+
+
+class MetaPublishDryRunTests(MetaPublishReadinessTests):
+    """M14 is deliberately an internal-only continuation of M12/M13."""
+    def receipt(self):
+        return record_verified_receipt(self.creative, self.account)
+
+    def test_live_write_setting_defaults_closed_and_requires_boolean_true(self):
+        with patch("ads.meta_publish.settings", SimpleNamespace()): self.assertFalse(live_writes_enabled())
+        with self.settings(META_ADS_LIVE_WRITES_ENABLED=False): self.assertFalse(live_writes_enabled())
+        with self.settings(META_ADS_LIVE_WRITES_ENABLED="true"): self.assertFalse(live_writes_enabled())
+        with self.settings(META_ADS_LIVE_WRITES_ENABLED=True): self.assertTrue(live_writes_enabled())
+
+    def _ready(self):
+        self.prepare_ready_chain()
+        self.creative = AdCreative.objects.select_related("campaign").get(pk=self.creative.pk)
+        self.account = ExternalAdvertisingAccount.objects.get(pk=self.account.pk)
+        return self.receipt()
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("real network request attempted"))
+    def test_dry_run_is_paused_deterministic_idempotent_and_network_free(self, mock_request):
+        self._ready()
+        first, blockers = meta_publish_dry_run(self.identity, self.creative, self.account.pk)
+        second, repeated = meta_publish_dry_run(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, []); self.assertEqual(repeated, [])
+        self.assertEqual(first["mode"], "dry_run"); self.assertEqual(first["status"], "ready")
+        self.assertFalse(first["can_live_publish"]); self.assertFalse(first["live_writes_enabled"])
+        self.assertEqual(first["plan_summary"]["initial_status"], "PAUSED")
+        self.assertEqual(MetaPublicationAttempt.objects.count(), 1)
+        attempt = MetaPublicationAttempt.objects.get()
+        self.assertEqual(attempt.attempt_count, 1)
+        self.assertNotIn("mock_meta", str(first)); self.assertNotIn("token", str(first).lower()); self.assertNotIn("payload", str(first).lower())
+        mock_request.assert_not_called()
+
+    def test_context_changes_preserve_historical_attempt_and_require_current_verification(self):
+        self._ready()
+        self.assertEqual(meta_publish_dry_run(self.identity, self.creative, self.account.pk)[1], [])
+        original = MetaPublicationAttempt.objects.get()
+        self.creative.headline = "Changed"; self.creative.save(update_fields=["headline", "updated_at"])
+        # M12 detects stale preparation first; a fresh chain then needs M13 again.
+        self.assertIn("creative_preparation_stale", meta_publish_dry_run(self.identity, self.creative, self.account.pk)[1])
+        self.prepare_ready_chain()
+        # Verification is bound to the account/Page context; the changed creative
+        # is independently re-prepared by M8--M10 before its new plan can exist.
+        self.assertEqual(meta_publish_dry_run(self.identity, self.creative, self.account.pk)[1], [])
+        original.refresh_from_db(); self.assertEqual(original.status, "stale")
+        self.assertEqual(MetaPublicationAttempt.objects.count(), 2)
+
+    @override_settings(META_ADS_VERIFICATION_MAX_AGE_SECONDS=1)
+    def test_missing_or_expired_verification_is_blocked(self):
+        self._ready()
+        MetaVerificationReceipt.objects.all().delete()
+        self.assertEqual(meta_publish_dry_run(self.identity, self.creative, self.account.pk)[1], ["meta_live_verification_required"])
+        receipt = self.receipt(); receipt.expires_at = timezone.now() - timedelta(seconds=1); receipt.save(update_fields=["expires_at", "updated_at"])
+        self.assertEqual(meta_publish_dry_run(self.identity, self.creative, self.account.pk)[1], ["meta_live_verification_stale"])
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    @patch("ads.meta_publish.MetaLivePublishAdapter.execute", side_effect=AssertionError("provider write invoked"))
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("real network request attempted"))
+    def test_execute_is_kill_switched_and_client_cannot_bypass(self, mock_request, mock_execute):
+        self.client.force_login(self.user); self._ready()
+        url = reverse("ads_api:management_creative_meta_publish_execute", args=[self.creative.pk])
+        response = self.client.post(url + "?advertiser_id=%s&live=true&force=true" % self.identity.pk, data={"external_account_id": self.account.pk, "live": True, "confirm": True}, content_type="application/json")
+        self.assertEqual(response.status_code, 409); self.assertEqual(response.json()["error"], "meta_live_writes_disabled")
+        mock_execute.assert_not_called(); mock_request.assert_not_called()
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True)
+    def test_dry_run_endpoint_is_scoped_safe_and_live_setting_is_server_only(self):
+        self.client.force_login(self.user); self._ready()
+        url = reverse("ads_api:management_creative_meta_publish_dry_run", args=[self.creative.pk])
+        response = self.client.post(url, data={"external_account_id": self.account.pk}, content_type="application/json", QUERY_STRING=f"advertiser_id={self.identity.pk}")
+        self.assertEqual(response.status_code, 200, response.content)
+        publication = response.json()["publication"]
+        self.assertEqual(set(publication), {"mode", "status", "can_live_publish", "live_writes_enabled", "blockers", "checked_at", "plan_summary"})
+        self.assertFalse(publication["live_writes_enabled"])
 
 
 @skipUnlessDBFeature("has_select_for_update")

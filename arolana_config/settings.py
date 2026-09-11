@@ -637,6 +637,20 @@ ADS_META_ALLOW_TEST_WRITES = config(
     default=False,
     cast=bool,
 )
+# M14's future provider-execution switch.  It is deliberately independent of
+# test-write settings and defaults closed when absent.
+META_ADS_LIVE_WRITES_ENABLED = config(
+    "META_ADS_LIVE_WRITES_ENABLED",
+    default=False,
+    # Do not use Python truthiness here: only the literal environment value
+    # "true" can open the future (still unimplemented) execution branch.
+    cast=lambda value: str(value).strip().lower() == "true",
+)
+META_ADS_VERIFICATION_MAX_AGE_SECONDS = config(
+    "META_ADS_VERIFICATION_MAX_AGE_SECONDS",
+    default=600,
+    cast=int,
+)
 ADS_META_TEST_ACCOUNT_ALLOWLIST = config(
     "ADS_META_TEST_ACCOUNT_ALLOWLIST",
     default="",
