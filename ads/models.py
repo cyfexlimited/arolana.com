@@ -1037,6 +1037,43 @@ class MetaPublicationAttempt(BaseModel):
             raise ValidationError("Publication advertiser must match account.")
 
 
+class MetaPublicationAuthorization(BaseModel):
+    """A short-lived platform-staff approval for one immutable Meta plan."""
+    STATUS_AUTHORIZED = "authorized"
+    STATUS_REVOKED = "revoked"
+    STATUS_CHOICES = [(STATUS_AUTHORIZED, "Authorized"), (STATUS_REVOKED, "Revoked")]
+    advertiser_identity = models.ForeignKey(AdvertiserIdentity, on_delete=models.PROTECT, related_name="meta_publication_authorizations")
+    external_account = models.ForeignKey(ExternalAdvertisingAccount, on_delete=models.PROTECT, related_name="meta_publication_authorizations")
+    campaign = models.ForeignKey(AdCampaign, on_delete=models.PROTECT, related_name="meta_publication_authorizations")
+    creative = models.ForeignKey(AdCreative, on_delete=models.PROTECT, related_name="meta_publication_authorizations")
+    publication_attempt = models.ForeignKey(MetaPublicationAttempt, on_delete=models.PROTECT, related_name="authorizations")
+    authorized_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="meta_publication_authorizations")
+    plan_fingerprint = models.CharField(max_length=64, db_index=True)
+    page_id = models.CharField(max_length=100)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_AUTHORIZED, db_index=True)
+    authorized_at = models.DateTimeField(default=timezone.now, db_index=True)
+    expires_at = models.DateTimeField(db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["publication_attempt", "status", "expires_at"], name="ads_metapu_publica_7ea142_idx")]
+
+
+class MetaPublicationAuditEvent(BaseModel):
+    """Bounded, token-free audit evidence for sensitive Meta publish decisions."""
+    EVENT_AUTHORIZED = "authorization_created"; EVENT_REVOKED = "authorization_revoked"
+    EVENT_BLOCKED = "execute_blocked"; EVENT_STARTED = "execution_started"
+    EVENT_STAGE = "execution_stage_changed"; EVENT_COMPLETED = "execution_completed"; EVENT_FAILED = "execution_failed"
+    EVENT_CHOICES = [(value, value.replace("_", " ").title()) for value in (EVENT_AUTHORIZED, EVENT_REVOKED, EVENT_BLOCKED, EVENT_STARTED, EVENT_STAGE, EVENT_COMPLETED, EVENT_FAILED)]
+    advertiser_identity = models.ForeignKey(AdvertiserIdentity, on_delete=models.PROTECT, related_name="meta_publication_audit_events")
+    creative = models.ForeignKey(AdCreative, on_delete=models.PROTECT, related_name="meta_publication_audit_events")
+    publication_attempt = models.ForeignKey(MetaPublicationAttempt, on_delete=models.SET_NULL, related_name="audit_events", null=True, blank=True)
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="meta_publication_audit_events", null=True, blank=True)
+    event_type = models.CharField(max_length=40, choices=EVENT_CHOICES, db_index=True)
+    stage = models.CharField(max_length=40, blank=True)
+    reason_code = models.CharField(max_length=80, blank=True)
+
+
 class AdvertisingCredential(BaseModel):
     """Encrypted OAuth credential material for external advertising accounts."""
 

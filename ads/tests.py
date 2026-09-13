@@ -49,6 +49,8 @@ from .models import (
     AdvertisingCredential,
     AdvertisingMediaAsset,
     MetaPublicationAttempt,
+    MetaPublicationAuthorization,
+    MetaPublicationAuditEvent,
     MetaPermissionReceipt,
     MetaVerificationReceipt,
     AdvertisingOAuthState,
@@ -66,6 +68,7 @@ from .meta_verification import verify as meta_verification_check
 from .meta_verification import record_verified_receipt
 from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute, live_writes_enabled
 from .meta_permissions import REQUIRED_META_ADS_SCOPES, check as meta_permissions_check, snapshot as meta_permission_snapshot
+from .meta_live_controls import account_allowlisted, authorize as meta_live_authorize, revoke as meta_live_revoke, preflight as meta_live_preflight
 from .ownership import AdvertiserOwnershipResolver
 from .providers import (
     ProviderAPIError,
@@ -6773,6 +6776,9 @@ class MetaLiveExecutionTests(MetaPublishDryRunTests):
         )
         permission_patch.start()
         self.addCleanup(permission_patch.stop)
+        self.controls_patch = patch("ads.meta_live_controls.execution_gate", return_value=(None, []))
+        self.controls_patch.start()
+        self.addCleanup(self.controls_patch.stop)
         self.campaign.objective = AdCampaign.OBJECTIVE_PRODUCT_VISITS
         self.campaign.budget_type = "daily"
         self.campaign.daily_budget = Decimal("10.00")
@@ -6946,6 +6952,51 @@ class MetaLiveExecutionTests(MetaPublishDryRunTests):
         self.assertEqual(blockers, ["meta_ads_management_permission_required"])
         mock_permissions.assert_called_once_with(self.identity, self.account.pk)
         mock_create.assert_not_called()
+
+
+class MetaLiveControlsTests(MetaLiveExecutionTests):
+    """M18 gates use only persisted state; provider seams remain mocked."""
+
+    def _admin(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+        return self.user
+
+    @override_settings(META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=" act_123, 123, bad ")
+    def test_allowlist_is_server_owned_canonical_and_default_closed(self):
+        self.account.external_account_id = "act_123"; self.account.save(update_fields=["external_account_id", "updated_at"])
+        self.assertTrue(account_allowlisted(self.account))
+        with self.settings(META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=[]):
+            self.assertFalse(account_allowlisted(self.account))
+
+    @patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []})
+    def test_platform_staff_authorization_is_exact_plan_bound_revocable_and_safe(self, _permissions):
+        self._plan(); admin = self._admin()
+        auth, blockers = meta_live_authorize(self.identity, self.creative, self.account.pk, admin)
+        self.assertEqual(blockers, []); self.assertEqual(auth.status, "authorized")
+        self.assertTrue(MetaPublicationAuditEvent.objects.filter(event_type="authorization_created").exists())
+        self.account.metadata["meta_page_id"] = "changed"; self.account.save(update_fields=["metadata", "updated_at"])
+        self.assertIn("meta_live_admin_authorization_stale", meta_live_preflight(self.identity, self.creative, self.account.pk)["blockers"])
+        self.account.metadata["meta_page_id"] = auth.page_id; self.account.save(update_fields=["metadata", "updated_at"])
+        revoked, blockers = meta_live_revoke(self.identity, self.creative, self.account.pk, admin)
+        self.assertEqual(blockers, []); self.assertEqual(revoked.status, "revoked")
+        self.assertTrue(MetaPublicationAuditEvent.objects.filter(event_type="authorization_revoked").exists())
+
+    @patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []})
+    def test_vendor_cannot_authorize_and_preflight_never_calls_provider(self, _permissions):
+        self._plan()
+        auth, blockers = meta_live_authorize(self.identity, self.creative, self.account.pk, self.user)
+        self.assertIsNone(auth); self.assertEqual(blockers, ["staff_required"])
+        with patch("ads.providers.requests.get", side_effect=AssertionError("provider read")), patch("ads.providers.requests.post", side_effect=AssertionError("provider write")):
+            result = meta_live_preflight(self.identity, self.creative, self.account.pk)
+        self.assertFalse(result["ready"]); self.assertNotIn("act_", str(result))
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST="")
+    def test_enabled_execute_requires_allowlist_before_writer(self):
+        self._plan(); self.controls_patch.stop()
+        with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer:
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
+        self.assertIsNone(result); self.assertEqual(blockers, ["meta_live_account_not_allowlisted"]); writer.assert_not_called()
 
 
 class MetaPermissionReadinessTests(MetaLiveVerificationTests):

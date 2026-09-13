@@ -42,6 +42,7 @@ from .ad_resource_management import AdResourceError, status as ad_resource_statu
 from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
 from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute
+from .meta_live_controls import authorize as meta_publish_authorize, revoke as meta_publish_revoke, preflight as meta_publish_preflight, authorization_state as meta_publish_authorization_state
 from .meta_permissions import check as meta_permissions_check, invalidate as invalidate_meta_permissions, snapshot as meta_permission_snapshot
 from .management import (
     AdvertiserAccessError,
@@ -902,7 +903,7 @@ def _meta_publish_action(request, creative_id, *, execute=False):
     if not creative:
         return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
     account_id = _json_management_body(request).get("external_account_id")
-    publication, blockers = (meta_publish_execute if execute else meta_publish_dry_run)(identity, creative, account_id)
+    publication, blockers = (meta_publish_execute(identity, creative, account_id, actor=_authenticated_user(request)) if execute else meta_publish_dry_run(identity, creative, account_id))
     if blockers:
         status = 409 if blockers == ["meta_live_writes_disabled"] else 400
         return JsonResponse({"success": False, "error": blockers[0], "blockers": blockers}, status=status)
@@ -917,6 +918,54 @@ def management_creative_meta_publish_dry_run(request, creative_id):
 @require_POST
 def management_creative_meta_publish_execute(request, creative_id):
     return _meta_publish_action(request, creative_id, execute=True)
+
+
+def _meta_publish_admin_context(request, creative_id):
+    identity, error = _management_identity(request)
+    if error:
+        return None, None, None, error
+    user = _authenticated_user(request)
+    if not getattr(user, "is_staff", False):
+        return None, None, None, JsonResponse({"success": False, "error": "staff_required"}, status=403)
+    creative = _preparation_creative(identity, creative_id)
+    if not creative:
+        return None, None, None, JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    return identity, creative, user, None
+
+
+@require_GET
+def management_creative_meta_publish_live_readiness(request, creative_id):
+    identity, error = _management_identity(request)
+    if error: return error
+    creative = _preparation_creative(identity, creative_id)
+    if not creative: return JsonResponse({"success": False, "error": "creative_not_found"}, status=404)
+    return JsonResponse({"success": True, "readiness": _json_safe(meta_publish_preflight(identity, creative, request.GET.get("external_account_id")))})
+
+
+@require_GET
+def management_creative_meta_publish_authorization(request, creative_id):
+    identity, creative, _user, error = _meta_publish_admin_context(request, creative_id)
+    if error: return error
+    attempt, blockers = meta_publish_authorization_state(identity, creative, request.GET.get("external_account_id"))
+    return JsonResponse({"success": not blockers, "authorized": not blockers, "blockers": blockers, "initial_status": "PAUSED"})
+
+
+@require_POST
+def management_creative_meta_publish_authorize(request, creative_id):
+    identity, creative, user, error = _meta_publish_admin_context(request, creative_id)
+    if error: return error
+    auth, blockers = meta_publish_authorize(identity, creative, _json_management_body(request).get("external_account_id"), user)
+    if blockers: return JsonResponse({"success": False, "error": blockers[0], "blockers": blockers}, status=400)
+    return JsonResponse({"success": True, "authorized": True, "expires_at": auth.expires_at.isoformat(), "initial_status": "PAUSED"})
+
+
+@require_POST
+def management_creative_meta_publish_revoke(request, creative_id):
+    identity, creative, user, error = _meta_publish_admin_context(request, creative_id)
+    if error: return error
+    _auth, blockers = meta_publish_revoke(identity, creative, _json_management_body(request).get("external_account_id"), user)
+    if blockers: return JsonResponse({"success": False, "error": blockers[0], "blockers": blockers}, status=400)
+    return JsonResponse({"success": True, "revoked": True, "initial_status": "PAUSED"})
 
 
 def _ad_resource_action(request, creative_id, retry=False):

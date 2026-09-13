@@ -646,6 +646,13 @@ META_ADS_LIVE_WRITES_ENABLED = config(
     # "true" can open the future (still unimplemented) execution branch.
     cast=lambda value: str(value).strip().lower() == "true",
 )
+# A second, server-owned gate for the future write path.  It is deliberately
+# separate from test-account configuration and defaults closed.
+META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST = config(
+    "META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST",
+    default="",
+    cast=lambda value: [item.strip() for item in str(value or "").split(",") if item.strip()],
+)
 META_ADS_VERIFICATION_MAX_AGE_SECONDS = config(
     "META_ADS_VERIFICATION_MAX_AGE_SECONDS",
     default=600,

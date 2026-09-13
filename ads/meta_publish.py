@@ -269,10 +269,19 @@ def _provider_failure(exc, fallback):
     return code if code in allowed else fallback
 
 
-def execute(identity, creative, account_id):
+def execute(identity, creative, account_id, *, actor=None):
     # Deliberately first: a disabled setting entails zero provider or preflight work.
     if not live_writes_enabled():
         return None, ["meta_live_writes_disabled"]
+    # M18 has no provider I/O: allowlist and Admin approval are persisted,
+    # server-owned controls evaluated only after the emergency kill switch.
+    from .meta_live_controls import execution_gate
+    _authorized_attempt, controls = execution_gate(identity, creative, account_id, actor=actor)
+    if controls:
+        if _authorized_attempt:
+            from .meta_live_controls import record_execution_event
+            record_execution_event(identity, creative, _authorized_attempt, "execute_blocked", actor=actor, reason=controls[0])
+        return None, controls
     attempt, state, blockers = _current_attempt(identity, creative, account_id)
     if blockers:
         return None, blockers
@@ -295,7 +304,11 @@ def execute(identity, creative, account_id):
             return None, fresh_blockers
         if current_attempt.pk != attempt.pk:
             return None, ["meta_publish_plan_stale"]
-        return _execute_attempt(attempt, fresh_state, creative)
+        from .meta_live_controls import record_execution_event
+        record_execution_event(identity, creative, attempt, "execution_started", actor=actor, stage=attempt.stage)
+        result, result_blockers = _execute_attempt(attempt, fresh_state, creative)
+        record_execution_event(identity, creative, attempt, "execution_completed" if not result_blockers else "execution_failed", actor=actor, stage=attempt.stage, reason=(result_blockers or [""])[0])
+        return result, result_blockers
 
 
 def _execute_attempt(attempt, state, creative):
