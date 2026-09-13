@@ -43,6 +43,7 @@ from .meta_readiness import check as meta_readiness_check
 from .meta_verification import verify as meta_verification_check
 from .meta_publish import dry_run as meta_publish_dry_run, execute as meta_publish_execute
 from .meta_live_controls import authorize as meta_publish_authorize, revoke as meta_publish_revoke, preflight as meta_publish_preflight, authorization_state as meta_publish_authorization_state
+from .meta_admin import context as meta_admin_context, overview as meta_admin_overview, audit_history as meta_admin_audit_history
 from .meta_permissions import check as meta_permissions_check, invalidate as invalidate_meta_permissions, snapshot as meta_permission_snapshot
 from .management import (
     AdvertiserAccessError,
@@ -966,6 +967,108 @@ def management_creative_meta_publish_revoke(request, creative_id):
     _auth, blockers = meta_publish_revoke(identity, creative, _json_management_body(request).get("external_account_id"), user)
     if blockers: return JsonResponse({"success": False, "error": blockers[0], "blockers": blockers}, status=400)
     return JsonResponse({"success": True, "revoked": True, "initial_status": "PAUSED"})
+
+
+def _platform_meta_admin(request):
+    """M20 authority is Django platform staff, never a supplied role label."""
+    user = _authenticated_user(request)
+    if not user:
+        return None, JsonResponse({"success": False, "error": "authentication_required"}, status=401)
+    if not getattr(user, "is_staff", False):
+        return None, JsonResponse({"success": False, "error": "platform_admin_required"}, status=403)
+    return user, None
+
+
+def _platform_meta_context(request, creative_id, *, body=False):
+    user, error = _platform_meta_admin(request)
+    if error:
+        return None, None, error
+    source = _json_management_body(request) if body else request.GET
+    result, reason = meta_admin_context(creative_id, source.get("external_account_id"))
+    if not result:
+        return None, None, JsonResponse({"success": False, "error": reason}, status=404)
+    return user, result, None
+
+
+@require_GET
+def platform_admin_meta_publish_overview(request, creative_id):
+    _user, result, error = _platform_meta_context(request, creative_id)
+    if error:
+        return error
+    identity, creative, account = result
+    return JsonResponse({"success": True, "overview": _json_safe(meta_admin_overview(identity, creative, account))})
+
+
+@require_GET
+def platform_admin_meta_publish_authorization(request, creative_id):
+    _user, result, error = _platform_meta_context(request, creative_id)
+    if error:
+        return error
+    identity, creative, account = result
+    overview = meta_admin_overview(identity, creative, account)
+    return JsonResponse({
+        "success": True,
+        "authorization": overview["authorization"],
+        "admin_authorized": overview["admin_authorized"],
+        "delivery_mode": "PAUSED",
+        "checked_at": overview["checked_at"],
+    })
+
+
+@require_POST
+def platform_admin_meta_publish_authorize(request, creative_id):
+    user, result, error = _platform_meta_context(request, creative_id, body=True)
+    if error:
+        return error
+    identity, creative, account = result
+    authorization, blockers = meta_publish_authorize(identity, creative, account.pk, user)
+    if blockers:
+        return JsonResponse({"success": False, "error": blockers[0], "blockers": blockers[:20]}, status=400)
+    return JsonResponse({
+        "success": True,
+        "authorization": "valid",
+        "admin_authorized": True,
+        "expires_at": authorization.expires_at.isoformat(),
+        "delivery_mode": "PAUSED",
+    })
+
+
+@require_POST
+def platform_admin_meta_publish_revoke(request, creative_id):
+    user, result, error = _platform_meta_context(request, creative_id, body=True)
+    if error:
+        return error
+    identity, creative, account = result
+    _authorization, blockers = meta_publish_revoke(identity, creative, account.pk, user)
+    if blockers:
+        return JsonResponse({"success": False, "error": blockers[0], "blockers": blockers[:20]}, status=400)
+    return JsonResponse({"success": True, "authorization": "revoked", "admin_authorized": False, "delivery_mode": "PAUSED"})
+
+
+def _bounded_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+@require_GET
+def platform_admin_meta_publish_audit(request):
+    _user, error = _platform_meta_admin(request)
+    if error:
+        return error
+    try:
+        history = meta_admin_audit_history(
+            campaign_id=_bounded_int(request.GET.get("campaign_id")),
+            creative_id=_bounded_int(request.GET.get("creative_id")),
+            attempt_id=_bounded_int(request.GET.get("publication_attempt_id")),
+            event_type=request.GET.get("event_type"),
+            page=_bounded_int(request.GET.get("page")) or 1,
+            page_size=_bounded_int(request.GET.get("page_size")) or 25,
+        )
+    except (TypeError, ValueError):
+        return JsonResponse({"success": False, "error": "invalid_pagination"}, status=400)
+    return JsonResponse({"success": True, **_json_safe(history)})
 
 
 def _ad_resource_action(request, creative_id, retry=False):

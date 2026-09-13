@@ -7340,6 +7340,162 @@ class MetaExecutionAcceptanceHarnessTests(MetaPublishDryRunTests):
         network.assert_not_called()
 
 
+class MetaAdminControlPlaneTests(MetaLiveControlsTests):
+    """M20 is platform-admin oversight only: every provider boundary is sealed."""
+
+    def _create_plan(self):
+        self._ready()
+        publication, blockers = meta_publish_dry_run(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, [])
+        return MetaPublicationAttempt.objects.get(creative=self.creative, external_account=self.account)
+
+    def _overview_url(self):
+        return reverse("ads_api:platform_admin_meta_publish_overview", args=[self.creative.pk])
+
+    def _authorize_url(self):
+        return reverse("ads_api:platform_admin_meta_publish_authorize", args=[self.creative.pk])
+
+    def _revoke_url(self):
+        return reverse("ads_api:platform_admin_meta_publish_revoke", args=[self.creative.pk])
+
+    def _admin(self):
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+        self.client.force_login(self.user)
+        return self.user
+
+    def _authorize(self):
+        self._admin()
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}):
+            response = self.client.post(self._authorize_url(), data={"external_account_id": self.account.pk}, content_type="application/json")
+        self.assertEqual(response.status_code, 200, response.content)
+        return response
+
+    @patch("ads.providers.requests.delete", side_effect=AssertionError("provider delete"))
+    @patch("ads.providers.requests.patch", side_effect=AssertionError("provider patch"))
+    @patch("ads.providers.requests.put", side_effect=AssertionError("provider put"))
+    @patch("ads.providers.requests.post", side_effect=AssertionError("provider post"))
+    @patch("ads.providers.requests.get", side_effect=AssertionError("provider get"))
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network request"))
+    def test_platform_admin_gate_overview_is_persisted_state_only(self, *_sealed):
+        self._create_plan()
+        # Anonymous users cannot learn whether a creative/account exists.
+        anonymous = self.client.get(self._overview_url(), {"external_account_id": self.account.pk})
+        self.assertEqual(anonymous.status_code, 401)
+        self.client.force_login(self.user)
+        denied = self.client.get(self._overview_url(), {"external_account_id": self.account.pk, "role": "admin", "is_staff": "true", "admin": "true"})
+        self.assertEqual(denied.status_code, 403)
+        self._admin()
+        response = self.client.get(self._overview_url(), {"external_account_id": self.account.pk, "live_writes_enabled": "true", "account_allowlisted": "true"})
+        self.assertEqual(response.status_code, 200, response.content)
+        overview = response.json()["overview"]
+        self.assertFalse(overview["live_writes_enabled"])
+        self.assertFalse(overview["account_allowlisted"])
+        self.assertEqual(overview["delivery_mode"], "PAUSED")
+        self.assertEqual(overview["plan"], "current")
+        self.assertNotIn("act_", str(overview))
+        self.assertNotIn("token", str(overview).lower())
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network request"))
+    def test_only_true_platform_staff_can_authorize_or_revoke(self, _sealed):
+        self._create_plan()
+        suffix = uuid4().hex[:8]
+        vendor_email, provider_email = "m20-vendor-" + suffix + "@example.com", "m20-provider-" + suffix + "@example.com"
+        for user in (self.user, get_user_model().objects.create_user(vendor_email, username=vendor_email, password="testpass123"), get_user_model().objects.create_user(provider_email, username=provider_email, password="testpass123")):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                denied = self.client.post(self._authorize_url(), data={"external_account_id": self.account.pk, "role": "admin", "admin": True, "is_staff": True}, content_type="application/json")
+                self.assertEqual(denied.status_code, 403)
+        self._authorize()
+        status_url = reverse("ads_api:platform_admin_meta_publish_authorization", args=[self.creative.pk])
+        status = self.client.get(status_url, {"external_account_id": self.account.pk})
+        self.assertEqual(status.status_code, 200); self.assertTrue(status.json()["admin_authorized"])
+        revoked = self.client.post(self._revoke_url(), data={"external_account_id": self.account.pk}, content_type="application/json")
+        self.assertEqual(revoked.status_code, 200, revoked.content)
+        self.assertEqual(revoked.json()["authorization"], "revoked")
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network request"))
+    def test_unrelated_true_platform_staff_can_oversee_without_advertiser_ownership(self, _sealed):
+        self._create_plan()
+        suffix = uuid4().hex[:8]
+        email = "m20-platform-admin-" + suffix + "@example.com"
+        platform_admin = get_user_model().objects.create_user(
+            email, username=email, password="testpass123", is_staff=True,
+        )
+        self.client.force_login(platform_admin)
+        overview = self.client.get(self._overview_url(), {"external_account_id": self.account.pk})
+        self.assertEqual(overview.status_code, 200, overview.content)
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}):
+            authorized = self.client.post(self._authorize_url(), data={"external_account_id": self.account.pk}, content_type="application/json")
+        self.assertEqual(authorized.status_code, 200, authorized.content)
+        self.assertEqual(MetaPublicationAuthorization.objects.get().authorized_by, platform_admin)
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network request"))
+    def test_authorization_is_exact_plan_bound_works_with_kill_switch_off_and_rejects_completed(self, _sealed):
+        attempt = self._create_plan()
+        self.assertFalse(live_writes_enabled())
+        self._authorize()
+        self.assertTrue(MetaPublicationAuthorization.objects.filter(status="authorized").exists())
+        attempt.status = MetaPublicationAttempt.STATUS_COMPLETED
+        attempt.save(update_fields=["status", "updated_at"])
+        rejected = self.client.post(self._authorize_url(), data={"external_account_id": self.account.pk}, content_type="application/json")
+        self.assertEqual(rejected.status_code, 400)
+        self.assertEqual(rejected.json()["error"], "meta_publish_already_completed")
+        attempt.status = MetaPublicationAttempt.STATUS_READY
+        attempt.save(update_fields=["status", "updated_at"])
+        # A page change makes the existing exact authorization stale without any refresh.
+        self.account.metadata["meta_page_id"] = "987654"
+        self.account.save(update_fields=["metadata", "updated_at"])
+        stale = self.client.get(self._overview_url(), {"external_account_id": self.account.pk}).json()["overview"]
+        self.assertEqual(stale["authorization"], "stale")
+        self.account.metadata["meta_page_id"] = "456"
+        self.account.save(update_fields=["metadata", "updated_at"])
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network request"))
+    def test_overview_distinguishes_failed_resumable_and_completed(self, _sealed):
+        attempt = self._create_plan()
+        self._admin()
+        attempt.status = MetaPublicationAttempt.STATUS_FAILED
+        attempt.stage = MetaPublicationAttempt.STAGE_FAILED
+        attempt.save(update_fields=["status", "stage", "updated_at"])
+        failed = self.client.get(self._overview_url(), {"external_account_id": self.account.pk}).json()["overview"]
+        self.assertEqual(failed["attempt"]["status"], "failed")
+        self.assertTrue(failed["resumable"])
+        attempt.status = MetaPublicationAttempt.STATUS_EXECUTING
+        attempt.save(update_fields=["status", "updated_at"])
+        executing = self.client.get(self._overview_url(), {"external_account_id": self.account.pk}).json()["overview"]
+        self.assertEqual(executing["attempt"]["status"], "executing")
+        attempt.status = MetaPublicationAttempt.STATUS_COMPLETED
+        attempt.save(update_fields=["status", "updated_at"])
+        completed = self.client.get(self._overview_url(), {"external_account_id": self.account.pk}).json()["overview"]
+        self.assertEqual(completed["attempt"]["status"], "completed")
+        self.assertFalse(completed["resumable"])
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("network request"))
+    def test_audit_history_is_admin_only_bounded_filterable_and_secret_free(self, _sealed):
+        attempt = self._create_plan()
+        for index in range(55):
+            MetaPublicationAuditEvent.objects.create(
+                advertiser_identity=self.identity, creative=self.creative, publication_attempt=attempt,
+                actor=self.user, event_type=MetaPublicationAuditEvent.EVENT_STAGE,
+                stage="creating_campaign", reason_code="safe_reason_%s" % index,
+            )
+        url = reverse("ads_api:platform_admin_meta_publish_audit")
+        self.client.force_login(self.user)
+        denied = self.client.get(url, {"page_size": 999, "role": "admin"})
+        self.assertEqual(denied.status_code, 403)
+        self._admin()
+        response = self.client.get(url, {"creative_id": self.creative.pk, "event_type": MetaPublicationAuditEvent.EVENT_STAGE, "page_size": 999, "unknown": "access_token"})
+        self.assertEqual(response.status_code, 200, response.content)
+        history = response.json()
+        self.assertEqual(len(history["events"]), 50)
+        self.assertTrue(history["has_more"])
+        self.assertEqual(history["page_size"], 50)
+        self.assertNotIn("access_token", str(history))
+        self.assertNotIn("authorization", str(history).lower())
+        self.assertNotIn("fingerprint", str(history).lower())
+
+
 class MetaExecutionClaimConcurrencyTests(TransactionTestCase):
     """The execution claim is committed before mocked writer I/O begins."""
 

@@ -6,7 +6,8 @@ from .models import (
     AdImpression, AdClick, AdConversion, AdAnalytics, Advertisement,
     AdvertiserIdentity, CampaignAsset, ExternalAdvertisingAccount,
     AdvertisingCredential, AdvertisingOAuthState, AdvertisingConnectionAuditLog,
-    AdChannelExecution, AdChannelReportingSnapshot, AdEvent, AdAttribution
+    AdChannelExecution, AdChannelReportingSnapshot, AdEvent, AdAttribution,
+    MetaPublicationAuthorization, MetaPublicationAttempt, MetaPublicationAuditEvent,
 )
 
 
@@ -345,3 +346,41 @@ class AdAttributionAdmin(admin.ModelAdmin):
     list_filter = ['attribution_type', 'lifecycle_status', 'currency']
     search_fields = ['source_event__event_uuid', 'campaign__name', 'advertiser_identity__display_name']
     readonly_fields = ['created_at', 'updated_at']
+
+
+class _ReadOnlyMetaPublicationAdmin(admin.ModelAdmin):
+    """Django Admin is observability only; M20 service APIs own transitions."""
+    readonly_fields = ()
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(MetaPublicationAuthorization)
+class MetaPublicationAuthorizationAdmin(_ReadOnlyMetaPublicationAdmin):
+    list_display = ['creative', 'external_account', 'status', 'authorized_by', 'authorized_at', 'expires_at', 'revoked_at']
+    list_filter = ['status']
+    search_fields = ['creative__name', 'campaign__name', 'external_account__display_name', 'authorized_by__username']
+    readonly_fields = [field.name for field in MetaPublicationAuthorization._meta.fields]
+
+
+@admin.register(MetaPublicationAttempt)
+class MetaPublicationAttemptAdmin(_ReadOnlyMetaPublicationAdmin):
+    list_display = ['creative', 'external_account', 'status', 'stage', 'attempt_count', 'last_attempted_at']
+    list_filter = ['status', 'stage']
+    search_fields = ['creative__name', 'campaign__name', 'external_account__display_name']
+    readonly_fields = [field.name for field in MetaPublicationAttempt._meta.fields]
+
+
+@admin.register(MetaPublicationAuditEvent)
+class MetaPublicationAuditEventAdmin(_ReadOnlyMetaPublicationAdmin):
+    list_display = ['event_type', 'creative', 'publication_attempt', 'actor', 'stage', 'reason_code', 'created_at']
+    list_filter = ['event_type', 'stage']
+    search_fields = ['creative__name', 'creative__campaign__name', 'actor__username', 'reason_code']
+    readonly_fields = [field.name for field in MetaPublicationAuditEvent._meta.fields]
