@@ -975,6 +975,7 @@ class MetaPublicationAttempt(BaseModel):
     MODE_DRY_RUN = "dry_run"
     STATUS_READY = "ready"
     STATUS_STALE = "stale"
+    STATUS_EXECUTING = "executing"
     STATUS_FAILED = "failed"
     STATUS_COMPLETED = "completed"
     STAGE_PENDING = "pending"
@@ -989,7 +990,7 @@ class MetaPublicationAttempt(BaseModel):
     STAGE_FAILED = "failed"
     MODE_CHOICES = [(MODE_DRY_RUN, "Dry run")]
     STATUS_CHOICES = [
-        (STATUS_READY, "Ready"), (STATUS_STALE, "Stale"),
+        (STATUS_READY, "Ready"), (STATUS_STALE, "Stale"), (STATUS_EXECUTING, "Executing"),
         (STATUS_FAILED, "Failed"), (STATUS_COMPLETED, "Completed"),
     ]
     STAGE_CHOICES = [

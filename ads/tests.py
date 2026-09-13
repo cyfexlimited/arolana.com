@@ -1,14 +1,17 @@
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from datetime import datetime, timedelta
 from io import StringIO
+from threading import Event, Thread
 from types import SimpleNamespace
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.contrib import admin
-from django.core.management import call_command
+from django.conf import settings
+from django.core.management import call_command, CommandError
 from django.core import signing
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sessions.backends.db import SessionStore
@@ -6997,6 +7000,408 @@ class MetaLiveControlsTests(MetaLiveExecutionTests):
         with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer:
             result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk)
         self.assertIsNone(result); self.assertEqual(blockers, ["meta_live_account_not_allowlisted"]); writer.assert_not_called()
+
+
+class MetaExecutionAcceptanceHarnessTests(MetaPublishDryRunTests):
+    """M19's command is intentionally test-context-only and network sealed."""
+
+    def setUp(self):
+        super().setUp()
+        self.campaign.objective = AdCampaign.OBJECTIVE_PRODUCT_VISITS
+        self.campaign.budget_type = "daily"
+        self.campaign.daily_budget = Decimal("10.00")
+        self.campaign.geo_targeting = ["NG"]
+        self.campaign.save(update_fields=["objective", "budget_type", "daily_budget", "geo_targeting", "updated_at"])
+        self.account.external_account_id = "act_900001"
+        self.account.metadata["meta_acceptance_synthetic"] = True
+        self.account.save(update_fields=["external_account_id", "metadata", "updated_at"])
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+
+    def _plan(self):
+        self._ready()
+        _publication, blockers = meta_publish_dry_run(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, [])
+        return MetaPublicationAttempt.objects.get(creative=self.creative, external_account=self.account)
+
+    def _authorize_current_plan(self):
+        self._plan()
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}):
+            authorization, blockers = meta_live_authorize(
+                self.identity, self.creative, self.account.pk, self.user
+            )
+        self.assertEqual(blockers, [])
+        return authorization
+
+    def test_command_requires_explicit_mock_confirmation_before_work(self):
+        with self.assertRaises(CommandError) as error:
+            call_command(
+                "validate_meta_ads_execution_acceptance",
+                campaign_id=self.campaign.pk,
+                external_account_id=self.account.pk,
+                staff_user_id=self.user.pk,
+            )
+        self.assertEqual(str(error.exception), "mocked_provider_confirmation_required")
+        self.assertFalse(MetaPublicationAuthorization.objects.exists())
+
+    def test_command_is_disabled_outside_an_explicit_test_process(self):
+        with self.assertRaises(CommandError) as error:
+            call_command(
+                "validate_meta_ads_execution_acceptance",
+                campaign_id=self.campaign.pk,
+                external_account_id=self.account.pk,
+                staff_user_id=self.user.pk,
+                confirm_mocked_provider=True,
+            )
+        self.assertEqual(str(error.exception), "mocked_acceptance_harness_disabled")
+        self.assertFalse(MetaPublicationAuthorization.objects.exists())
+
+    @override_settings(META_ADS_ACCEPTANCE_HARNESS_ENABLED=True)
+    def test_command_rejects_a_non_synthetic_account_before_authorization(self):
+        self.account.metadata.pop("meta_acceptance_synthetic")
+        self.account.save(update_fields=["metadata", "updated_at"])
+        with self.assertRaises(CommandError) as error:
+            call_command(
+                "validate_meta_ads_execution_acceptance",
+                campaign_id=self.campaign.pk,
+                external_account_id=self.account.pk,
+                staff_user_id=self.user.pk,
+                confirm_mocked_provider=True,
+            )
+        self.assertEqual(str(error.exception), "synthetic_acceptance_context_required")
+        self.assertFalse(MetaPublicationAuthorization.objects.exists())
+
+    def test_harness_enablement_reverts_after_its_process_local_context(self):
+        self._authorize_current_plan()
+        environment_before = dict(os.environ)
+        with self.settings(META_ADS_ACCEPTANCE_HARNESS_ENABLED=True), \
+             patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}):
+            call_command(
+                "validate_meta_ads_execution_acceptance",
+                campaign_id=self.campaign.pk,
+                external_account_id=self.account.pk,
+                staff_user_id=self.user.pk,
+                confirm_mocked_provider=True,
+                stdout=StringIO(),
+            )
+            self.assertTrue(settings.META_ADS_ACCEPTANCE_HARNESS_ENABLED)
+        self.assertFalse(getattr(settings, "META_ADS_ACCEPTANCE_HARNESS_ENABLED", False))
+        self.assertEqual(environment_before, dict(os.environ))
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("real network"))
+    @override_settings(META_ADS_ACCEPTANCE_HARNESS_ENABLED=True)
+    def test_command_executes_only_mocked_paused_chain_and_keeps_audit_safe(self, network):
+        settings_before = {
+            "enabled": getattr(settings, "META_ADS_LIVE_WRITES_ENABLED", None),
+            "allowlist": getattr(settings, "META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST", None),
+            "harness": getattr(settings, "META_ADS_ACCEPTANCE_HARNESS_ENABLED", None),
+        }
+        environment_before = dict(os.environ)
+        self._authorize_current_plan()
+        output = StringIO()
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}):
+            call_command(
+                "validate_meta_ads_execution_acceptance",
+                campaign_id=self.campaign.pk,
+                external_account_id=self.account.pk,
+                staff_user_id=self.user.pk,
+                confirm_mocked_provider=True,
+                stdout=output,
+            )
+        attempt = MetaPublicationAttempt.objects.get()
+        self.assertEqual(attempt.status, MetaPublicationAttempt.STATUS_COMPLETED)
+        self.assertEqual(
+            (attempt.external_campaign_id, attempt.external_adset_id, attempt.external_creative_id, attempt.external_ad_id),
+            ("acceptance-campaign", "acceptance-adset", "acceptance-creative", "acceptance-ad"),
+        )
+        self.assertIn("Provider: MOCKED", output.getvalue())
+        self.assertIn("Initial delivery status: PAUSED", output.getvalue())
+        self.assertNotIn("act_", output.getvalue())
+        events = list(MetaPublicationAuditEvent.objects.values_list("event_type", "reason_code"))
+        self.assertIn(("execution_started", ""), events)
+        self.assertIn(("execution_stage_changed", ""), events)
+        self.assertIn(("execution_completed", ""), events)
+        self.assertNotIn("token", str(events).lower())
+        network.assert_not_called()
+        self.assertEqual(environment_before, dict(os.environ))
+        self.assertEqual(settings_before["enabled"], getattr(settings, "META_ADS_LIVE_WRITES_ENABLED", None))
+        self.assertEqual(settings_before["allowlist"], getattr(settings, "META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST", None))
+        self.assertTrue(getattr(settings, "META_ADS_ACCEPTANCE_HARNESS_ENABLED", False))
+
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900001"])
+    def test_committed_execution_claim_blocks_a_rival_before_writer(self):
+        self._authorize_current_plan()
+        attempt = MetaPublicationAttempt.objects.get()
+        attempt.status = MetaPublicationAttempt.STATUS_EXECUTING
+        attempt.save(update_fields=["status", "updated_at"])
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("duplicate writer")) as writer:
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+        self.assertIsNone(result)
+        self.assertEqual(blockers, ["meta_execution_in_progress"])
+        writer.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900001"])
+    def test_expired_or_revoked_authorization_blocks_before_any_writer(self):
+        for state, expected in (("expired", "meta_live_admin_authorization_expired"), ("revoked", "meta_live_admin_authorization_revoked")):
+            with self.subTest(state=state):
+                MetaPublicationAuthorization.objects.all().delete()
+                MetaPublicationAttempt.objects.all().delete()
+                authorization = self._authorize_current_plan()
+                if state == "expired":
+                    authorization.expires_at = timezone.now() - timedelta(seconds=1)
+                    authorization.save(update_fields=["expires_at", "updated_at"])
+                else:
+                    authorization.status = MetaPublicationAuthorization.STATUS_REVOKED
+                    authorization.revoked_at = timezone.now()
+                    authorization.save(update_fields=["status", "revoked_at", "updated_at"])
+                with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+                     patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}), \
+                     patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer:
+                    result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+                self.assertIsNone(result)
+                self.assertEqual(blockers, [expected])
+                writer.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=[])
+    def test_execute_body_cannot_spoof_the_server_allowlist(self):
+        self._authorize_current_plan()
+        self.client.force_login(self.user)
+        url = reverse("ads_api:management_creative_meta_publish_execute", args=[self.creative.pk])
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer:
+            response = self.client.post(
+                url,
+                data=json.dumps({
+                    "external_account_id": self.account.pk,
+                    "META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST": [self.account.external_account_id],
+                    "allowlist": self.account.external_account_id,
+                }),
+                content_type="application/json",
+                QUERY_STRING=f"advertiser_id={self.identity.pk}",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"], "meta_live_account_not_allowlisted")
+        writer.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900001"])
+    def test_missing_or_stale_permission_receipt_blocks_execute_without_provider_traffic(self):
+        for blocker in ("meta_permission_verification_required", "meta_permission_verification_stale"):
+            with self.subTest(blocker=blocker):
+                MetaPublicationAuthorization.objects.all().delete()
+                MetaPublicationAttempt.objects.all().delete()
+                self._authorize_current_plan()
+                with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": False, "blockers": [blocker]}), \
+                     patch("ads.meta_publish.meta_permission_snapshot", side_effect=AssertionError("permission snapshot should not run")), \
+                     patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer, \
+                     patch("ads.providers.requests.get", side_effect=AssertionError("provider read")), \
+                     patch("ads.providers.requests.post", side_effect=AssertionError("provider write")):
+                    result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+                self.assertIsNone(result)
+                self.assertEqual(blockers, [blocker])
+                writer.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900001"])
+    def test_missing_authorization_and_stale_context_block_before_writer(self):
+        self._plan()
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", side_effect=AssertionError("permission snapshot should not run")), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer:
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+        self.assertIsNone(result)
+        self.assertEqual(blockers, ["meta_live_admin_authorization_required"])
+        writer.assert_not_called()
+
+        authorization = self._authorize_current_plan()
+        authorization.plan_fingerprint = "different-plan"
+        authorization.save(update_fields=["plan_fingerprint", "updated_at"])
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", side_effect=AssertionError("permission snapshot should not run")), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer:
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+        self.assertIsNone(result)
+        self.assertEqual(blockers, ["meta_live_admin_authorization_stale"])
+        writer.assert_not_called()
+
+        for field, value in (
+            ("campaign", AdCampaign.objects.create(name="M19 wrong authorization campaign", advertiser_identity=self.identity, status="draft")),
+            ("creative", AdCreative.objects.create(campaign=self.campaign, name="M19 wrong authorization creative", headline="Headline", clickthrough_url="https://arolana.com/m19-other")),
+        ):
+            with self.subTest(field=field):
+                MetaPublicationAuthorization.objects.all().delete()
+                authorization = self._authorize_current_plan()
+                setattr(authorization, field, value)
+                authorization.save(update_fields=[field, "updated_at"])
+                with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+                     patch("ads.meta_publish.meta_permission_snapshot", side_effect=AssertionError("permission snapshot should not run")), \
+                     patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer:
+                    result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+                self.assertIsNone(result)
+                self.assertEqual(blockers, ["meta_live_admin_authorization_stale"])
+                writer.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900001"])
+    def test_wrong_advertiser_context_cannot_reach_the_writer(self):
+        other_user = get_user_model().objects.create_user(
+            "m19-other@example.com", username="m19-context-other", password="testpass123"
+        )
+        other_identity = AdvertiserIdentity.objects.create(owner_type="platform", user=other_user, display_name="M19 other")
+        self._plan()
+        with patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=AssertionError("writer reached")) as writer, \
+             patch("ads.providers.requests.get", side_effect=AssertionError("provider read")), \
+             patch("ads.providers.requests.post", side_effect=AssertionError("provider write")):
+            result, blockers = meta_publish_execute(other_identity, self.creative, self.account.pk, actor=self.user)
+        self.assertIsNone(result)
+        self.assertEqual(blockers, ["meta_account_required"])
+        writer.assert_not_called()
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900001"])
+    def test_campaign_failure_is_safe_and_retry_restarts_at_campaign(self):
+        self._authorize_current_plan()
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=ProviderAPIError("sensitive raw response", stage="campaign")) as campaign, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", side_effect=AssertionError("adset reached")) as adset, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", side_effect=AssertionError("creative reached")) as creative, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", side_effect=AssertionError("ad reached")) as ad:
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+        self.assertIsNone(result)
+        self.assertEqual(blockers, ["meta_campaign_create_failed"])
+        self.assertTrue(campaign.called)
+        adset.assert_not_called(); creative.assert_not_called(); ad.assert_not_called()
+        attempt = MetaPublicationAttempt.objects.get()
+        self.assertEqual(attempt.status, MetaPublicationAttempt.STATUS_FAILED)
+        self.assertNotIn("sensitive", attempt.failure_message)
+        self.assertTrue(MetaPublicationAuditEvent.objects.filter(event_type="execution_failed", reason_code="meta_campaign_create_failed").exists())
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", return_value="retry-campaign") as retry_campaign, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", return_value="retry-adset"), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", return_value="retry-creative"), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", return_value="retry-ad"):
+            result, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+        self.assertEqual(blockers, [])
+        self.assertEqual(result["status"], "completed")
+        retry_campaign.assert_called_once()
+
+    @override_settings(ADS_ADVERTISER_DASHBOARD_ENABLED=True, META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900001"])
+    def test_hostile_activation_inputs_are_ignored_and_payloads_stay_paused(self):
+        self._authorize_current_plan()
+        self.client.force_login(self.user)
+        url = reverse("ads_api:management_creative_meta_publish_execute", args=[self.creative.pk])
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", return_value="hostile-campaign") as campaign, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", return_value="hostile-adset") as adset, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", return_value="hostile-creative"), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", return_value="hostile-ad") as ad:
+            response = self.client.post(
+                url,
+                data=json.dumps({"external_account_id": self.account.pk, "status": "ACTIVE", "activate": True, "launch": True, "resume": True}),
+                content_type="application/json",
+                QUERY_STRING=f"advertiser_id={self.identity.pk}",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(campaign.call_args.args[1]["status"], "PAUSED")
+        self.assertEqual(adset.call_args.args[1]["status"], "PAUSED")
+        self.assertEqual(ad.call_args.args[1]["status"], "PAUSED")
+
+    def test_live_write_adapter_has_no_activation_api(self):
+        adapter = __import__("ads.meta_publish", fromlist=["MetaLivePublishAdapter"]).MetaLivePublishAdapter
+        for name in ("activate", "launch", "resume", "set_active"):
+            self.assertFalse(hasattr(adapter, name), name)
+
+    @patch("requests.sessions.Session.request", side_effect=AssertionError("real network"))
+    @override_settings(META_ADS_ACCEPTANCE_HARNESS_ENABLED=True)
+    def test_audit_and_command_output_exclude_secret_and_payload_sentinels(self, network):
+        page_token = "page-token-m19-sentinel"
+        authorization = "Authorization: Bearer m19-sentinel"
+        raw_payload = "raw-provider-payload-m19-sentinel"
+        fingerprint = "a" * 64
+        self.account.metadata["meta_page_access_token"] = page_token
+        self.account.save(update_fields=["metadata", "updated_at"])
+        self.creative.description = authorization + raw_payload + fingerprint
+        self.creative.save(update_fields=["description", "updated_at"])
+        self._authorize_current_plan()
+        output = StringIO()
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}):
+            call_command("validate_meta_ads_execution_acceptance", campaign_id=self.campaign.pk, external_account_id=self.account.pk, staff_user_id=self.user.pk, confirm_mocked_provider=True, stdout=output)
+        stored = " ".join(str(value) for event in MetaPublicationAuditEvent.objects.values_list("event_type", "stage", "reason_code") for value in event)
+        rendered = output.getvalue()
+        for sentinel in (page_token, authorization, raw_payload, fingerprint):
+            self.assertNotIn(sentinel, stored)
+            self.assertNotIn(sentinel, rendered)
+        network.assert_not_called()
+
+
+class MetaExecutionClaimConcurrencyTests(TransactionTestCase):
+    """The execution claim is committed before mocked writer I/O begins."""
+
+    reset_sequences = True
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("m19-concurrency-owner", password="testpass123")
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+        self.identity = AdvertiserIdentity.objects.create(owner_type="platform", user=self.user, display_name="M19 concurrency")
+        self.campaign = AdCampaign.objects.create(name="M19 concurrency campaign", advertiser_identity=self.identity, status="pending", start_date=timezone.now(), objective=AdCampaign.OBJECTIVE_PRODUCT_VISITS, budget_type="daily", daily_budget=Decimal("10.00"), geo_targeting=["NG"])
+        self.creative = AdCreative.objects.create(campaign=self.campaign, name="M19 concurrency creative", creative_type="image", headline="Headline", description="Body", cta_text="Shop Now", clickthrough_url="https://arolana.com/m19")
+        self.creative.image.name = "ads/creatives/m19-concurrency.jpg"
+        self.creative.save(update_fields=["image", "updated_at"])
+        self.account = ExternalAdvertisingAccount.objects.create(advertiser_identity=self.identity, channel="meta", external_account_id="act_900002", status="connected", metadata={"meta_page_id": "123456", "meta_acceptance_synthetic": True})
+        media = AdvertisingMediaAsset.objects.create(external_account=self.account, provider="meta", media_type="image", source_fingerprint=source_fingerprint("ads/creatives/m19-concurrency.jpg"), status="ready", provider_media_id="f" * 64)
+        execution = AdChannelExecution.objects.create(campaign=self.campaign, advertiser_identity=self.identity, channel="meta", external_account=self.account, status="paused", external_campaign_id="mock_meta_campaign_m19", external_ad_group_id="mock_meta_adset_m19")
+        preparation, _created = creative_preparation_service.prepare_meta(campaign=self.campaign, creative=self.creative, external_account=self.account, media_asset=media)
+        advertising_ad_resource_service.prepare_meta(campaign=self.campaign, creative=self.creative, execution=execution, creative_preparation=preparation, external_account=self.account, media_asset=media)
+        record_verified_receipt(self.creative, self.account)
+        _publication, blockers = meta_publish_dry_run(self.identity, self.creative, self.account.pk)
+        self.assertEqual(blockers, [])
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}):
+            _authorization, blockers = meta_live_authorize(self.identity, self.creative, self.account.pk, self.user)
+        self.assertEqual(blockers, [])
+
+    @override_settings(META_ADS_LIVE_WRITES_ENABLED=True, META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=["900002"])
+    def test_competing_execute_calls_allow_only_one_mocked_writer_chain(self):
+        writer_started, release_writer, first_result = Event(), Event(), []
+
+        def first_campaign(*_args):
+            writer_started.set()
+            self.assertTrue(release_writer.wait(timeout=10))
+            return "concurrent-campaign"
+
+        def first_request():
+            close_old_connections()
+            try:
+                first_result.append(meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user))
+            finally:
+                close_old_connections()
+
+        with patch("ads.meta_live_controls.permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.meta_permission_snapshot", return_value={"ready": True, "blockers": []}), \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_campaign", side_effect=first_campaign) as campaign, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adset", return_value="concurrent-adset") as adset, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_adcreative", return_value="concurrent-creative") as creative, \
+             patch("ads.meta_publish.MetaLivePublishAdapter.create_ad", return_value="concurrent-ad") as ad:
+            thread = Thread(target=first_request)
+            thread.start()
+            self.assertTrue(writer_started.wait(timeout=10))
+            rival, blockers = meta_publish_execute(self.identity, self.creative, self.account.pk, actor=self.user)
+            self.assertIsNone(rival)
+            self.assertEqual(blockers, ["meta_execution_in_progress"])
+            release_writer.set()
+            thread.join(timeout=10)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(first_result[0][1], [])
+        self.assertEqual(campaign.call_count, 1)
+        self.assertEqual(adset.call_count, 1)
+        self.assertEqual(creative.call_count, 1)
+        self.assertEqual(ad.call_count, 1)
 
 
 class MetaPermissionReadinessTests(MetaLiveVerificationTests):

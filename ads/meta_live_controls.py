@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from .meta_permissions import snapshot as permission_snapshot
 from .meta_publish import _current_attempt, live_writes_enabled
-from .models import MetaPublicationAuthorization, MetaPublicationAuditEvent
+from .models import ExternalAdvertisingAccount, MetaPublicationAuthorization, MetaPublicationAuditEvent
 
 
 def _account_key(value):
@@ -131,11 +131,21 @@ def preflight(identity, creative, account_id):
 
 def execution_gate(identity, creative, account_id, *, actor=None):
     # Called only after M15's absolute kill switch.
+    # Resolve only the owned account first so the account allowlist remains
+    # the first M18 control evaluated after the kill switch.  This is local
+    # database work; no plan refresh or provider I/O is performed here.
+    account = identity.external_accounts.filter(
+        pk=account_id,
+        channel="meta",
+        status=ExternalAdvertisingAccount.STATUS_CONNECTED,
+    ).first()
+    if not account:
+        return None, ["meta_account_required"]
+    if not account_allowlisted(account):
+        return None, ["meta_live_account_not_allowlisted"]
     attempt, state, blockers = _current_attempt(identity, creative, account_id)
     if blockers:
         return None, blockers
-    if not account_allowlisted(state["_account"]):
-        return attempt, ["meta_live_account_not_allowlisted"]
     permissions = permission_snapshot(identity, account_id)
     if not permissions["ready"]:
         return attempt, list(permissions.get("blockers") or ["meta_permission_receipt_required"])

@@ -249,7 +249,7 @@ def _ad_payload(campaign, external_adset_id, external_creative_id):
     return {"name": str(campaign.name or "").strip()[:200], "adset_id": external_adset_id, "creative": json.dumps({"creative_id": external_creative_id}, separators=(",", ":")), "status": "PAUSED"}
 
 
-def _save_attempt(attempt, *, stage=None, status=None, error=None, fields=()):
+def _save_attempt(attempt, *, stage=None, status=None, error=None, fields=(), actor=None):
     if stage is not None:
         attempt.stage = stage
     if status is not None:
@@ -259,6 +259,17 @@ def _save_attempt(attempt, *, stage=None, status=None, error=None, fields=()):
     attempt.last_attempted_at = timezone.now()
     update_fields = {"stage", "status", "failure_code", "failure_message", "last_attempted_at", "updated_at", *fields}
     attempt.save(update_fields=sorted(update_fields))
+    if stage is not None:
+        from .meta_live_controls import record_execution_event
+        record_execution_event(
+            attempt.advertiser_identity,
+            attempt.creative,
+            attempt,
+            "execution_stage_changed",
+            actor=actor,
+            stage=stage,
+            reason=attempt.failure_code if stage == MetaPublicationAttempt.STAGE_FAILED else "",
+        )
 
 
 def _provider_failure(exc, fallback):
@@ -296,6 +307,10 @@ def execute(identity, creative, account_id, *, actor=None):
     # dependency rather than issuing a duplicate creation request.
     with transaction.atomic():
         attempt = MetaPublicationAttempt.objects.select_for_update().get(pk=attempt.pk)
+        if attempt.status == MetaPublicationAttempt.STATUS_EXECUTING:
+            return None, ["meta_execution_in_progress"]
+        if attempt.status == MetaPublicationAttempt.STATUS_COMPLETED:
+            return _live_publication(attempt), []
         # Recheck immediately before the first possible POST.  This does not
         # refresh a receipt or regenerate a plan; it only rejects a context
         # change that raced with the initial read.
@@ -305,16 +320,19 @@ def execute(identity, creative, account_id, *, actor=None):
         if current_attempt.pk != attempt.pk:
             return None, ["meta_publish_plan_stale"]
         from .meta_live_controls import record_execution_event
+        attempt.status = MetaPublicationAttempt.STATUS_EXECUTING
+        attempt.save(update_fields=["status", "updated_at"])
         record_execution_event(identity, creative, attempt, "execution_started", actor=actor, stage=attempt.stage)
-        result, result_blockers = _execute_attempt(attempt, fresh_state, creative)
-        record_execution_event(identity, creative, attempt, "execution_completed" if not result_blockers else "execution_failed", actor=actor, stage=attempt.stage, reason=(result_blockers or [""])[0])
-        return result, result_blockers
+    # The claim is committed before any provider call.
+    result, result_blockers = _execute_attempt(attempt, fresh_state, creative, actor=actor)
+    record_execution_event(identity, creative, attempt, "execution_completed" if not result_blockers else "execution_failed", actor=actor, stage=attempt.stage, reason=(result_blockers or [""])[0])
+    return result, result_blockers
 
 
-def _execute_attempt(attempt, state, creative):
+def _execute_attempt(attempt, state, creative, *, actor=None):
     if attempt.status == MetaPublicationAttempt.STATUS_COMPLETED:
         return _live_publication(attempt), []
-    if attempt.status not in {MetaPublicationAttempt.STATUS_READY, MetaPublicationAttempt.STATUS_FAILED}:
+    if attempt.status not in {MetaPublicationAttempt.STATUS_EXECUTING, MetaPublicationAttempt.STATUS_READY, MetaPublicationAttempt.STATUS_FAILED}:
         return None, ["meta_publish_plan_stale"]
     attempt.attempt_count += 1
     attempt.failure_code = attempt.failure_message = ""
@@ -323,21 +341,21 @@ def _execute_attempt(attempt, state, creative):
     account = state["_account"]
     try:
         if not attempt.external_campaign_id:
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_CAMPAIGN)
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_CAMPAIGN, actor=actor)
             attempt.external_campaign_id = adapter.create_campaign(account, _campaign_payload(creative.campaign, account))
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CAMPAIGN_CREATED, fields={"external_campaign_id"})
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CAMPAIGN_CREATED, fields={"external_campaign_id"}, actor=actor)
         if not attempt.external_adset_id:
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_ADSET)
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_ADSET, actor=actor)
             attempt.external_adset_id = adapter.create_adset(account, _adset_payload(creative.campaign, attempt.external_campaign_id))
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_ADSET_CREATED, fields={"external_adset_id"})
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_ADSET_CREATED, fields={"external_adset_id"}, actor=actor)
         if not attempt.external_creative_id:
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_CREATIVE)
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_CREATIVE, actor=actor)
             attempt.external_creative_id = adapter.create_adcreative(account, _creative_payload(creative.campaign, creative, account, state["_media"]))
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATIVE_CREATED, fields={"external_creative_id"})
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATIVE_CREATED, fields={"external_creative_id"}, actor=actor)
         if not attempt.external_ad_id:
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_AD)
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_CREATING_AD, actor=actor)
             attempt.external_ad_id = adapter.create_ad(account, _ad_payload(creative.campaign, attempt.external_adset_id, attempt.external_creative_id))
-            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_COMPLETED, status=MetaPublicationAttempt.STATUS_COMPLETED, fields={"external_ad_id"})
+            _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_COMPLETED, status=MetaPublicationAttempt.STATUS_COMPLETED, fields={"external_ad_id"}, actor=actor)
     except (ProviderAPIError, ProviderAuthorizationError, CreativePreparationError, AdResourceError) as exc:
         fallback = {
             MetaPublicationAttempt.STAGE_CREATING_CAMPAIGN: "meta_campaign_create_failed",
@@ -345,7 +363,7 @@ def _execute_attempt(attempt, state, creative):
             MetaPublicationAttempt.STAGE_CREATING_CREATIVE: "meta_creative_create_failed",
             MetaPublicationAttempt.STAGE_CREATING_AD: "meta_ad_create_failed",
         }.get(attempt.stage, "meta_provider_unavailable")
-        _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_FAILED, status=MetaPublicationAttempt.STATUS_FAILED, error=_provider_failure(exc, fallback))
+        _save_attempt(attempt, stage=MetaPublicationAttempt.STAGE_FAILED, status=MetaPublicationAttempt.STATUS_FAILED, error=_provider_failure(exc, fallback), actor=actor)
         return None, [attempt.failure_code]
     return _live_publication(attempt), []
 
