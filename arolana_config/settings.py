@@ -6,6 +6,7 @@ import warnings
 import logging
 import dj_database_url
 from botocore.config import Config as BotoConfig
+from ads.meta_runtime import parse_live_write_setting, parse_max_age_setting
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -642,21 +643,27 @@ ADS_META_ALLOW_TEST_WRITES = config(
 META_ADS_LIVE_WRITES_ENABLED = config(
     "META_ADS_LIVE_WRITES_ENABLED",
     default=False,
-    # Do not use Python truthiness here: only the literal environment value
-    # "true" can open the future (still unimplemented) execution branch.
-    cast=lambda value: str(value).strip().lower() == "true",
+    # Invalid values become None (disabled) and receive a value-free check error.
+    cast=parse_live_write_setting,
 )
 # A second, server-owned gate for the future write path.  It is deliberately
 # separate from test-account configuration and defaults closed.
 META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST = config(
     "META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST",
     default="",
-    cast=lambda value: [item.strip() for item in str(value or "").split(",") if item.strip()],
+    # Parse at the runtime boundary so malformed structures cannot grant access.
+)
+META_ADS_ACCEPTANCE_HARNESS_ENABLED = False  # In-process test override only.
+META_ADS_LIVE_AUTHORIZATION_MAX_AGE_SECONDS = config(
+    "META_ADS_LIVE_AUTHORIZATION_MAX_AGE_SECONDS", default=900, cast=parse_max_age_setting,
+)
+META_ADS_PERMISSION_MAX_AGE_SECONDS = config(
+    "META_ADS_PERMISSION_MAX_AGE_SECONDS", default=600, cast=parse_max_age_setting,
 )
 META_ADS_VERIFICATION_MAX_AGE_SECONDS = config(
     "META_ADS_VERIFICATION_MAX_AGE_SECONDS",
     default=600,
-    cast=int,
+    cast=parse_max_age_setting,
 )
 ADS_META_TEST_ACCOUNT_ALLOWLIST = config(
     "ADS_META_TEST_ACCOUNT_ALLOWLIST",

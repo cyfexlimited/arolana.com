@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from .models import ExternalAdvertisingAccount, MetaVerificationReceipt
+from .meta_runtime import freshness_seconds
 from .providers import ProviderAPIError, ProviderAuthorizationError, provider_for
 
 
@@ -37,7 +38,7 @@ def context_fingerprint(creative, account):
 
 def record_verified_receipt(creative, account):
     now = timezone.now()
-    max_age = max(1, min(int(getattr(settings, "META_ADS_VERIFICATION_MAX_AGE_SECONDS", 600)), 3600))
+    max_age = freshness_seconds("META_ADS_VERIFICATION_MAX_AGE_SECONDS")
     return MetaVerificationReceipt.objects.create(
         creative=creative,
         external_account=account,

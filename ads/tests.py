@@ -6968,7 +6968,9 @@ class MetaLiveControlsTests(MetaLiveExecutionTests):
     @override_settings(META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=" act_123, 123, bad ")
     def test_allowlist_is_server_owned_canonical_and_default_closed(self):
         self.account.external_account_id = "act_123"; self.account.save(update_fields=["external_account_id", "updated_at"])
-        self.assertTrue(account_allowlisted(self.account))
+        self.assertFalse(account_allowlisted(self.account))
+        with self.settings(META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST="act_123,123"):
+            self.assertTrue(account_allowlisted(self.account))
         with self.settings(META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST=[]):
             self.assertFalse(account_allowlisted(self.account))
 

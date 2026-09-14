@@ -17,6 +17,7 @@ from .media_assets import sanitize_failure
 from .meta_readiness import check as readiness_check
 from .meta_permissions import snapshot as meta_permission_snapshot
 from .meta_verification import context_fingerprint
+from .meta_runtime import freshness_blockers
 from .models import MetaPublicationAttempt, MetaVerificationReceipt
 from .providers import ProviderAPIError, ProviderAuthorizationError, provider_for
 
@@ -144,6 +145,8 @@ class MetaLivePublishAdapter:
 
 def _state_for_current_plan(identity, creative, account_id):
     """Read the M12/M13/M14 state without creating or refreshing anything."""
+    if freshness_blockers():
+        return None, None, freshness_blockers()
     readiness = readiness_check(identity, creative, account_id)
     if not readiness["ready"]:
         return None, None, list(readiness["blockers"])

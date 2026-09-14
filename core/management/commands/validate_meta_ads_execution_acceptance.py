@@ -9,11 +9,15 @@ from django.test.utils import override_settings
 from accounts.models import User
 from ads.meta_live_controls import authorize
 from ads.meta_publish import execute
+from ads.meta_runtime import acceptance_harness_allowed
 from ads.models import AdCampaign, ExternalAdvertisingAccount
 
 
 class Command(BaseCommand):
     help = "Validate a synthetic Meta Ads plan using an in-process mocked writer."
+    # Normal system checks correctly reject harness-enabled deployment. This
+    # isolated runner enforces its stricter test-holder guard before any query.
+    requires_system_checks = []
 
     def add_arguments(self, parser):
         parser.add_argument("--campaign-id", required=True, type=int)
@@ -24,7 +28,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not options["confirm_mocked_provider"]:
             raise CommandError("mocked_provider_confirmation_required")
-        if not getattr(settings, "META_ADS_ACCEPTANCE_HARNESS_ENABLED", False):
+        if not acceptance_harness_allowed():
             raise CommandError("mocked_acceptance_harness_disabled")
         account = ExternalAdvertisingAccount.objects.filter(
             pk=options["external_account_id"], channel="meta"

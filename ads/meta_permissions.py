@@ -13,6 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import ExternalAdvertisingAccount, MetaPermissionReceipt
+from .meta_runtime import freshness_seconds
 
 
 REQUIRED_META_ADS_SCOPES = (
@@ -32,7 +33,7 @@ def normalize_granted_scopes(value):
 
 
 def _max_age():
-    return max(1, min(int(getattr(settings, "META_ADS_PERMISSION_MAX_AGE_SECONDS", 600)), 3600))
+    return freshness_seconds("META_ADS_PERMISSION_MAX_AGE_SECONDS")
 
 
 def context_fingerprint(account, credential):

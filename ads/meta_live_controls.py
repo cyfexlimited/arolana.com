@@ -7,21 +7,17 @@ from django.utils import timezone
 
 from .meta_permissions import snapshot as permission_snapshot
 from .meta_publish import _current_attempt, live_writes_enabled
+from .meta_runtime import canonical_account_id, parse_account_allowlist, freshness_seconds
 from .models import ExternalAdvertisingAccount, MetaPublicationAttempt, MetaPublicationAuthorization, MetaPublicationAuditEvent
 
 
 def _account_key(value):
-    value = str(value or "").strip().lower().replace(" ", "")
-    if value.startswith("act_"):
-        value = value[4:]
-    return value if value.isdigit() else ""
+    return canonical_account_id(value)
 
 
 def account_allowlisted(account):
-    raw = getattr(settings, "META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST", []) or []
-    raw = raw.split(",") if isinstance(raw, str) else raw
-    allowed = {_account_key(item) for item in raw}
-    return bool(_account_key(account.external_account_id) and _account_key(account.external_account_id) in allowed)
+    allowed, valid = parse_account_allowlist(getattr(settings, "META_ADS_LIVE_WRITE_ACCOUNT_ALLOWLIST", None))
+    return valid and bool(_account_key(account.external_account_id) in allowed)
 
 
 def _audit(identity, creative, attempt, event, *, actor=None, stage="", reason=""):
@@ -80,7 +76,7 @@ def authorize(identity, creative, account_id, actor):
             advertiser_identity=identity, external_account=account, campaign=creative.campaign,
             creative=creative, publication_attempt=attempt, authorized_by=actor,
             plan_fingerprint=attempt.plan_fingerprint, page_id=page_id,
-            expires_at=timezone.now() + timedelta(seconds=max(60, min(int(getattr(settings, "META_ADS_LIVE_AUTHORIZATION_MAX_AGE_SECONDS", 900)), 3600))),
+            expires_at=timezone.now() + timedelta(seconds=freshness_seconds("META_ADS_LIVE_AUTHORIZATION_MAX_AGE_SECONDS")),
         )
         _audit(identity, creative, attempt, MetaPublicationAuditEvent.EVENT_AUTHORIZED, actor=actor)
     return auth, []
