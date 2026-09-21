@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+  <a href="{% url 'admin:app_list' app_label='catalog_imports' %}">Product Importer</a> &rsaquo;
+  <a href="{{ change_url }}">Import item #{{ item.pk }}</a> &rsaquo;
+  Prepare Arolana draft
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="module aligned">
+    <h2>Prepare an inactive Arolana Product draft</h2>
+    <p>This action will create a normal Arolana Product through the existing Product.save() path.</p>
+    <ul>
+      <li><strong>Approval status:</strong> draft</li>
+      <li><strong>Active:</strong> no</li>
+      <li><strong>Stock:</strong> 0</li>
+      <li><strong>Publication:</strong> nothing will be published</li>
+      <li><strong>Duplicate protection:</strong> an exact existing Product match blocks creation</li>
+      <li><strong>Images:</strong> media jobs are planned only; no unreviewed image is attached</li>
+    </ul>
+    <p><strong>Verified source price:</strong> {{ item.source_price|default:"-" }}</p>
+    <p><strong>Calculated Arolana price:</strong> {{ item.calculated_price|default:"-" }}</p>
+    <p><strong>Destination vendor:</strong> {{ item.target_vendor|default:item.batch.target_vendor|default:"Not selected" }}</p>
+    <p><strong>Destination category:</strong> {{ item.target_category|default:item.batch.default_category|default:"Not selected" }}</p>
+    <p><strong>Destination brand:</strong> {{ item.target_brand|default:item.batch.default_brand|default:"Auto-match verified brand" }}</p>
+
+    <form method="post">{% csrf_token %}
+      <div class="submit-row">
+        <a class="button cancel-link" href="{{ change_url }}">Cancel</a>
+        <input type="submit" class="default" value="Prepare inactive draft">
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

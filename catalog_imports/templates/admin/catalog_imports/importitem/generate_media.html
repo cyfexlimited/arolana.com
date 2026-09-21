@@ -1,0 +1,378 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<style>
+.media-progress-table { width:100%; border-collapse:collapse; margin-top:18px; }
+.media-progress-table th, .media-progress-table td { padding:9px 10px; border-bottom:1px solid #ddd; text-align:left; vertical-align:middle; }
+.media-thumb { width:88px; height:88px; object-fit:contain; background:#fff; border:1px solid #ddd; border-radius:6px; }
+.status-error { color:#ba2121; }
+.status-ok { color:#198754; }
+.status-running { color:#b8860b; }
+.status-creative { color:#7a4b00; font-weight:600; }
+.support-note { max-width:440px; font-size:12px; color:#666; margin-top:5px; }
+.creative-warning { margin-top:6px; padding:7px 9px; border-left:3px solid #d69e00; background:#fff8dd; font-size:12px; max-width:500px; }
+#run-log { white-space:pre-wrap; background:#f6f6f6; border:1px solid #ddd; padding:12px; min-height:60px; margin-top:14px; }
+</style>
+
+<h1>{{ title }}</h1>
+<p><strong>Product draft:</strong> {{ item.created_product|default:"-" }}</p>
+<p>
+  <strong>Media profile:</strong> {{ media_profile_label }}
+  <span style="color:#666;">({{ media_profile_key }})</span>
+</p>
+{% if media_profile_notes %}
+  <p style="max-width:900px;color:#666;">{{ media_profile_notes }}</p>
+{% endif %}
+<p>
+Exact verified/reference-preserving generation is preferred. When a requested perspective has no trustworthy
+manufacturer view, Arolana can optionally create a clearly labelled <strong>creative fallback</strong> from
+exact-product identity references. Creative fallback geometry is not manufacturer-verified and remains review-only.
+</p>
+
+<form id="csrf-form" style="display:none;">{% csrf_token %}</form>
+
+<div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
+    {% if not media_completion.stop_bulk_generation %}
+      <button type="button" class="button default" id="start-generation">Generate all verified queued media</button>
+    {% else %}
+      <span class="button" style="opacity:.75;cursor:default;">
+        Media sufficient — bulk generation paused
+      </span>
+    {% endif %}
+    <form method="post" action="{{ acquire_official_media_url }}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="button">Acquire / refresh official manufacturer media</button>
+    </form>
+    {% if dynamic_slot_report.available_count %}
+    <form method="post" action="{{ apply_dynamic_verified_slots_url }}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="button">
+            Apply {{ dynamic_slot_report.available_count }} verified factual slot{{ dynamic_slot_report.available_count|pluralize }}
+        </button>
+    </form>
+    {% endif %}
+    <a class="button" href="{{ review_url }}">Review generated media</a>
+    {% if product_change_url %}
+      <a class="button" href="{{ product_change_url }}">Open Product admin / add remaining images</a>
+    {% endif %}
+    <a class="button" href="{{ change_url }}#import-media-candidates-tab">Back to import item</a>
+</div>
+
+{% if media_completion.sufficient_for_review %}
+<div style="margin:12px 0;padding:12px;border:1px solid #7cc89b;background:#ecfff3;">
+    <strong>Media sufficient:</strong>
+    {{ media_completion.usable_count }}/{{ media_completion.target_count }} usable importer images are available,
+    including Main / hero.
+    The remaining {{ media_completion.remaining_optional_slots }} slot{{ media_completion.remaining_optional_slots|pluralize }}
+    {{ media_completion.remaining_optional_slots|pluralize:"is,are" }} optional.
+    Review/approve the images you want, then add any extra photos later from the normal Product admin.
+    {% if media_completion.sufficient_for_product %}
+      <br><strong>{{ media_completion.approved_count }} image{{ media_completion.approved_count|pluralize }} already approved/attached.</strong>
+    {% endif %}
+</div>
+{% else %}
+<div style="margin:12px 0;padding:12px;border:1px solid #e2c46d;background:#fff9df;">
+    <strong>Gallery progress:</strong>
+    {{ media_completion.usable_count }}/{{ media_completion.minimum_usable }} minimum usable gallery images.
+    {% if not media_completion.main_usable %}
+      A usable Main / hero image is still required.
+    {% elif media_completion.remaining_to_minimum %}
+      {{ media_completion.remaining_to_minimum }} more usable image{{ media_completion.remaining_to_minimum|pluralize }} needed before remaining slots become optional.
+    {% endif %}
+    {% if official_media_report.reference_count %}
+      <br>
+      <span style="color:#666;">
+        Arolana also found {{ official_media_report.reference_count }} official exact-product reference image{{ official_media_report.reference_count|pluralize }}.
+        Reference images are verification evidence; they do not count as gallery images until a reviewed asset is generated/attached.
+      </span>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if official_media_report %}
+<div style="margin:12px 0;padding:10px;border:1px solid #ddd;background:#fafafa;">
+    <strong>Official media router:</strong>
+    {{ official_media_report.status|default:"not run" }}
+    {% if official_media_report.reference_count != None %}
+      · {{ official_media_report.reference_count }} exact-product reference image{{ official_media_report.reference_count|pluralize }}
+    {% endif %}
+    {% if official_media_report.supported_roles %}
+      · Supported roles:
+      {% for role in official_media_report.supported_roles %}
+        {{ role }}{% if not forloop.last %}, {% endif %}
+      {% endfor %}
+    {% endif %}
+</div>
+{% endif %}
+
+{% if dynamic_slot_report.available_count %}
+<div style="margin:12px 0;padding:10px;border:1px solid #9ec5fe;background:#eef6ff;">
+    <strong>Verified factual views can improve this gallery.</strong>
+    Arolana will replace only unapproved creative slots; approved/attached media is never changed.
+    <ul style="margin:8px 0 0 20px;">
+      {% for action in dynamic_slot_report.actions %}
+        <li>
+          <strong>{{ action.new_label }}</strong>
+          will replace {{ action.current_label }}
+          {% if action.will_discard_unapproved_preview %}
+            — its unapproved creative preview will be discarded.
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<table class="media-progress-table">
+    <thead>
+        <tr>
+            <th>#</th><th>View</th><th>Status</th><th>Attempts</th>
+            <th>Preview</th><th>Action</th><th>Error / support</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+        {% with candidate=row.candidate %}
+        <tr id="candidate-{{ candidate.pk }}">
+            <td>{{ candidate.order }}</td>
+            <td>{{ row.display_label }}</td>
+            <td class="candidate-status">{{ candidate.get_status_display }}</td>
+            <td class="candidate-attempts">{{ candidate.generation_attempts }}</td>
+            <td class="candidate-preview">
+                {% if candidate.asset_storage_name %}
+                    <img class="media-thumb" src="{% url 'admin:catalog_imports_importitem_media_preview' item.pk candidate.pk %}" alt="{{ row.display_label }}">
+                {% else %}-{% endif %}
+            </td>
+            <td class="candidate-action">
+                {% if row.actual_only %}
+                    <div class="creative-warning" style="border-left-color:#6c757d;background:#f2f2f2;">
+                        Actual seller/verified documentary media required. AI generation is disabled for this slot.
+                    </div>
+                {% endif %}
+
+                {% if row.exact_generation_available %}
+                    <button
+                        type="button"
+                        class="button generate-one"
+                        data-id="{{ candidate.pk }}"
+                        data-label="{{ row.display_label|escape }}"
+                        data-url="{% url 'admin:catalog_imports_importitem_generate_candidate' item.pk candidate.pk %}"
+                    >{% if candidate.status == "planned" %}Generate verified image{% else %}Retry verified image{% endif %}</button>
+                {% endif %}
+
+                {% if row.creative_fallback_available %}
+                    <button
+                        type="button"
+                        class="button creative-one"
+                        data-id="{{ candidate.pk }}"
+                        data-label="{{ row.display_label|escape }}"
+                        data-url="{{ row.creative_fallback_url }}"
+                    >{% if row.text_grounded_creative %}Generate text-grounded creative{% else %}Generate creative fallback{% endif %}</button>
+                    <div class="creative-warning">
+                        {% if row.text_grounded_creative %}
+                            No exact manufacturer image is available. This creative image will use verified manufacturer
+                            identity/specification text as grounding only. The appearance is not manufacturer-verified
+                            and must be manually reviewed or edited before Product use.
+                        {% else %}
+                            Unverified perspective. Intended as an editable creative option, not manufacturer proof.
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if not row.exact_generation_available and not row.creative_fallback_available and not row.actual_only %}
+                    -
+                {% endif %}
+            </td>
+            <td class="candidate-error">
+                {% if row.optional_after_sufficient %}
+                    <span class="support-note">
+                      Optional. Leave this slot empty or add an image later from the normal Product admin.
+                    </span>
+                {% elif candidate.last_error %}
+                    {{ candidate.last_error }}
+                {% elif not row.exact_supported and row.support_reason %}
+                    <span class="support-note">{{ row.support_reason }}</span>
+                {% else %}-{% endif %}
+            </td>
+        </tr>
+        {% endwith %}
+    {% empty %}
+        <tr><td colspan="7">No generation jobs exist for this item.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<div id="run-log">Ready.</div>
+
+<script>
+(function(){
+    const queue = {{ queue_json|safe }};
+    const btn = document.getElementById('start-generation');
+    const log = document.getElementById('run-log');
+    const csrf = document.querySelector('#csrf-form input[name=csrfmiddlewaretoken]').value;
+
+    function append(message) {
+        log.textContent += "\n" + message;
+    }
+
+    async function runJob(job, button, creative) {
+        const row = document.getElementById('candidate-' + job.id);
+        const statusCell = row.querySelector('.candidate-status');
+        const errorCell = row.querySelector('.candidate-error');
+
+        if (button) {
+            button.disabled = true;
+            button.textContent = creative ? 'Creating fallback…' : 'Generating…';
+        }
+
+        statusCell.textContent = creative ? 'Creating creative fallback…' : 'Generating…';
+        statusCell.className = creative
+            ? 'candidate-status status-creative'
+            : 'candidate-status status-running';
+        errorCell.textContent = '-';
+
+        append((creative ? 'Creative fallback: ' : 'Generating: ') + job.label + '…');
+
+        try {
+            const response = await fetch(job.url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRFToken': csrf,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.ok) {
+                const alreadyReady = (
+                    data.status === 'ready_review'
+                    || data.status === 'approved'
+                    || data.status === 'attached'
+                    || String(data.error || '').includes("cannot be generated from status 'ready_review'")
+                );
+
+                if (alreadyReady) {
+                    statusCell.textContent = data.status_label || 'Ready for review';
+                    statusCell.className = creative
+                        ? 'candidate-status status-creative'
+                        : 'candidate-status status-ok';
+                    errorCell.textContent = '-';
+                    append('Already ready for review: ' + job.label);
+                    if (button) {
+                        button.disabled = true;
+                        button.textContent = creative ? 'Creative fallback ready' : 'Generated';
+                    }
+                    return true;
+                }
+
+                statusCell.textContent = data.status_label || 'Failed';
+                statusCell.className = 'candidate-status status-error';
+                errorCell.textContent = data.error || 'Generation failed.';
+                append('Failed: ' + job.label + ' — ' + (data.error || 'unknown error'));
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = creative
+                        ? 'Generate creative fallback'
+                        : 'Retry verified image';
+                }
+                return false;
+            }
+
+            statusCell.textContent = data.mode_label || data.status_label || 'Ready for review';
+            statusCell.className = creative
+                ? 'candidate-status status-creative'
+                : 'candidate-status status-ok';
+
+            if (data.preview_url) {
+                row.querySelector('.candidate-preview').innerHTML =
+                    '<img class="media-thumb" src="' + data.preview_url +
+                    '?v=' + Date.now() + '" alt="preview">';
+            }
+
+            if (typeof data.generation_attempts !== 'undefined') {
+                const attemptsCell = row.querySelector('.candidate-attempts');
+                if (attemptsCell) {
+                    attemptsCell.textContent = String(data.generation_attempts);
+                }
+            }
+
+            append((creative ? 'Creative fallback ready: ' : 'Generated: ') + job.label);
+
+            if (button) {
+                button.disabled = true;
+                button.textContent = creative ? 'Creative fallback ready' : 'Generated';
+            }
+            return true;
+        } catch (err) {
+            statusCell.textContent = 'Request failed';
+            statusCell.className = 'candidate-status status-error';
+            errorCell.textContent = String(err);
+            append('Request failed: ' + job.label + ' — ' + String(err));
+
+            if (button) {
+                button.disabled = false;
+                button.textContent = creative
+                    ? 'Generate creative fallback'
+                    : 'Retry verified image';
+            }
+            return false;
+        }
+    }
+
+    document.querySelectorAll('.generate-one').forEach(function(button) {
+        button.addEventListener('click', async function() {
+            await runJob({
+                id: Number(button.dataset.id),
+                label: button.dataset.label,
+                url: button.dataset.url
+            }, button, false);
+        });
+    });
+
+    document.querySelectorAll('.creative-one').forEach(function(button) {
+        button.addEventListener('click', async function() {
+            await runJob({
+                id: Number(button.dataset.id),
+                label: button.dataset.label,
+                url: button.dataset.url
+            }, button, true);
+        });
+    });
+
+    if (btn) {
+        btn.addEventListener('click', async function(){
+            if (!queue.length) {
+                append('No verified queued media is available. Creative fallback jobs must be started individually.');
+                return;
+            }
+
+            btn.disabled = true;
+            log.textContent = 'Starting verified sequential media generation…';
+
+            let allSucceeded = true;
+
+            for (const job of queue) {
+                const row = document.getElementById('candidate-' + job.id);
+                const button = row ? row.querySelector('.generate-one') : null;
+                const ok = await runJob(job, button, false);
+                if (!ok) {
+                    allSucceeded = false;
+                }
+            }
+
+            if (allSucceeded) {
+                append('Verified queue finished. Review every result before approval.');
+                btn.disabled = true;
+                btn.textContent = 'Verified generation completed — review images';
+            } else {
+                append('Verified queue finished with one or more failures. Retry only failed jobs.');
+                btn.disabled = false;
+                btn.textContent = 'Retry failed verified jobs';
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    {% if original and original.pk %}
+        <li>
+            <a class="button"
+               href="{% url 'admin:catalog_imports_importitem_reanalyse' original.pk %}"
+               title="Re-run retailer/manufacturer evidence checks. This never publishes a product.">
+                Re-analyse evidence
+            </a>
+        </li>
+        <li>
+            <a class="button"
+               href="{% url 'admin:catalog_imports_importitem_prepare_draft' original.pk %}"
+               title="Prepare an inactive Arolana Product draft from verified importer data. This never approves or publishes the product.">
+                Prepare Arolana draft
+            </a>
+        </li>
+        {% if original.created_product_id %}
+        <li>
+            <a class="button"
+               style="font-weight:700;"
+               href="{% url 'admin:catalog_imports_importitem_admin_completion' original.pk %}"
+               title="Open the final completion dashboard. It shows only what is complete and what still needs normal Product-admin input.">
+                Finish product draft
+            </a>
+        </li>
+        <li>
+            <a class="button"
+               href="{% url 'admin:catalog_imports_importitem_generate_media' original.pk %}"
+               title="Generate planned review-stage product images one job per request. Generated images still require human approval.">
+                Generate planned media
+            </a>
+        </li>
+        <li>
+            <a class="button"
+               href="{% url 'admin:catalog_imports_importitem_media_review' original.pk %}"
+               title="Review generated images and explicitly approve/reject them before attachment.">
+                Review generated media
+            </a>
+        </li>
+        <li>
+            <a class="button"
+               href="{% url 'admin:catalog_imports_importitem_attach_media' original.pk %}"
+               title="Attach only fully approved, exact-product verified, watermark-clear generated media to the inactive Product draft.">
+                Attach approved media
+            </a>
+        </li>
+        {% endif %}
+    {% endif %}
+{% endblock %}

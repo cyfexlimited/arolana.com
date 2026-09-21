@@ -1,0 +1,41 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+<a href="{% url 'admin:app_list' app_label='catalog_imports' %}">Product Importer</a> &rsaquo;
+Universal Product Importer
+</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <div class="module aligned">
+    <h2>Analyse products before they enter Arolana</h2>
+    <p>Paste up to 50 product URLs or product/model names, one per line. This stage creates importer evidence/quality drafts only. Optional destination defaults can be selected now; actual Arolana Product drafts are prepared later and remain inactive until human approval.</p>
+    <form method="post" novalidate>{% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+      <div class="form-row">
+        {{ field.errors }}
+        <div><strong>{{ field.label_tag }}</strong></div>
+        <div>{{ field }}</div>
+        {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="submit-row"><input type="submit" value="Analyse products" class="default"></div>
+    </form>
+  </div>
+  <div class="module">
+    <h2>Safety rules in this phase</h2>
+    <ul>
+      <li>No product is published automatically.</li>
+      <li>Private/internal IP addresses are blocked to protect the server.</li>
+      <li>HTTP 401/403/429 access controls are not bypassed.</li>
+      <li>Source identity is removed from customer-facing draft copy and re-scanned.</li>
+      <li>Pricing rules remain editable from Product Importer → Import pricing rules.</li>
+      <li>Prepared Arolana Products are created with approval_status=draft, is_active=False and stock 0.</li>
+      <li>Media generation is planned as provider-neutral jobs; no image is attached to a Product until exact-product review and rights/watermark checks pass.</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

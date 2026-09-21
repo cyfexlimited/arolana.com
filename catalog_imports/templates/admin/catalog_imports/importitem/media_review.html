@@ -1,0 +1,342 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<style>
+.review-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(310px,1fr)); gap:18px; margin-top:18px; }
+.review-card { border:1px solid #ddd; border-radius:8px; padding:14px; background:#fff; }
+.review-image-button { width:100%; padding:0; border:0; background:transparent; cursor:zoom-in; text-align:inherit; }
+.review-image { width:100%; aspect-ratio:1/1; object-fit:contain; background:#f7f7f7; border:1px solid #eee; border-radius:6px; }
+.review-image-button:hover .review-image { outline:2px solid #79aec8; }
+.review-zoom-hint { display:block; margin-top:6px; font-size:12px; color:#417690; }
+.review-meta { font-size:13px; margin:8px 0; }
+.review-check { display:block; margin:7px 0; }
+.review-card textarea { width:100%; min-height:60px; }
+.review-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.creative-badge { display:inline-block; padding:4px 8px; margin:0 0 8px; border-radius:999px; background:#fff0b8; color:#7a4b00; font-size:12px; font-weight:700; }
+.creative-alert { padding:10px; margin:8px 0; border-left:4px solid #d69e00; background:#fff8dd; font-size:13px; }
+
+.compare-modal { display:none; position:fixed; z-index:10050; inset:0; background:rgba(0,0,0,.78); padding:24px; overflow:auto; }
+.compare-modal.is-open { display:flex; align-items:flex-start; justify-content:center; }
+.compare-shell { width:min(1500px, 96vw); margin:auto; background:#fff; border-radius:10px; box-shadow:0 20px 70px rgba(0,0,0,.45); overflow:hidden; }
+.compare-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 18px; border-bottom:1px solid #ddd; }
+.compare-header h2 { margin:0; }
+.compare-close { font-size:28px; line-height:1; min-width:42px; min-height:42px; cursor:pointer; }
+.compare-body { display:grid; grid-template-columns:minmax(0, 1.45fr) minmax(320px, .75fr); gap:18px; padding:18px; }
+.compare-panel { min-width:0; }
+.compare-panel h3 { margin-top:0; }
+.compare-generated { width:100%; max-height:78vh; object-fit:contain; background:#f5f5f5; border:1px solid #ddd; border-radius:8px; }
+.reference-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; }
+.reference-card { border:1px solid #ddd; border-radius:8px; padding:8px; background:#fafafa; }
+.reference-card img { width:100%; aspect-ratio:1/1; object-fit:contain; background:#fff; }
+.reference-card a { display:block; margin-top:7px; overflow-wrap:anywhere; font-size:12px; }
+.compare-note { font-size:13px; color:#555; margin-bottom:12px; }
+body.review-modal-open { overflow:hidden; }
+@media (max-width: 900px) {
+  .compare-body { grid-template-columns:1fr; }
+  .compare-modal { padding:8px; }
+}
+</style>
+
+<h1>{{ title }}</h1>
+<p><strong>Product draft:</strong> {{ item.created_product|default:"-" }}</p>
+<p>Approval is deliberately human-controlled. Confirm the exact product, watermark-free output, no retailer/source identity, and usage rights before approving any image.</p>
+
+<div style="margin:16px 0; display:flex; gap:10px; flex-wrap:wrap;">
+    <a class="button" href="{{ generate_url }}">Generate / retry media</a>
+    <a class="button" href="{{ attach_url }}">Attach approved media</a>
+    <a class="button" href="{{ change_url }}#import-media-candidates-tab">Back to import item</a>
+</div>
+
+<div class="review-grid">
+{% for row in rows %}
+  {% with candidate=row.candidate %}
+  <div class="review-card">
+      <h2>{{ candidate.order }}. {{ row.display_label }}</h2>
+      <div style="font-size:12px;color:#666;margin:-4px 0 8px;">
+        Profile: {{ row.profile_label }}
+      </div>
+      {% if not row.strict_reference_ok and not row.is_creative_fallback %}
+        <div class="creative-alert" style="border-left-color:#c62828;background:#fff0f0;">
+          <strong>STRICT ROLE MATCH NOT VERIFIED.</strong><br>
+          The exact product identity is known, but Arolana does not currently
+          have an official manufacturer image whose <em>pixels</em> visually
+          prove this requested view. Do not approve this as factual media.
+          Regenerate after stronger evidence is found, or downgrade it to
+          creative / unverified appearance.
+          {% if row.strict_reference_reason %}
+            <div style="margin-top:6px;color:#7a1d1d;">{{ row.strict_reference_reason }}</div>
+          {% endif %}
+        </div>
+      {% endif %}
+      {% if row.is_creative_fallback %}
+        {% if row.is_text_grounded_creative %}
+          <div class="creative-badge">TEXT-GROUNDED CREATIVE — UNVERIFIED APPEARANCE</div>
+          <div class="creative-alert">
+            Exact manufacturer identity/specification text was verified before generation, but no exact manufacturer
+            image was supplied to the image model. Treat the appearance, geometry and visual details as AI-generated
+            creative representation until manually reviewed or edited.
+          </div>
+        {% else %}
+          <div class="creative-badge">CREATIVE FALLBACK — UNVERIFIED PERSPECTIVE</div>
+          <div class="creative-alert">
+            This image is an editable creative/support option grounded in exact-item identity references.
+            The visual representation is not manufacturer/seller-verified documentary evidence.
+          </div>
+        {% endif %}
+      {% endif %}
+      {% if row.preview_url %}
+        <button type="button" class="review-image-button" data-open-review-modal="compare-{{ candidate.pk }}" aria-label="Open large comparison for {{ row.display_label }}">
+          <img class="review-image" src="{{ row.preview_url }}?v={{ candidate.updated_at|date:'U' }}" alt="Generated {{ row.display_label }}">
+          <span class="review-zoom-hint">
+            {% if row.is_text_grounded_creative %}
+              Open large text-grounding audit
+            {% elif row.is_creative_fallback %}
+              Open large creative-fallback comparison
+            {% else %}
+              Open large comparison with official manufacturer reference
+            {% endif %}
+          </span>
+        </button>
+      {% else %}
+        <div class="review-image" style="display:flex;align-items:center;justify-content:center;">No generated preview</div>
+      {% endif %}
+      <div class="review-meta">
+        <strong>Status:</strong> {{ candidate.get_status_display }}<br>
+        <strong>Provider:</strong> {{ candidate.provider_key|default:"-" }}<br>
+        <strong>Attempts:</strong> {{ candidate.generation_attempts }}<br>
+        <strong>Resolution:</strong> {% if candidate.width %}{{ candidate.width }} × {{ candidate.height }}{% else %}-{% endif %}<br>
+        {% if candidate.last_error %}<strong>Error:</strong> {{ candidate.last_error }}<br>{% endif %}
+        {% if candidate.rejection_reason %}<strong>Previous rejection:</strong> {{ candidate.rejection_reason }}{% endif %}
+      </div>
+      {% if row.is_creative_fallback and row.download_url %}
+        <p><a class="button" href="{{ row.download_url }}">Download / edit creative fallback</a></p>
+      {% endif %}
+
+      {% if candidate.status == 'ready_review' %}
+      <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="candidate_id" value="{{ candidate.pk }}">
+          <label class="review-check">
+            <input type="checkbox" name="exact_identity_verified">
+            {% if row.is_creative_fallback %}
+              I visually confirm the product identity is acceptable for this creative image.
+            {% else %}
+              I visually confirm this is the exact verified product/model.
+            {% endif %}
+          </label>
+          <label class="review-check"><input type="checkbox" name="watermark_clear"> I confirm there is no watermark.</label>
+          <label class="review-check"><input type="checkbox" name="source_identity_clear"> I confirm there is no Paykobo/retailer/source identity or seller overlay.</label>
+          <label class="review-check"><input type="checkbox" name="rights_confirmed"> I confirm this generated output is approved for Arolana product use.</label>
+          {% if row.is_creative_fallback %}
+            <label class="review-check" style="font-weight:600;">
+              <input type="checkbox" name="creative_fallback_ack">
+              {% if row.is_text_grounded_creative %}
+                I understand this image used verified manufacturer text but no exact visual manufacturer reference, and I have manually checked or edited its appearance before Product use.
+              {% else %}
+                I understand this is an unverified creative perspective and I have manually checked or edited it before Product use.
+              {% endif %}
+            </label>
+          {% endif %}
+          {% if row.can_downgrade_manual_creative %}
+            <div style="margin:10px 0;padding:10px;border:1px solid #e0b04b;background:#fff7df;">
+              <strong>Weak visual verification?</strong><br>
+              If this image is useful but the official references are not strong enough to verify the requested view,
+              downgrade it to <strong>manual creative — unverified appearance</strong> instead of approving it as factual.
+              <div style="margin-top:8px;">
+                <textarea name="manual_creative_reason" placeholder="Optional reason, e.g. no clean official front reference"></textarea>
+                <button
+                  type="submit"
+                  formaction="{{ row.downgrade_manual_creative_url }}"
+                  formmethod="post"
+                  formnovalidate
+                >Downgrade to manual creative</button>
+              </div>
+            </div>
+          {% endif %}
+
+          <textarea name="rejection_reason" placeholder="Reason if rejecting"></textarea>
+          <div class="review-actions">
+              {% if row.strict_reference_ok or row.is_creative_fallback %}
+                <button class="button default" type="submit" name="action" value="approve">Approve</button>
+              {% else %}
+                <button class="button" type="button" disabled title="A visually role-matched official reference is required for factual approval.">
+                  Factual approval blocked
+                </button>
+              {% endif %}
+              <button class="button" type="submit" name="action" value="reject">Reject</button>
+          </div>
+      </form>
+      {% elif candidate.status == 'approved' %}
+        <p><strong>Approved.</strong> Selected for Product attachment.</p>
+        {% if not row.strict_reference_ok and row.can_downgrade_manual_creative %}
+          <form method="post" action="{{ row.downgrade_manual_creative_url }}" style="margin-bottom:8px;">
+            {% csrf_token %}
+            <input type="hidden" name="manual_creative_reason" value="Strict role-match audit: the official references do not visually prove the requested factual view.">
+            <button class="button" type="submit">
+              Downgrade approval to creative / re-review
+            </button>
+          </form>
+        {% endif %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="candidate_id" value="{{ candidate.pk }}"><button class="button" type="submit" name="action" value="reject">Reject / remove approval</button></form>
+      {% elif candidate.status == 'failed' or candidate.status == 'rejected' %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="candidate_id" value="{{ candidate.pk }}"><button class="button" type="submit" name="action" value="retry">Return to generation queue</button></form>
+      {% elif candidate.status == 'attached' %}
+        <p><strong>Attached to Product gallery.</strong></p>
+      {% else %}
+        <p>Generate this candidate before review.</p>
+      {% endif %}
+  </div>
+
+  {% if row.preview_url %}
+  <div class="compare-modal" id="compare-{{ candidate.pk }}" role="dialog" aria-modal="true" aria-labelledby="compare-title-{{ candidate.pk }}">
+    <div class="compare-shell">
+      <div class="compare-header">
+        <h2 id="compare-title-{{ candidate.pk }}">
+          {{ row.display_label }} —
+          {% if row.is_text_grounded_creative %}
+            text-grounded creative audit
+          {% elif row.is_creative_fallback %}
+            creative fallback vs grounding references
+          {% else %}
+            generated vs official reference
+          {% endif %}
+        </h2>
+        <button type="button" class="button compare-close" data-close-review-modal aria-label="Close comparison">×</button>
+      </div>
+      <div class="compare-body">
+        <section class="compare-panel">
+          <h3>
+            {% if row.is_text_grounded_creative %}
+              Text-grounded creative candidate
+            {% elif row.is_creative_fallback %}
+              Creative fallback candidate
+            {% else %}
+              Generated candidate
+            {% endif %}
+          </h3>
+          {% if row.is_text_grounded_creative %}
+            <p class="compare-note"><strong>Unverified appearance:</strong> manufacturer text facts grounded the prompt, but no exact product image was supplied. Inspect shape, controls, labels, geometry, materials and accessories as AI-generated details.</p>
+          {% elif row.is_creative_fallback %}
+            <p class="compare-note"><strong>Unverified perspective:</strong> inspect and edit as needed. Do not treat hidden geometry, ports, buttons, vents, package contents, or accessories as manufacturer facts.</p>
+          {% else %}
+            <p class="compare-note">Inspect physical shape, camera/lens placement, grille pattern, stand/mount, visible branding, buttons, ports and accessories before approving.</p>
+          {% endif %}
+          <img class="compare-generated" src="{{ row.preview_url }}?v={{ candidate.updated_at|date:'U' }}" alt="Large generated {{ row.display_label }}">
+        </section>
+        <section class="compare-panel">
+          {% if row.is_text_grounded_creative %}
+            <h3>Verified manufacturer text grounding</h3>
+            <p class="compare-note">
+              This generation intentionally used <strong>no visual manufacturer reference image</strong>.
+              The information below is the manufacturer-text grounding snapshot recorded before generation.
+              It supports product identity/context only and does not verify the generated appearance.
+            </p>
+
+            {% if row.reference_trace.recorded %}
+              <p class="compare-note">
+                <strong>Provider request trace recorded.</strong>
+                Attempt {{ row.reference_trace.attempt }}
+                ({{ row.reference_trace.provider_key|default:"provider" }}),
+                with {{ row.reference_urls_used|length }} visual reference URL{{ row.reference_urls_used|length|pluralize }}.
+              </p>
+            {% endif %}
+
+            {% if row.text_grounding_trace.recorded %}
+              <div class="reference-card" style="margin-bottom:12px;">
+                {% if row.text_grounding_trace.name %}<strong>Product:</strong> {{ row.text_grounding_trace.name }}<br>{% endif %}
+                {% if row.text_grounding_trace.brand %}<strong>Brand:</strong> {{ row.text_grounding_trace.brand }}<br>{% endif %}
+                {% if row.text_grounding_trace.model %}<strong>Exact model:</strong> {{ row.text_grounding_trace.model }}<br>{% endif %}
+                {% if row.text_grounding_trace.provider %}<strong>Evidence provider:</strong> {{ row.text_grounding_trace.provider }}<br>{% endif %}
+                {% if row.text_grounding_trace.official_product_url %}
+                  <strong>Official product page:</strong>
+                  <a href="{{ row.text_grounding_trace.official_product_url }}" target="_blank" rel="noopener noreferrer">Open official manufacturer page</a>
+                {% endif %}
+              </div>
+
+              {% if row.text_grounding_trace.evidence_urls %}
+                <p class="compare-note"><strong>Recorded official evidence URLs:</strong></p>
+                <div class="reference-grid">
+                  {% for evidence_url in row.text_grounding_trace.evidence_urls|slice:":6" %}
+                    <div class="reference-card">
+                      <a href="{{ evidence_url }}" target="_blank" rel="noopener noreferrer">Open manufacturer evidence {{ forloop.counter }}</a>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% else %}
+              <p class="compare-note" style="color:#a15c00;">
+                Text-grounding metadata is missing. Return this candidate to the generation queue before final approval.
+              </p>
+            {% endif %}
+
+          {% else %}
+            {% if row.is_creative_fallback %}
+              <h3>Official product identity references used to ground this creative fallback</h3>
+              <p class="compare-note">These references confirm product identity only. They do <strong>not</strong> verify the requested perspective.</p>
+            {% else %}
+              <h3>Official manufacturer reference — role-matched references used for this generation</h3>
+              {# Backward-compatibility marker: candidate.reference_urls was superseded by trace-aware row.reference_urls_used. #}
+            {% endif %}
+
+            {% if row.reference_trace.recorded %}
+              <p class="compare-note"><strong>Trace recorded.</strong> These are the exact reference URLs frozen immediately before provider request attempt {{ row.reference_trace.attempt }} ({{ row.reference_trace.provider_key|default:"provider" }}).</p>
+            {% else %}
+              <p class="compare-note" style="color:#a15c00;"><strong>Legacy candidate:</strong> this image predates Phase 5.0.4 trace locking. The URLs below are the candidate's currently stored references, not an immutable request trace. Regenerate once before final approval if you require a locked audit trail.</p>
+            {% endif %}
+            <p class="compare-note">Reference-only evidence. These images are never attached to the Product automatically.</p>
+            {% if row.reference_urls_used %}
+              <div class="reference-grid">
+                {% for ref_url in row.reference_urls_used|slice:":3" %}
+                  <div class="reference-card">
+                    <img src="{{ ref_url }}" alt="Official reference used {{ forloop.counter }}" loading="lazy" referrerpolicy="no-referrer">
+                    <a href="{{ ref_url }}" target="_blank" rel="noopener noreferrer">Open reference used {{ forloop.counter }}</a>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p>No official reference URL is recorded for this generation. Do not approve exact identity from this candidate.</p>
+            {% endif %}
+          {% endif %}
+        </section>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endwith %}
+{% empty %}
+  <p>No generation jobs exist for this item.</p>
+{% endfor %}
+</div>
+
+<script>
+(function () {
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    document.body.classList.remove('review-modal-open');
+  }
+  document.querySelectorAll('[data-open-review-modal]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const modal = document.getElementById(button.getAttribute('data-open-review-modal'));
+      if (!modal) return;
+      modal.classList.add('is-open');
+      document.body.classList.add('review-modal-open');
+      const closeButton = modal.querySelector('[data-close-review-modal]');
+      if (closeButton) closeButton.focus();
+    });
+  });
+  document.querySelectorAll('[data-close-review-modal]').forEach(function (button) {
+    button.addEventListener('click', function () { closeModal(button.closest('.compare-modal')); });
+  });
+  document.querySelectorAll('.compare-modal').forEach(function (modal) {
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) closeModal(modal);
+    });
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeModal(document.querySelector('.compare-modal.is-open'));
+  });
+})();
+</script>
+{% endblock %}

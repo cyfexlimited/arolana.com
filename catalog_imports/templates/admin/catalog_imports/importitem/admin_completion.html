@@ -1,0 +1,124 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main" style="max-width:1100px;">
+
+  <div style="padding:18px;border-radius:8px;
+      {% if report.status == 'ready_for_approval_review' %}
+        background:#ecfff3;border:1px solid #7cc89b;
+      {% elif report.status == 'ready_for_admin_completion' %}
+        background:#fff9df;border:1px solid #e2c46d;
+      {% else %}
+        background:#fff1f0;border:1px solid #e5a6a1;
+      {% endif %}
+  ">
+    <div style="font-size:22px;font-weight:700;">{{ report.label }}</div>
+
+    {% if product %}
+      <div style="margin-top:6px;">
+        Product #{{ product.pk }}
+        {% if report.product_sku %} · {{ report.product_sku }}{% endif %}
+        · approval: {{ report.product_approval_status|default:"draft" }}
+        · active: {{ report.product_is_active|yesno:"Yes,No" }}
+      </div>
+    {% else %}
+      <div style="margin-top:6px;">
+        The importer evidence is available, but an Arolana Product draft has not been created yet.
+      </div>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 22px;">
+    {% if product_change_url %}
+      <a class="button default" href="{{ product_change_url }}" style="font-weight:700;">
+        Open Product admin / finish fields
+      </a>
+    {% endif %}
+    {% if review_media_url %}
+      <a class="button" href="{{ review_media_url }}">Review generated media</a>
+    {% endif %}
+    {% if attach_media_url %}
+      <a class="button" href="{{ attach_media_url }}">Attach approved media</a>
+    {% endif %}
+    {% if generate_media_url %}
+      <a class="button" href="{{ generate_media_url }}">Media workspace</a>
+    {% endif %}
+    {% if not product %}
+      <a class="button default" href="{{ prepare_draft_url }}">Prepare Arolana draft</a>
+    {% endif %}
+    <a class="button" href="{{ reanalyse_url }}">Re-analyse evidence</a>
+    <a class="button" href="{{ change_url }}">Back to import item</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+
+    <section style="border:1px solid #ddd;border-radius:8px;padding:16px;">
+      <h2 style="margin-top:0;">Completed automatically</h2>
+      {% if report.automatic_complete %}
+        <ul style="margin-bottom:0;">
+          {% for row in report.automatic_complete %}
+            <li style="margin:6px 0;">✓ {{ row }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No completed Product-draft checks are available yet.</p>
+      {% endif %}
+    </section>
+
+    <section style="border:1px solid #e2c46d;border-radius:8px;padding:16px;background:#fffdf5;">
+      <h2 style="margin-top:0;">Finish in Product admin</h2>
+      {% if report.manual_remaining %}
+        <p>These are normal admin-completion tasks. They do not require another importer engineering phase.</p>
+        <ul style="margin-bottom:0;">
+          {% for row in report.manual_remaining %}
+            <li style="margin:9px 0;">
+              <strong>{{ row.label }}</strong><br>
+              <span style="color:#555;">{{ row.reason }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p style="margin-bottom:0;"><strong>No recommended manual fields remain.</strong></p>
+      {% endif %}
+    </section>
+
+    <section style="border:1px solid #ddd;border-radius:8px;padding:16px;">
+      <h2 style="margin-top:0;">Optional manufacturer details</h2>
+      {% if report.optional_remaining %}
+        <p>Leave these blank when trustworthy evidence is unavailable.</p>
+        <ul style="margin-bottom:0;">
+          {% for row in report.optional_remaining %}
+            <li>{{ row }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p style="margin-bottom:0;">No optional manufacturer-detail gaps detected.</p>
+      {% endif %}
+    </section>
+
+    <section style="border:1px solid #ddd;border-radius:8px;padding:16px;">
+      <h2 style="margin-top:0;">Media</h2>
+      <p>
+        Importer usable: <strong>{{ report.media.importer_usable_count|default:0 }}</strong><br>
+        Product-admin images: <strong>{{ report.media.product_admin_image_count|default:0 }}</strong><br>
+        Recommended minimum: <strong>{{ report.media.minimum_recommended|default:8 }}</strong>
+      </p>
+      {% if report.media.sufficient %}
+        <p style="color:#0a7a31;font-weight:700;">Media sufficient.</p>
+      {% else %}
+        <p style="color:#9a6700;font-weight:700;">Add/review more images if you want to reach the recommended gallery minimum.</p>
+      {% endif %}
+      <p style="margin-bottom:0;color:#555;">{{ report.media.note }}</p>
+    </section>
+
+  </div>
+
+  <div style="margin-top:18px;padding:14px;border:1px solid #ddd;border-radius:8px;background:#fafafa;">
+    <strong>Safety:</strong>
+    this page does not approve, activate, or publish the Product.
+    Final approval remains a human admin action in the normal Product workflow.
+  </div>
+
+</div>
+{% endblock %}

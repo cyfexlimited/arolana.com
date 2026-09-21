@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+  <a href="{% url 'admin:app_list' app_label='catalog_imports' %}">Product Importer</a> &rsaquo;
+  <a href="{{ change_url }}">Import item #{{ item.pk }}</a> &rsaquo;
+  Attach approved media
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="module aligned">
+    <h2>Attach only fully approved generated media</h2>
+    <p>This action rejects reference-only images and accepts only generated candidates that are all of the following:</p>
+    <ul>
+      <li>selected for product</li>
+      <li>status = Approved for product</li>
+      <li>exact product identity visually verified</li>
+      <li>no retailer/source identity or seller overlay</li>
+      <li>watermark status = No watermark detected</li>
+      <li>usage rights confirmed</li>
+      <li>a materialized review image exists in configured storage</li>
+    </ul>
+    <p>The Product remains inactive and in draft approval status. This action does not publish the Product.</p>
+    <form method="post">{% csrf_token %}
+      <div class="submit-row">
+        <a class="button cancel-link" href="{{ change_url }}">Cancel</a>
+        <input type="submit" class="default" value="Attach approved media">
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
