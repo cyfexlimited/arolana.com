@@ -82,3 +82,9 @@ venv/
 venv311/
 .env
 .env.*
+
+# Local catalog importer installers/backups
+arolana_catalog_imports_phase*/
+arolana_catalog_imports_one_install/
+catalog_imports_backup_before_*/
+*.bak_catalog_imports_*
