@@ -153,6 +153,7 @@ SIDEBAR_CAROUSEL_STICKY_INTERVAL = 8000
 
 # ============ INSTALLED APPS ============
 INSTALLED_APPS = [
+    "catalog_imports.apps.CatalogImportsConfig",
     'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
